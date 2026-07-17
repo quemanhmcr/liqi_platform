@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -148,6 +149,15 @@ for command in (
     path = recovery_dir / command
     if not path.is_file():
         failures.append(f"provider recovery command missing: database/recovery/{command}")
+        continue
+    stage = subprocess.check_output(
+        ["git", "ls-files", "--stage", f"database/recovery/{command}"],
+        cwd=ROOT.parent,
+        text=True,
+    ).strip()
+    mode = stage.split(maxsplit=1)[0] if stage else ""
+    if mode != "100755":
+        failures.append(f"provider recovery command must be executable in Git: database/recovery/{command} mode={mode or 'missing'}")
 
 for command, required_tokens in {
     "prepare-restore-exercise.sh": ("target root already exists and is not empty", "production_traffic"),
