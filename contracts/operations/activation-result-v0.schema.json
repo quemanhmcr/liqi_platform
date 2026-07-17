@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/activation-result-v0.schema.json",
+  "title": "LIQI single-node activation result V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "release_id", "environment", "deployment_spec_sha256", "mode",
+    "started_at", "completed_at", "status", "approval_ref", "preflight", "actions",
+    "health", "rollback", "mutation", "incident_reason"
+  ],
+  "properties": {
+    "schema_version": {"const": "activation-result-v0"},
+    "release_id": {"type": "string", "pattern": "^liqi-"},
+    "environment": {"enum": ["development", "staging", "production"]},
+    "deployment_spec_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "mode": {"enum": ["dry-run", "execute"]},
+    "started_at": {"type": "string", "format": "date-time"},
+    "completed_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["planned", "active", "rolled-back", "incident", "failed"]},
+    "approval_ref": {"type": ["string", "null"], "maxLength": 512},
+    "preflight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deployment_spec", "host_readiness", "database_readiness", "artifacts", "systemd_units"],
+      "properties": {
+        "deployment_spec": {"enum": ["passed", "failed"]},
+        "host_readiness": {"enum": ["passed", "failed"]},
+        "database_readiness": {"enum": ["passed", "failed"]},
+        "artifacts": {"enum": ["passed", "failed"]},
+        "systemd_units": {"enum": ["passed", "failed", "not-checked"]}
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sequence", "action", "target", "status", "duration_ms", "error"],
+        "properties": {
+          "sequence": {"type": "integer", "minimum": 1},
+          "action": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$"},
+          "target": {"type": "string", "minLength": 1, "maxLength": 1024},
+          "status": {"enum": ["planned", "passed", "failed", "skipped"]},
+          "duration_ms": {"type": "integer", "minimum": 0},
+          "error": {"type": ["string", "null"], "maxLength": 1000}
+        }
+      }
+    },
+    "health": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "result_ref"],
+      "properties": {
+        "status": {"enum": ["not-run", "passed", "failed"]},
+        "result_ref": {"type": ["string", "null"], "maxLength": 1024}
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempted", "target_release_id", "status", "health_result_ref"],
+      "properties": {
+        "attempted": {"type": "boolean"},
+        "target_release_id": {"type": ["string", "null"], "pattern": "^liqi-"},
+        "status": {"enum": ["not-required", "not-available", "passed", "failed"]},
+        "health_result_ref": {"type": ["string", "null"], "maxLength": 1024}
+      }
+    },
+    "mutation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["performed", "release_installed", "systemd_changed", "symlink_changed"],
+      "properties": {
+        "performed": {"type": "boolean"},
+        "release_installed": {"type": "boolean"},
+        "systemd_changed": {"type": "boolean"},
+        "symlink_changed": {"type": "boolean"}
+      }
+    },
+    "incident_reason": {"type": ["string", "null"], "maxLength": 1000}
+  }
+}

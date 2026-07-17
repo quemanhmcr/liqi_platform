@@ -153,6 +153,7 @@ def main() -> int:
             "capacity_status": integration["capacity"]["status"],
             "recovery_status": integration["recovery"]["status"],
             "platform_probe_status": integration["platform_probe"]["status"],
+            "required_database_migration": manifest["database_migration"]["maximum"],
             "database_compatibility": manifest["database_migration"]["compatibility"],
             "infrastructure_cost_classification": manifest_cost,
             "approval_ref": args.approval_ref,

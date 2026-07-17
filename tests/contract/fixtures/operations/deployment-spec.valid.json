@@ -55,7 +55,8 @@
     "integration_id": "int-checkpoint1",
     "integration_status": "passed",
     "platform_probe_status": "passed",
-    "recovery_status": "passed"
+    "recovery_status": "passed",
+    "required_database_migration": "00000000000000"
   },
   "release_id": "liqi-v0.0.0-test",
   "rollback": {
