@@ -1,7 +1,7 @@
 locals {
   environment                   = "development"
-  infrastructure_output_version = "0.2.0"
-  bootstrap_version             = "0.1.0"
+  infrastructure_output_version = "0.3.0"
+  bootstrap_version             = "0.2.0"
 
   capacity_profile = {
     name                = "free-tier-a1-4x24"

@@ -19,6 +19,7 @@ ENVIRONMENT = INFRA / "opentofu/environments/development"
 COST_MANIFEST = INFRA / "opentofu/cost-classification.json"
 CONTRACT_VALIDATOR = INFRA / "validation/validate_oci_host_contract.py"
 CLOUD_INIT = INFRA / "cloud-init/host-bootstrap.yaml.tftpl"
+CAPACITY_BUDGET = ROOT / "contracts/platform/infrastructure-capacity-budget-v0.json"
 
 APPROVED_COST_CLASSES = {
     "always-free-safe",
@@ -153,6 +154,36 @@ def validate_network() -> None:
         fail("SSH variable validation must reject 0.0.0.0/0")
 
 
+def validate_provider_capacity_budget() -> None:
+    budget = json.loads(read(CAPACITY_BUDGET))
+    if budget.get("schema_version") != "capacity-budget-v0":
+        fail("infrastructure capacity budget has unexpected schema_version")
+    if budget.get("provider") != "infrastructure" or budget.get("owner") != "Senior 1":
+        fail("infrastructure capacity budget has incorrect provider ownership")
+    components = budget.get("components")
+    if not isinstance(components, list) or len(components) != 1:
+        fail("infrastructure capacity budget must contain exactly the reverse proxy")
+    component = components[0]
+    expected = {
+        "name": "reverse-proxy",
+        "class": "edge",
+        "default_enabled": True,
+        "steady_state": {"ocpu": 0.05, "memory_mib": 96, "disk_gib": 1},
+        "hard_limit": {"ocpu": 0.1, "memory_mib": 256, "disk_gib": 2},
+        "postgres_connections": 0,
+        "queue": {"bounded": True, "capacity": 1024, "overflow_behavior": "reject"},
+        "retry": {
+            "maximum_attempts": 0,
+            "maximum_elapsed_seconds": 0,
+            "backoff": "none",
+            "jitter": False,
+        },
+        "failure_behavior": "fail-closed",
+    }
+    if component != expected:
+        fail(f"infrastructure capacity budget changed: {component!r}")
+
+
 def validate_capacity_and_outputs() -> None:
     module_variables = read(MODULE / "variables.tf")
     environment_main = read(ENVIRONMENT / "main.tf")
@@ -166,6 +197,8 @@ def validate_capacity_and_outputs() -> None:
         'cost_classification = "free-trial-only"',
         "boot_volume_gb      = 50",
         "data_volume_gb      = 100",
+        'infrastructure_output_version = "0.3.0"',
+        'bootstrap_version             = "0.2.0"',
     )
     for fragment in required_fragments:
         if fragment not in combined:
@@ -208,6 +241,30 @@ def validate_cloud_init() -> None:
         "mv -f \"$tmp_file\" /run/liqi/host-ready.json",
         "refusing to treat root filesystem as LIQI data volume",
         "wipefs --no-act",
+        "/etc/systemd/system/liqi-platform.slice",
+        "CPUQuota=300%",
+        "MemoryMax=20G",
+        "MemorySwapMax=0",
+        "/etc/systemd/system/liqi-platform-runtime.slice",
+        "CPUQuota=145%",
+        "MemoryMax=7G",
+        "/etc/systemd/system/liqi-platform-database.slice",
+        "CPUQuota=120%",
+        "MemoryMax=7936M",
+        "/etc/systemd/system/liqi-platform-operations.slice",
+        "CPUQuota=25%",
+        "/etc/systemd/system/liqi-platform-edge.slice",
+        "CPUQuota=10%",
+        "/etc/systemd/system/liqi-api.service.d/10-capacity.conf",
+        "CPUQuota=45%",
+        "Environment=LIQI_CONFIG_PATH=/etc/liqi/api.json",
+        "/etc/systemd/system/liqi-realtime.service.d/10-capacity.conf",
+        "CPUQuota=65%",
+        "Environment=LIQI_CONFIG_PATH=/etc/liqi/realtime.json",
+        "/etc/systemd/system/liqi-worker.service.d/10-capacity.conf",
+        "CPUQuota=35%",
+        "Environment=LIQI_CONFIG_PATH=/etc/liqi/worker.json",
+        '"capacity_controls": "pass"',
     )
     joined = text + "\n" + read(MODULE / "compute.tf")
     for fragment in required:
@@ -258,6 +315,7 @@ def main() -> int:
 
     run([sys.executable, str(CONTRACT_VALIDATOR)])
     validate_cost_manifest()
+    validate_provider_capacity_budget()
     validate_network()
     validate_capacity_and_outputs()
     validate_cloud_init()

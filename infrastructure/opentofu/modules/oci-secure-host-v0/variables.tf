@@ -173,13 +173,13 @@ variable "cloud_init_user_data" {
 variable "bootstrap_version" {
   description = "Version included in readiness and used to force host replacement when bootstrap semantics change."
   type        = string
-  default     = "0.1.0"
+  default     = "0.2.0"
 }
 
 variable "infrastructure_output_version" {
   description = "Additive consumer output version under the oci-host-v0 schema."
   type        = string
-  default     = "0.1.0"
+  default     = "0.3.0"
 
   validation {
     condition     = can(regex("^0\\.[0-9]+\\.[0-9]+$", var.infrastructure_output_version))

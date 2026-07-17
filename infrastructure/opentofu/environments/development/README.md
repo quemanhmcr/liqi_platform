@@ -2,7 +2,7 @@
 
 This root module plans one LIQI V0 node in `ap-singapore-2`. It creates no resource until an owner explicitly runs `tofu apply`; apply is outside the default workflow and is forbidden without project-owner approval.
 
-The mandated `free-tier-a1-4x24` profile is classified `free-trial-only` because current Oracle Always Free documentation does not verify 4 OCPUs and 24 GB RAM as continuously free. Plan requires explicit acknowledgement and does not imply apply approval.
+The project owner fixed V0 at `free-tier-a1-4x24` (`VM.Standard.A1.Flex`, 4 OCPUs, 24 GB RAM). The capacity is mandatory, while its independent cost classification remains `free-trial-only` because current Oracle Always Free documentation does not verify 4 OCPUs and 24 GB RAM as continuously free. Plan requires explicit acknowledgement and does not imply apply approval.
 
 ## Inputs
 

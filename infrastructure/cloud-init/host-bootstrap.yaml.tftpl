@@ -221,6 +221,12 @@ write_files:
       set -euo pipefail
       umask 027
 
+      check_control_line() {
+        local path="$1"
+        local expected="$2"
+        [[ -f "$path" ]] && grep -Fqx "$expected" "$path"
+      }
+
       check_identity() {
         local name="$1"
         local uid="$2"
@@ -252,6 +258,33 @@ write_files:
       check_directory /var/lib/liqi/postgresql/backup-staging postgres postgres 700
       check_directory /var/log/liqi root liqi 750
       check_directory /var/tmp/liqi root liqi 750
+
+      check_control_line /etc/systemd/system/liqi-platform.slice 'CPUQuota=300%'
+      check_control_line /etc/systemd/system/liqi-platform.slice 'MemoryMax=20G'
+      check_control_line /etc/systemd/system/liqi-platform.slice 'MemorySwapMax=0'
+      check_control_line /etc/systemd/system/liqi-platform-runtime.slice 'CPUQuota=145%'
+      check_control_line /etc/systemd/system/liqi-platform-runtime.slice 'MemoryMax=7G'
+      check_control_line /etc/systemd/system/liqi-platform-database.slice 'CPUQuota=120%'
+      check_control_line /etc/systemd/system/liqi-platform-database.slice 'MemoryMax=7936M'
+      check_control_line /etc/systemd/system/liqi-platform-operations.slice 'CPUQuota=25%'
+      check_control_line /etc/systemd/system/liqi-platform-operations.slice 'MemoryMax=1G'
+      check_control_line /etc/systemd/system/liqi-platform-edge.slice 'CPUQuota=10%'
+      check_control_line /etc/systemd/system/liqi-platform-edge.slice 'MemoryMax=256M'
+      check_control_line /etc/systemd/system/liqi-api.service.d/10-capacity.conf 'CPUQuota=45%'
+      check_control_line /etc/systemd/system/liqi-api.service.d/10-capacity.conf 'MemoryMax=2G'
+      check_control_line /etc/systemd/system/liqi-api.service.d/10-capacity.conf 'Environment=LIQI_CONFIG_PATH=/etc/liqi/api.json'
+      check_control_line /etc/systemd/system/liqi-realtime.service.d/10-capacity.conf 'CPUQuota=65%'
+      check_control_line /etc/systemd/system/liqi-realtime.service.d/10-capacity.conf 'MemoryMax=3G'
+      check_control_line /etc/systemd/system/liqi-realtime.service.d/10-capacity.conf 'Environment=LIQI_CONFIG_PATH=/etc/liqi/realtime.json'
+      check_control_line /etc/systemd/system/liqi-worker.service.d/10-capacity.conf 'CPUQuota=35%'
+      check_control_line /etc/systemd/system/liqi-worker.service.d/10-capacity.conf 'MemoryMax=2G'
+      check_control_line /etc/systemd/system/liqi-worker.service.d/10-capacity.conf 'Environment=LIQI_CONFIG_PATH=/etc/liqi/worker.json'
+
+      systemctl is-active --quiet liqi-platform.slice
+      systemctl is-active --quiet liqi-platform-runtime.slice
+      systemctl is-active --quiet liqi-platform-database.slice
+      systemctl is-active --quiet liqi-platform-operations.slice
+      systemctl is-active --quiet liqi-platform-edge.slice
       mountpoint -q /var/lib/liqi
       [[ -z "$(swapon --show --noheadings)" ]]
       [[ "$(getenforce)" == "Enforcing" ]]
@@ -307,13 +340,133 @@ write_files:
           "firewall_policy": "pass",
           "ssh_root_disabled": "pass",
           "ssh_password_auth_disabled": "pass",
-          "legacy_imds_disabled": "pass"
+          "legacy_imds_disabled": "pass",
+          "capacity_controls": "pass"
         }
       }
       JSON
       chown root:liqi "$tmp_file"
       chmod 0644 "$tmp_file"
       mv -f "$tmp_file" /run/liqi/host-ready.json
+
+  - path: /etc/systemd/system/liqi-platform.slice
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=LIQI V0 provider capacity envelope
+
+      [Slice]
+      CPUAccounting=yes
+      CPUQuota=300%
+      MemoryAccounting=yes
+      MemoryMax=20G
+      MemorySwapMax=0
+      TasksAccounting=yes
+      TasksMax=4096
+
+  - path: /etc/systemd/system/liqi-platform-runtime.slice
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=LIQI Rust runtime capacity envelope
+
+      [Slice]
+      CPUAccounting=yes
+      CPUQuota=145%
+      MemoryAccounting=yes
+      MemoryMax=7G
+      MemorySwapMax=0
+      TasksAccounting=yes
+      TasksMax=2048
+
+  - path: /etc/systemd/system/liqi-platform-database.slice
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=LIQI database provider capacity envelope
+
+      [Slice]
+      CPUAccounting=yes
+      CPUQuota=120%
+      MemoryAccounting=yes
+      MemoryMax=7936M
+      MemorySwapMax=0
+      TasksAccounting=yes
+      TasksMax=1024
+
+  - path: /etc/systemd/system/liqi-platform-operations.slice
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=LIQI operations provider capacity envelope
+
+      [Slice]
+      CPUAccounting=yes
+      CPUQuota=25%
+      MemoryAccounting=yes
+      MemoryMax=1G
+      MemorySwapMax=0
+      TasksAccounting=yes
+      TasksMax=512
+
+  - path: /etc/systemd/system/liqi-platform-edge.slice
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=LIQI edge provider capacity envelope
+
+      [Slice]
+      CPUAccounting=yes
+      CPUQuota=10%
+      MemoryAccounting=yes
+      MemoryMax=256M
+      MemorySwapMax=0
+      TasksAccounting=yes
+      TasksMax=512
+
+  - path: /etc/systemd/system/liqi-api.service.d/10-capacity.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Service]
+      Slice=liqi-platform-runtime.slice
+      CPUAccounting=yes
+      CPUQuota=45%
+      MemoryAccounting=yes
+      MemoryMax=2G
+      MemorySwapMax=0
+      Environment=LIQI_CONFIG_PATH=/etc/liqi/api.json
+
+  - path: /etc/systemd/system/liqi-realtime.service.d/10-capacity.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Service]
+      Slice=liqi-platform-runtime.slice
+      CPUAccounting=yes
+      CPUQuota=65%
+      MemoryAccounting=yes
+      MemoryMax=3G
+      MemorySwapMax=0
+      Environment=LIQI_CONFIG_PATH=/etc/liqi/realtime.json
+
+  - path: /etc/systemd/system/liqi-worker.service.d/10-capacity.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Service]
+      Slice=liqi-platform-runtime.slice
+      CPUAccounting=yes
+      CPUQuota=35%
+      MemoryAccounting=yes
+      MemoryMax=2G
+      MemorySwapMax=0
+      Environment=LIQI_CONFIG_PATH=/etc/liqi/worker.json
 
   - path: /etc/systemd/system/liqi-disable-swap.service
     owner: root:root
@@ -391,6 +544,7 @@ runcmd:
   - [bash, -lc, "firewall-cmd --reload"]
   - [bash, -lc, "sshd -t && systemctl restart sshd"]
   - [bash, -lc, "systemctl daemon-reload"]
+  - [bash, -lc, "systemctl start liqi-platform-runtime.slice liqi-platform-database.slice liqi-platform-operations.slice liqi-platform-edge.slice"]
   - [bash, -lc, "systemctl restart systemd-journald"]
   - [bash, -lc, "systemctl enable --now liqi-disable-swap.service"]
   - [bash, -lc, "systemctl enable --now liqi-data-volume.service"]

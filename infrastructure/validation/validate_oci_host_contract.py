@@ -57,6 +57,95 @@ def main() -> int:
                 f"capacity_profile.{key} must be {expected!r}, got {capacity.get(key)!r}"
             )
 
+    if example.get("infrastructure_output_version") != "0.3.0":
+        semantic_errors.append("infrastructure_output_version must be 0.3.0")
+
+    expected_runtime_files = {
+        "liqi-api": "/etc/liqi/api.json",
+        "liqi-realtime": "/etc/liqi/realtime.json",
+        "liqi-worker": "/etc/liqi/worker.json",
+    }
+    runtime_configuration = example.get("runtime_configuration", {})
+    if runtime_configuration.get("environment_variable") != "LIQI_CONFIG_PATH":
+        semantic_errors.append("runtime configuration must publish LIQI_CONFIG_PATH")
+    if runtime_configuration.get("cli_argument") != "--config":
+        semantic_errors.append("runtime configuration must publish --config")
+    if runtime_configuration.get("maximum_file_bytes") != 1048576:
+        semantic_errors.append("runtime configuration must preserve the 1 MiB bound")
+    actual_runtime_files = {
+        item.get("service"): item.get("path")
+        for item in runtime_configuration.get("files", [])
+    }
+    if actual_runtime_files != expected_runtime_files:
+        semantic_errors.append(
+            f"runtime configuration files must be {expected_runtime_files!r}, got {actual_runtime_files!r}"
+        )
+
+    execution = example.get("execution_control", {})
+    expected_slices = {
+        "parent": ("liqi-platform.slice", None, 300, 20480),
+        "runtime": ("liqi-platform-runtime.slice", "liqi-platform.slice", 145, 7168),
+        "database": ("liqi-platform-database.slice", "liqi-platform.slice", 120, 7936),
+        "operations": ("liqi-platform-operations.slice", "liqi-platform.slice", 25, 1024),
+        "edge": ("liqi-platform-edge.slice", "liqi-platform.slice", 10, 256),
+    }
+    for key, expected in expected_slices.items():
+        record = execution.get(key, {})
+        actual = (
+            record.get("slice"), record.get("parent"), record.get("cpu_quota_percent"),
+            record.get("memory_max_mib")
+        )
+        if actual != expected or record.get("memory_swap_max_mib") != 0:
+            semantic_errors.append(f"execution_control.{key} mismatch: {actual!r}")
+
+    expected_service_controls = {
+        "liqi-api": ("liqi-api.service", 45, 2048, "/etc/liqi/api.json"),
+        "liqi-realtime": ("liqi-realtime.service", 65, 3072, "/etc/liqi/realtime.json"),
+        "liqi-worker": ("liqi-worker.service", 35, 2048, "/etc/liqi/worker.json"),
+    }
+    service_controls = {item.get("service"): item for item in execution.get("services", [])}
+    if set(service_controls) != set(expected_service_controls):
+        semantic_errors.append("execution_control.services must contain exactly the three Rust services")
+    else:
+        for service, expected in expected_service_controls.items():
+            record = service_controls[service]
+            actual = (
+                record.get("unit"), record.get("cpu_quota_percent"),
+                record.get("memory_max_mib"), record.get("config_path")
+            )
+            if actual != expected or record.get("memory_swap_max_mib") != 0:
+                semantic_errors.append(f"execution control mismatch for {service}: {actual!r}")
+
+    cpu_policy = execution.get("cpu_aggregation", {})
+    if cpu_policy != {
+        "hard_ceiling_semantics": "additive-admission-with-parent-enforcement",
+        "hard_ceiling_limit_ocpu": 3,
+        "steady_state_limit_ocpu": 3,
+        "host_scheduling_reserve_ocpu": 1,
+        "parent_enforcement": "liqi-platform.slice",
+    }:
+        semantic_errors.append("CPU aggregation policy does not preserve the 1 OCPU reserve")
+    memory_policy = execution.get("memory_aggregation", {})
+    if memory_policy != {
+        "hard_limits_additive": True,
+        "hard_limit_mib": 20480,
+        "host_reserve_mib": 4096,
+        "swap_is_capacity": False,
+    }:
+        semantic_errors.append("memory aggregation policy does not preserve the 4 GiB reserve")
+
+    child_slices = [execution.get(name, {}) for name in ("runtime", "database", "operations", "edge")]
+    if sum(int(item.get("cpu_quota_percent", 0)) for item in child_slices) != 300:
+        semantic_errors.append("enabled provider slice hard CPU ceilings must total 300%")
+    child_memory = sum(int(item.get("memory_max_mib", 0)) for item in child_slices)
+    if child_memory != 16384 or child_memory > 20480:
+        semantic_errors.append(
+            f"enabled provider slice hard memory must total 16384 MiB within 20480 MiB, got {child_memory}"
+        )
+    readiness_checks = set(example.get("readiness", {}).get("required_checks", []))
+    if "capacity-controls" not in readiness_checks:
+        semantic_errors.append("host readiness must require capacity-controls")
+
     services = {item["service"]: item for item in example["identities"]["services"]}
     expected_services = {
         "liqi-api": ("liqi-api", 2210),
@@ -95,6 +184,9 @@ def main() -> int:
     for path_value, directory in directories.items():
         if int(directory["mode"], 8) & 0o002:
             semantic_errors.append(f"directory {path_value} is world-writable")
+
+    if directories.get("/run/liqi/secrets", {}).get("mode") != "0710":
+        semantic_errors.append("/run/liqi/secrets must use mode 0710")
 
     expected_ports = {
         "edge-http": (80, "public-redirect-only", True),
