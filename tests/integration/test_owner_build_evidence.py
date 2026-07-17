@@ -8,11 +8,33 @@ import unittest
 from pathlib import Path
 
 from scripts.operations.owner_build_evidence import ROOT, repository_ref, sha256, validate_owner_evidence
+from scripts.operations.run_owner_build_gate import windows_msvc_linker_error
 
 RUNNER = ROOT / "scripts/operations/run_provider_gates.py"
 
 
 class OwnerBuildEvidenceTests(unittest.TestCase):
+    def test_git_unix_linker_is_rejected_for_msvc_host(self) -> None:
+        error = windows_msvc_linker_error(
+            "win32",
+            "x86_64-pc-windows-msvc",
+            r"C:\Program Files\Git\usr\bin\link.exe",
+        )
+        self.assertIsNotNone(error)
+        self.assertIn("Git Unix linker", error or "")
+
+    def test_gnu_host_does_not_require_msvc_linker(self) -> None:
+        self.assertIsNone(windows_msvc_linker_error("win32", "x86_64-pc-windows-gnu", None))
+
+    def test_non_git_msvc_linker_is_accepted(self) -> None:
+        self.assertIsNone(
+            windows_msvc_linker_error(
+                "win32",
+                "x86_64-pc-windows-msvc",
+                r"C:\BuildTools\VC\Tools\MSVC\bin\Hostx64\x64\link.exe",
+            )
+        )
+
     def gate(self, gate_id: str = "runtime-owner-evidence-test") -> dict[str, object]:
         return {
             "id": gate_id,

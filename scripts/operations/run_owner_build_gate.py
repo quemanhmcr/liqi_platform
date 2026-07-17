@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -30,6 +31,38 @@ def load(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def windows_msvc_linker_error(platform: str, rust_host: str, linker: str | None) -> str | None:
+    if platform != "win32" or not rust_host.endswith("-windows-msvc"):
+        return None
+    if linker is None:
+        return "MSVC Rust host requires a discoverable Microsoft link.exe"
+    normalized = linker.replace("\\", "/").lower()
+    if normalized.endswith("/git/usr/bin/link.exe"):
+        return (
+            "MSVC Rust host resolved link.exe to the Git Unix linker; activate MSVC Build Tools "
+            "or use the exact Rust GNU host toolchain before generating owner evidence"
+        )
+    return None
+
+
+def validate_build_environment(argv: list[str]) -> bool:
+    toolchain = argv[1] if len(argv) > 1 and argv[1].startswith("+") else None
+    command = ["rustc", *([toolchain] if toolchain else []), "-vV"]
+    completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
+    if completed.returncode != 0:
+        print("ERROR owner-build: unable to inspect the registered Rust toolchain", file=sys.stderr)
+        return False
+    host = next(
+        (line.partition(":")[2].strip() for line in completed.stdout.splitlines() if line.startswith("host:")),
+        "",
+    )
+    error = windows_msvc_linker_error(sys.platform, host, shutil.which("link.exe"))
+    if error:
+        print(f"ERROR owner-build environment: {error}", file=sys.stderr)
+        return False
+    return True
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gate-id", required=True)
@@ -51,6 +84,8 @@ def main() -> int:
         return 64
     if gate.get("mutation_class") != "read-only" or gate.get("argv", [None])[0] != "cargo":
         print("ERROR owner-build: only exact read-only Cargo owner gates are supported", file=sys.stderr)
+        return 64
+    if not validate_build_environment(gate["argv"]):
         return 64
 
     output_dir = args.output_dir.resolve()

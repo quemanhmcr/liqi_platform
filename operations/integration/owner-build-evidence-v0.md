@@ -9,7 +9,7 @@ git status --short --untracked-files=no
 git rev-parse HEAD
 ```
 
-Expected: no tracked changes and the SHA intended for V0 readiness. Set:
+Expected: no tracked changes and the SHA intended for V0 readiness. On Windows, the wrapper also validates the registered Rust host before writing evidence. An MSVC host must resolve Microsoft's `link.exe`, never Git for Windows' Unix `usr/bin/link.exe`; an exact-version GNU host is supported when its matching MinGW toolchain is installed. Set:
 
 ```bash
 sha=$(git rev-parse HEAD)
