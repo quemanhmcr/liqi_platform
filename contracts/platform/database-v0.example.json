@@ -1,0 +1,485 @@
+{
+  "$schema": "./database-v0.schema.json",
+  "contractVersion": "database-v0",
+  "status": "accepted",
+  "compatibility": {
+    "postgresql": {
+      "major": 17,
+      "minimumMinor": "17.10",
+      "minorUpdatePolicy": "track-current-security-minor",
+      "majorUpgradePolicy": "explicit-adaptive-migration-with-restore-drill"
+    },
+    "pgbouncer": {
+      "minimumVersion": "1.24",
+      "compatibilityPolicy": "transaction-pooling-contract-must-pass"
+    },
+    "pgbackrest": {
+      "minimumVersion": "2.58.0",
+      "repositoryFormatPolicy": "retain-reader-for-entire-backup-retention-window"
+    },
+    "packaging": {
+      "strategy": "system-packages-managed-by-systemd",
+      "source": "pgdg-and-reviewed-os-repositories",
+      "sourceBuildAllowed": false
+    }
+  },
+  "databases": {
+    "application": "liqi",
+    "maintenance": "postgres",
+    "restoreTargetPrefix": "liqi_restore_"
+  },
+  "endpoints": {
+    "runtimePool": {
+      "kind": "pgbouncer",
+      "hostRef": "oci-host-v0://network/database-pool",
+      "port": 6432,
+      "networkExposure": "unix-socket-or-loopback",
+      "transportSecurity": "local-peer-or-scram",
+      "allowedConsumers": [
+        "liqi_api",
+        "liqi_realtime",
+        "liqi_worker",
+        "liqi_readonly"
+      ]
+    },
+    "directAdministrative": {
+      "kind": "postgresql",
+      "hostRef": "oci-host-v0://network/database-direct",
+      "port": 5432,
+      "networkExposure": "unix-socket-or-loopback",
+      "transportSecurity": "local-peer-or-scram",
+      "allowedConsumers": [
+        "liqi_migrator",
+        "liqi_monitor",
+        "liqi_backup"
+      ]
+    },
+    "runtimeRestrictions": [
+      "no-session-state",
+      "no-temp-tables",
+      "no-listen-notify-through-pool",
+      "no-session-advisory-locks",
+      "no-named-prepared-statements-unless-driver-proves-compatibility",
+      "transactions-must-be-explicit-for-multi-statement-work"
+    ]
+  },
+  "secretReferences": {
+    "apiPassword": {
+      "provider": "oci-vault",
+      "reference": "oci-host-v0://secrets/database-api-password",
+      "materialization": "systemd-credential",
+      "targetPath": "/run/liqi/secrets/database/api-password",
+      "encoding": "utf-8-single-line"
+    },
+    "realtimePassword": {
+      "provider": "oci-vault",
+      "reference": "oci-host-v0://secrets/database-realtime-password",
+      "materialization": "systemd-credential",
+      "targetPath": "/run/liqi/secrets/database/realtime-password",
+      "encoding": "utf-8-single-line"
+    },
+    "workerPassword": {
+      "provider": "oci-vault",
+      "reference": "oci-host-v0://secrets/database-worker-password",
+      "materialization": "systemd-credential",
+      "targetPath": "/run/liqi/secrets/database/worker-password",
+      "encoding": "utf-8-single-line"
+    },
+    "migratorPassword": {
+      "provider": "oci-vault",
+      "reference": "oci-host-v0://secrets/database-migrator-password",
+      "materialization": "systemd-credential",
+      "targetPath": "/run/liqi/secrets/database/migrator-password",
+      "encoding": "utf-8-single-line"
+    },
+    "pgbouncerUserlist": {
+      "provider": "oci-vault",
+      "reference": "oci-host-v0://secrets/database-pgbouncer-userlist",
+      "materialization": "tmpfs-file",
+      "targetPath": "/run/liqi/secrets/database/pgbouncer-userlist.txt",
+      "encoding": "pgbouncer-userlist"
+    },
+    "backupRepositoryKey": {
+      "provider": "oci-vault",
+      "reference": "oci-host-v0://secrets/database-backup-s3-key",
+      "materialization": "systemd-credential",
+      "targetPath": "/run/liqi/secrets/database/backup-s3-key",
+      "encoding": "utf-8-single-line"
+    },
+    "backupRepositorySecret": {
+      "provider": "oci-vault",
+      "reference": "oci-host-v0://secrets/database-backup-s3-secret",
+      "materialization": "systemd-credential",
+      "targetPath": "/run/liqi/secrets/database/backup-s3-secret",
+      "encoding": "utf-8-single-line"
+    },
+    "backupCipherPassphrase": {
+      "provider": "oci-vault",
+      "reference": "oci-host-v0://secrets/database-backup-cipher-passphrase",
+      "materialization": "systemd-credential",
+      "targetPath": "/run/liqi/secrets/database/backup-cipher-passphrase",
+      "encoding": "utf-8-single-line"
+    }
+  },
+  "roles": [
+    {
+      "name": "liqi_owner",
+      "login": false,
+      "purpose": "Own platform schemas and objects.",
+      "privileges": [
+        "OWN platform schemas and objects"
+      ],
+      "prohibited": [
+        "LOGIN",
+        "SUPERUSER",
+        "CREATEDB",
+        "CREATEROLE"
+      ]
+    },
+    {
+      "name": "liqi_migrator",
+      "login": true,
+      "purpose": "Apply immutable forward-only migrations over the direct endpoint.",
+      "privileges": [
+        "MEMBER OF liqi_owner",
+        "CONNECT liqi"
+      ],
+      "prohibited": [
+        "SUPERUSER",
+        "CREATEDB",
+        "CREATEROLE",
+        "runtime traffic"
+      ]
+    },
+    {
+      "name": "liqi_api",
+      "login": true,
+      "purpose": "Execute API persistence commands through PgBouncer.",
+      "privileges": [
+        "CONNECT liqi",
+        "EXECUTE approved platform functions"
+      ],
+      "prohibited": [
+        "DDL",
+        "role administration",
+        "direct table grants by default"
+      ]
+    },
+    {
+      "name": "liqi_realtime",
+      "login": true,
+      "purpose": "Read committed realtime handoff data through approved functions.",
+      "privileges": [
+        "CONNECT liqi",
+        "EXECUTE approved realtime functions"
+      ],
+      "prohibited": [
+        "DDL",
+        "outbox claim",
+        "LISTEN through transaction pool"
+      ]
+    },
+    {
+      "name": "liqi_worker",
+      "login": true,
+      "purpose": "Claim, acknowledge and retry durable outbox events.",
+      "privileges": [
+        "CONNECT liqi",
+        "EXECUTE outbox claim/ack/fail functions"
+      ],
+      "prohibited": [
+        "DDL",
+        "role administration",
+        "unbounded claims"
+      ]
+    },
+    {
+      "name": "liqi_readonly",
+      "login": true,
+      "purpose": "Run explicitly granted operational reads.",
+      "privileges": [
+        "CONNECT liqi",
+        "SELECT approved views"
+      ],
+      "prohibited": [
+        "WRITE",
+        "DDL",
+        "implicit read of future schemas"
+      ]
+    },
+    {
+      "name": "liqi_monitor",
+      "login": true,
+      "purpose": "Collect PostgreSQL and platform health metrics.",
+      "privileges": [
+        "pg_monitor",
+        "SELECT approved health views"
+      ],
+      "prohibited": [
+        "application writes",
+        "DDL",
+        "role administration"
+      ]
+    },
+    {
+      "name": "liqi_backup",
+      "login": true,
+      "purpose": "Inspect backup prerequisites and status; filesystem backup runs under the postgres OS identity.",
+      "privileges": [
+        "pg_monitor",
+        "SELECT approved backup status views"
+      ],
+      "prohibited": [
+        "application table access",
+        "DDL",
+        "role administration"
+      ]
+    }
+  ],
+  "connectionBudget": {
+    "postgresMaxConnections": 80,
+    "runtimeServerConnections": 40,
+    "directAdministrativeConnections": 10,
+    "reservedHeadroom": 30,
+    "pgbouncerMaxClientConnections": 300,
+    "saturationThresholdPercent": 80
+  },
+  "migration": {
+    "policy": "forward-only-expand-migrate-contract",
+    "filePattern": "^[0-9]{12}_[a-z0-9_]+\\.sql$",
+    "checksum": "sha256-immutable-after-main",
+    "lock": "postgres-session-advisory-lock",
+    "command": "database/bin/migrate.sh",
+    "statusCommand": "database/bin/migration-status.sh",
+    "pendingMigrationReadiness": "not-ready"
+  },
+  "health": {
+    "liveness": "direct-select-1-only",
+    "readiness": "pool-connectivity-and-required-migration-version",
+    "recoveryReadiness": "separate-backup-archive-and-restore-verification-signal"
+  },
+  "transactionPolicy": {
+    "defaultIsolation": "read-committed",
+    "strongerIsolation": "explicit-repeatable-read-or-serializable-per-command",
+    "exactlyOnceClaim": "not-supported-end-to-end"
+  },
+  "timeoutPolicy": {
+    "api": {
+      "statement": "5s",
+      "lock": "2s",
+      "idleInTransaction": "15s"
+    },
+    "realtime": {
+      "statement": "3s",
+      "lock": "2s",
+      "idleInTransaction": "15s"
+    },
+    "worker": {
+      "statement": "30s",
+      "lock": "5s",
+      "idleInTransaction": "30s"
+    },
+    "readonly": {
+      "statement": "10s",
+      "lock": "2s",
+      "idleInTransaction": "15s"
+    },
+    "migrator": {
+      "statement": "15m",
+      "lock": "30s",
+      "idleInTransaction": "60s"
+    }
+  },
+  "outbox": {
+    "schemaVersion": 0,
+    "table": "platform.outbox_events",
+    "delivery": "at-least-once",
+    "visibility": "after-producer-transaction-commit",
+    "eventId": "producer-supplied-uuid-globally-unique",
+    "orderingScope": "per-ordering-key-no-global-order",
+    "claim": {
+      "strategy": "for-update-skip-locked",
+      "lease": "30s",
+      "token": "unique-per-claim-uuid",
+      "batchBounded": 50
+    },
+    "acknowledgement": "idempotent-by-event-id-and-claim-token",
+    "retry": {
+      "maxAttempts": 8,
+      "backoff": "bounded-exponential-with-jitter-computed-by-worker",
+      "staleLeaseReclaim": true
+    },
+    "deadLetter": "terminal-state-retained-for-operator-action",
+    "wireMappingRequiredFields": [
+      "eventId",
+      "eventType",
+      "eventVersion",
+      "occurredAt",
+      "aggregateKey",
+      "orderingKey",
+      "payload"
+    ]
+  },
+  "backup": {
+    "tool": "pgbackrest",
+    "repository": "oci-object-storage-s3-compatible",
+    "clientSideEncryption": "aes-256-cbc-secret-ref",
+    "walArchive": {
+      "mode": "continuous-async",
+      "archiveTimeout": "5m",
+      "maximumWorkingRpo": "5m"
+    },
+    "schedule": {
+      "full": "Sunday 02:00 UTC",
+      "differential": "Monday-Saturday 02:00 UTC",
+      "verification": "daily after differential/full plus monthly isolated restore"
+    },
+    "retention": {
+      "full": 2,
+      "differential": 7
+    },
+    "metadataSchema": "contracts/platform/database-backup-metadata-v0.schema.json",
+    "costClass": "always-free-safe-with-v0-cap",
+    "alwaysFreeObjectBudgetGiB": 18
+  },
+  "restore": {
+    "command": "operations/disaster-recovery/database/restore.sh",
+    "verificationCommand": "operations/disaster-recovery/database/verify-restore.sh",
+    "resultSchema": "contracts/platform/database-restore-result-v0.schema.json",
+    "target": "new-isolated-data-directory-and-database-name",
+    "workingRto": "60m",
+    "verificationInvariants": [
+      "backup-metadata-checksum",
+      "postgres-major",
+      "migration-version",
+      "migration-checksums",
+      "probe-state",
+      "probe-terminal-effect",
+      "outbox-terminal-state"
+    ]
+  },
+  "metrics": [
+    {
+      "name": "liqi_database_up",
+      "type": "gauge",
+      "source": "postgresql",
+      "unit": "1"
+    },
+    {
+      "name": "liqi_database_ready",
+      "type": "gauge",
+      "source": "postgresql",
+      "unit": "1"
+    },
+    {
+      "name": "liqi_database_connections",
+      "type": "gauge",
+      "source": "postgresql",
+      "unit": "connections"
+    },
+    {
+      "name": "liqi_database_connection_saturation_ratio",
+      "type": "gauge",
+      "source": "postgresql",
+      "unit": "ratio"
+    },
+    {
+      "name": "liqi_database_outbox_pending",
+      "type": "gauge",
+      "source": "postgresql",
+      "unit": "events"
+    },
+    {
+      "name": "liqi_database_outbox_oldest_pending_seconds",
+      "type": "gauge",
+      "source": "postgresql",
+      "unit": "seconds"
+    },
+    {
+      "name": "liqi_database_outbox_dead_letter",
+      "type": "gauge",
+      "source": "postgresql",
+      "unit": "events"
+    },
+    {
+      "name": "liqi_database_migration_version",
+      "type": "gauge",
+      "source": "postgresql",
+      "unit": "version"
+    },
+    {
+      "name": "liqi_database_wal_archive_age_seconds",
+      "type": "gauge",
+      "source": "postgresql",
+      "unit": "seconds"
+    },
+    {
+      "name": "liqi_database_wal_archive_failures_total",
+      "type": "counter",
+      "source": "postgresql",
+      "unit": "failures"
+    },
+    {
+      "name": "liqi_database_pgbouncer_server_connections",
+      "type": "gauge",
+      "source": "pgbouncer",
+      "unit": "connections"
+    },
+    {
+      "name": "liqi_database_pgbouncer_waiting_clients",
+      "type": "gauge",
+      "source": "pgbouncer",
+      "unit": "connections"
+    },
+    {
+      "name": "liqi_database_backup_age_seconds",
+      "type": "gauge",
+      "source": "pgbackrest",
+      "unit": "seconds"
+    },
+    {
+      "name": "liqi_database_restore_verification_success",
+      "type": "gauge",
+      "source": "restore-verifier",
+      "unit": "1"
+    },
+    {
+      "name": "liqi_database_restore_duration_seconds",
+      "type": "histogram",
+      "source": "restore-verifier",
+      "unit": "seconds"
+    }
+  ],
+  "capacity": {
+    "steadyStateCpu": 1.5,
+    "steadyStateMemoryMiB": 6656,
+    "hardMemoryMiB": 10240,
+    "diskBudgetGiB": 130,
+    "v0DatabaseDataCapGiB": 8,
+    "failureBehavior": "reject-or-degrade-with-alert-never-unbounded-growth"
+  },
+  "consumerInterfaces": {
+    "senior1": [
+      "host directory outputs for PGDATA, pgBackRest spool, logs and runtime secrets",
+      "postgres, pgbouncer and backup runtime identities",
+      "private or loopback endpoint outputs",
+      "OCI Object Storage bucket, namespace, endpoint and Vault secret references"
+    ],
+    "senior3": [
+      "runtime connections use PgBouncer transaction mode",
+      "migration runner uses direct PostgreSQL endpoint",
+      "outbox producer and worker stored function semantics",
+      "required migration version is supplied to readiness",
+      "test bootstrap command creates an isolated database",
+      "wire mapping preserves event ID, version, occurred-at, aggregate key, ordering key and payload"
+    ],
+    "senior4": [
+      "machine-readable migration status",
+      "machine-readable backup status and metadata",
+      "machine-readable restore verification result",
+      "PgBouncer health and saturation metrics",
+      "WAL archive age and failure metrics",
+      "database runbooks and recovery commands"
+    ]
+  }
+}
