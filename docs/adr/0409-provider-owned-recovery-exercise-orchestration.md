@@ -22,3 +22,6 @@ The current Senior 2 draft names restore commands under `operations/disaster-rec
 - Cleanup failure is an incident because isolated state may consume capacity or be unsafe to reuse.
 - Exercise evidence is machine-readable and can feed promotion freshness gates.
 - No live recovery exercise has been run by this task.
+## V0 closeout resolution
+
+Senior 2 now publishes the complete `prepare → restore → verify → cleanup` lifecycle under `database/recovery/**`. Provider-mode dry-run resolves every command directly; no compatibility wrapper exists under `operations/**`.

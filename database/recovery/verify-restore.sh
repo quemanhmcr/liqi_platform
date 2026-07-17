@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 077
-ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
+ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 : "${LIQI_RESTORE_METADATA_FILE:?LIQI_RESTORE_METADATA_FILE is required}"
 : "${LIQI_RESTORE_METADATA_CHECKSUM_FILE:?LIQI_RESTORE_METADATA_CHECKSUM_FILE is required}"
 : "${LIQI_RESTORE_RESULT_FILE:?LIQI_RESTORE_RESULT_FILE is required}"

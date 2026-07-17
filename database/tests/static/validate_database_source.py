@@ -124,7 +124,7 @@ for required_metric_guard in (
     if required_metric_guard not in restore_metrics:
         failures.append(f"restore-result metrics missing integrity/metric seam: {required_metric_guard}")
 
-restore_script = (ROOT.parent / "operations/disaster-recovery/database/restore.sh").read_text(encoding="utf-8")
+restore_script = (ROOT / "recovery/restore.sh").read_text(encoding="utf-8")
 for required_restore_guard in (
     "in-place restore is forbidden",
     "restore target must be below LIQI_RESTORE_ROOT",
@@ -134,6 +134,31 @@ for required_restore_guard in (
 ):
     if required_restore_guard not in restore_script:
         failures.append(f"missing restore safety guard: {required_restore_guard}")
+
+recovery_dir = ROOT / "recovery"
+for command in (
+    "fetch-backup-metadata.sh",
+    "prepare-restore-exercise.sh",
+    "restore-exercise.sh",
+    "restore.sh",
+    "verify-restore-exercise.sh",
+    "verify-restore.sh",
+    "cleanup-restore-exercise.sh",
+):
+    path = recovery_dir / command
+    if not path.is_file():
+        failures.append(f"provider recovery command missing: database/recovery/{command}")
+
+for command, required_tokens in {
+    "prepare-restore-exercise.sh": ("target root already exists and is not empty", "production_traffic"),
+    "restore-exercise.sh": ("fetch-backup-metadata.sh", "LIQI_RESTORE_TARGET_PGDATA", "restore.sh"),
+    "verify-restore-exercise.sh": ("required migration", "recovery-status.sh", "restore-source-metadata"),
+    "cleanup-restore-exercise.sh": ("refusing cleanup", "rm -rf --one-file-system"),
+}.items():
+    command_text = (recovery_dir / command).read_text(encoding="utf-8")
+    for token in required_tokens:
+        if token not in command_text:
+            failures.append(f"database/recovery/{command} missing lifecycle guard: {token}")
 
 systemd_dir = ROOT / "systemd"
 for unit in systemd_dir.glob("*.service"):

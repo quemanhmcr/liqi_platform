@@ -841,10 +841,10 @@
       ],
       "properties": {
         "command": {
-          "const": "operations/disaster-recovery/database/restore.sh"
+          "const": "database/recovery/restore-exercise.sh"
         },
         "verificationCommand": {
-          "const": "operations/disaster-recovery/database/verify-restore.sh"
+          "const": "database/recovery/verify-restore-exercise.sh"
         },
         "resultSchema": {
           "const": "contracts/platform/database-restore-result-v0.schema.json"

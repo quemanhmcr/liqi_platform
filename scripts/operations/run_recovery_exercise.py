@@ -56,7 +56,7 @@ def main()->int:
       'schema_version':'recovery-exercise-result-v0','exercise_id':plan.get('exercise_id','rx-invalid'),'mode':mode,'source_environment':plan.get('source_environment','development'),'target_database':target.get('database','liqi_restore_invalid'),'started_at':started,'completed_at':started,'status':'blocked','approval_ref':args.approval_ref,
       'steps':[],'verification':{'status':'not-run','provider_result_ref':None,'freshness_result_ref':None},'cleanup':{'required':True,'status':'not-run'},
       'mutation':{'isolated_target_mutated':False,'source_database_mutated':False,'production_traffic_changed':False,'oci_mutated':False},'failures':[]}
-    values={'python':sys.executable,'exercise_id':plan.get('exercise_id',''),'target_root':target_root,'target_database':target.get('database',''),'backup_ref':plan.get('backup_ref',''),'required_database_migration':plan.get('required_database_migration',''),'verification_output':str((args.evidence_dir/'recovery-status.json').resolve())}
+    values={'python':sys.executable,'exercise_id':plan.get('exercise_id',''),'source_environment':plan.get('source_environment',''),'target_root':target_root,'target_database':target.get('database',''),'backup_ref':plan.get('backup_ref',''),'required_database_migration':plan.get('required_database_migration',''),'verification_output':str((args.evidence_dir/'recovery-status.json').resolve())}
     resolved=[]
     for step in plan.get('steps',[]):
         try: argv=expand(step['argv'],values)
