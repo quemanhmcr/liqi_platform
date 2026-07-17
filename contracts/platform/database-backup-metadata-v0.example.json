@@ -1,0 +1,67 @@
+{
+  "$schema": "./database-backup-metadata-v0.schema.json",
+  "schemaVersion": "database-backup-metadata-v0",
+  "generatedAt": "2026-07-17T03:05:00Z",
+  "backupRunId": "10000000-0000-4000-8000-000000000001",
+  "stanza": "liqi",
+  "source": {
+    "database": "liqi",
+    "authority": "postgresql",
+    "hostRef": "oci-host-v0://host/database-authority"
+  },
+  "repository": {
+    "type": "oci-object-storage-s3-compatible",
+    "bucket": "liqi-database-backup-v0",
+    "namespace": "example-namespace",
+    "region": "ap-singapore-2",
+    "path": "/postgresql/v0",
+    "uriStyle": "path",
+    "clientSideEncryption": "aes-256-cbc",
+    "dedicated": true
+  },
+  "backup": {
+    "label": "20260717-030000F",
+    "type": "full",
+    "startedAt": "2026-07-17T03:00:00Z",
+    "stoppedAt": "2026-07-17T03:04:30Z",
+    "archiveStart": "000000010000000000000001",
+    "archiveStop": "000000010000000000000002",
+    "annotation": {
+      "liqi-run-id": "10000000-0000-4000-8000-000000000001",
+      "liqi-migration-version": "3",
+      "liqi-probe-event-id": "10000000-0000-4000-8000-000000000003",
+      "liqi-manifest-sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "infoSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "postgresql": {
+    "major": 17,
+    "version": "17.10"
+  },
+  "migration": {
+    "currentVersion": 3,
+    "manifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "probe": {
+    "probeId": "10000000-0000-4000-8000-000000000002",
+    "eventId": "10000000-0000-4000-8000-000000000003",
+    "probeStatus": "completed",
+    "outboxState": "succeeded",
+    "effectCount": 1,
+    "completedAt": "2026-07-17T02:59:59Z"
+  },
+  "pgBackRest": {
+    "version": "2.58.0",
+    "repositoryFormat": "pgbackrest-encrypted-s3-v0"
+  },
+  "recoveryTargets": {
+    "workingRpo": "5m",
+    "workingRto": "60m",
+    "pitr": true,
+    "restoreScope": "entire-postgresql-cluster"
+  },
+  "costClassification": {
+    "class": "always-free-safe-with-v0-cap",
+    "v0ObjectBudgetGiB": 18
+  }
+}

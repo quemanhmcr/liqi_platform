@@ -1,0 +1,119 @@
+{
+  "$schema": "./database-restore-result-v0.schema.json",
+  "schemaVersion": "database-restore-result-v0",
+  "restoreId": "20000000-0000-4000-8000-000000000001",
+  "startedAt": "2026-07-17T04:00:00Z",
+  "finishedAt": "2026-07-17T04:12:00Z",
+  "durationSeconds": 720,
+  "backupLabel": "20260717-030000F",
+  "backupMetadataSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "target": {
+    "database": "liqi",
+    "pgData": "/var/lib/liqi/postgresql/backup-staging/restore/drill-001/data",
+    "socketDirectory": "/run/liqi/restore/drill-001",
+    "port": 55432,
+    "isolated": true,
+    "archiveMode": "off"
+  },
+  "success": true,
+  "checks": [
+    {
+      "name": "backup-metadata-checksum",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    },
+    {
+      "name": "backup-metadata-schema",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    },
+    {
+      "name": "postgres-major",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    },
+    {
+      "name": "migration-version",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    },
+    {
+      "name": "migration-manifest-checksum",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    },
+    {
+      "name": "migration-row-checksums",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    },
+    {
+      "name": "probe-state",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    },
+    {
+      "name": "probe-outbox-terminal-state",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    },
+    {
+      "name": "probe-terminal-effect",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    },
+    {
+      "name": "failed-migration-runs",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    },
+    {
+      "name": "probe-identity",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    },
+    {
+      "name": "probe-event-identity",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    },
+    {
+      "name": "recovery-promoted",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    },
+    {
+      "name": "restore-archive-disabled",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    },
+    {
+      "name": "restore-network-isolated",
+      "passed": true,
+      "expected": "example",
+      "actual": "example"
+    }
+  ],
+  "workingTargets": {
+    "rpo": "5m",
+    "rto": "60m",
+    "rtoMet": true,
+    "rpoObservedSeconds": 1,
+    "rtoObservedSeconds": 720
+  },
+  "operatorAction": []
+}
