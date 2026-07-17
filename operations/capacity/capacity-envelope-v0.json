@@ -12,7 +12,7 @@
     "purpose": "OS, recovery, incident spikes and emergency disk operations"
   },
   "provider_hard_limit": {
-    "ocpu": 3,
+    "ocpu": 4,
     "memory_mib": 20480,
     "disk_gib": 180,
     "postgres_connections": 100
@@ -22,6 +22,14 @@
     "same_volume_backup_is_backup": false,
     "missing_budget": "fail",
     "over_budget": "fail",
-    "paid_or_unknown_default_enabled": false
+    "paid_or_unknown_default_enabled": false,
+    "cpu_accounting": "steady-state-admission-and-host-capped-hard-ceilings",
+    "postgres_connection_accounting": "database-server-reservation-with-pooled-runtime-demand-check"
+  },
+  "steady_state_limit": {
+    "ocpu": 3,
+    "memory_mib": 20480,
+    "disk_gib": 180,
+    "purpose": "Default-enabled steady-state admission while preserving host and recovery reserve"
   }
 }

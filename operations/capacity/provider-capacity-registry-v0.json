@@ -1,6 +1,6 @@
 {
   "schema_version": "provider-capacity-registry-v0",
-  "registry_version": "0.1.0",
+  "registry_version": "0.2.0",
   "providers": [
     {
       "provider": "infrastructure",
@@ -19,9 +19,9 @@
     {
       "provider": "runtime",
       "owner": "Senior 3",
-      "state": "pending-provider",
+      "state": "available",
       "path": "contracts/platform/runtime-capacity-budget-v0.json",
-      "action_required": "Senior 3 must publish runtime-capacity-budget-v0 with hard OCPU, memory, disk, PostgreSQL connections, queue/retry bounds and failure behavior. ValidationManifest CPU/memory hints alone are insufficient."
+      "action_required": "Senior 3 owns runtime capacity contract failures; preserve truthful steady-state demand, hard ceilings, bounded queues/retries and PgBouncer pool demand."
     },
     {
       "provider": "operations",

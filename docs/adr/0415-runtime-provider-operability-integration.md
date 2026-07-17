@@ -36,3 +36,7 @@ Senior 4 must consume provider seams without compiling the workspace automatical
 ## Removal condition
 
 `pending-owner-build` may be removed only when the project owner approves an automated build policy or a signed owner-build evidence contract replaces direct execution.
+
+## Provider update after initial acceptance
+
+Senior 3 commits `dd8d643` and `c8d9b96` satisfy the source-level capacity, telemetry and platform-probe publication actions. Senior 4 marks those seams available and validates capacity/telemetry with a non-building shared-schema gate. The four explicit Cargo build-dependent commands remain `pending-owner-build`. Promotion still fails closed until Senior 2 committed realtime handoff and probe observation are integrated. CPU accounting is refined by ADR 0416 rather than reducing Senior 3's truthful 1.45 OCPU hard runtime ceiling.

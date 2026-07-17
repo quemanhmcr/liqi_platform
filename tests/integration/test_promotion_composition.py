@@ -33,7 +33,8 @@ class PromotionCompositionTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             result = json.loads(integration.read_text(encoding="utf-8"))
             self.assertEqual(result["overall_status"], "passed")
-            self.assertEqual(result["capacity"]["declared_ocpu"], 2.9)
+            self.assertEqual(result["capacity"]["declared_ocpu"], 3.3)
+            self.assertEqual(result["capacity"]["steady_state_ocpu"], 1.66)
             outputs = [base / "deployment-a.json", base / "deployment-b.json"]
             for output in outputs:
                 generated = subprocess.run([

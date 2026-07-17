@@ -107,7 +107,7 @@ def main()->int:
                 failures.append(f'{path.name} does not satisfy telemetry-v0')
             if document.get('service',{}).get('name')!=service_name or document.get('service',{}).get('owner')!='Senior 3':
                 failures.append(f'{path.name} must declare {service_name} owned by Senior 3')
-        checks.append(check('Senior 3','runtime validation, health identity and promotion probe','failed' if failures else 'passed','RUNTIME_OPERABILITY_INCOMPATIBLE' if failures else 'RUNTIME_OPERABILITY_COMPATIBLE','; '.join(failures) if failures else 'runtime toolchain, loopback contracts, telemetry declarations and platform probe result seam are compatible','Senior 3 must publish capacity separately, add telemetry-v0 declarations for all three services, and expose a provider-owned platform-probe-result-v0 runner; Senior 4 will not synthesize runtime evidence.' if failures else 'none'))
+        checks.append(check('Senior 3','runtime validation, health identity and promotion probe','failed' if failures else 'passed','RUNTIME_OPERABILITY_INCOMPATIBLE' if failures else 'RUNTIME_OPERABILITY_COMPATIBLE','; '.join(failures) if failures else 'runtime toolchain, loopback contracts, telemetry declarations and platform probe result seam are compatible','Senior 3 owns repair of runtime operability contract or platform-probe seam failures; Senior 4 will not synthesize runtime evidence.' if failures else 'none'))
     statuses=[item['status'] for item in checks]; overall='failed' if 'failed' in statuses else 'blocked' if 'blocked' in statuses else 'passed'
     result={'schema_version':'provider-compatibility-result-v0','overall_status':overall,'checks':checks}
     errors=list(Draft202012Validator(load(SCHEMA)).iter_errors(result))

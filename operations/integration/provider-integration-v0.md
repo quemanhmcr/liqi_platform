@@ -21,7 +21,7 @@ The workflow downloads and validates the plan. It does not run `tofu plan` or us
 
 ## Runtime provider state
 
-Senior 3 commit `7ed9cc9` publishes the Rust workspace and non-building source seams. Source CI invokes only rustfmt and locked Cargo metadata. Build-dependent commands remain `pending-owner-build`; they are not run automatically.
+Senior 3 commits `7ed9cc9`, `dd8d643` and `c8d9b96` publish the Rust workspace, runtime capacity/telemetry contracts and provider-owned platform probe. Source CI invokes rustfmt, locked Cargo metadata and the shared runtime operability contract validator without compiling. Build-dependent commands remain `pending-owner-build`; they are not run automatically. The platform probe seam is available, but its owner-built executable must be present on PATH and its realtime checks remain fail-closed until Senior 2 handoff is integrated.
 
 Owner-run commands, when requested:
 

@@ -44,10 +44,64 @@ class OperationsToolTests(unittest.TestCase):
             )
             result = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual("passed", result["status"])
-            self.assertLessEqual(result["totals"]["ocpu"], 3)
-            self.assertLessEqual(result["totals"]["memory_mib"], 20480)
-            self.assertLessEqual(result["totals"]["disk_gib"], 180)
-            self.assertLessEqual(result["totals"]["postgres_connections"], 100)
+            self.assertLessEqual(result["steady_state_totals"]["ocpu"], 3)
+            self.assertLessEqual(result["hard_limit_totals"]["ocpu"], 4)
+            self.assertLessEqual(result["hard_limit_totals"]["memory_mib"], 20480)
+            self.assertLessEqual(result["hard_limit_totals"]["disk_gib"], 180)
+            self.assertLessEqual(result["hard_limit_totals"]["postgres_connections"], 100)
+            self.assertEqual(result["totals"], result["hard_limit_totals"])
+            connections = result["postgres_connection_accounting"]
+            self.assertLessEqual(connections["pooled_runtime_demand"], connections["pooled_server_capacity"])
+
+    def test_capacity_fails_when_steady_cpu_consumes_host_reserve(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = json.loads((CAPACITY_FIXTURES / "runtime.valid.json").read_text(encoding="utf-8"))
+            for component in runtime["components"]:
+                component["steady_state"]["ocpu"] = 0.716
+                component["hard_limit"]["ocpu"] = 0.716
+            path = Path(directory) / "runtime.json"
+            path.write_text(json.dumps(runtime), encoding="utf-8")
+            result = run(
+                PYTHON, "scripts/operations/check_capacity.py",
+                str(CAPACITY_FIXTURES / "infrastructure.valid.json"),
+                str(CAPACITY_FIXTURES / "database.valid.json"), str(path),
+                str(CAPACITY_FIXTURES / "operations.valid.json"), expected=1,
+            )
+            payload = json.loads(result.stdout)
+            self.assertLessEqual(payload["hard_limit_totals"]["ocpu"], 4)
+            self.assertTrue(any("steady-state capacity exceeded for ocpu" in item for item in payload["failures"]))
+
+    def test_capacity_fails_when_hard_cpu_exceeds_physical_host(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = json.loads((CAPACITY_FIXTURES / "runtime.valid.json").read_text(encoding="utf-8"))
+            runtime["components"][0]["hard_limit"]["ocpu"] = 1.2
+            path = Path(directory) / "runtime.json"
+            path.write_text(json.dumps(runtime), encoding="utf-8")
+            result = run(
+                PYTHON, "scripts/operations/check_capacity.py",
+                str(CAPACITY_FIXTURES / "infrastructure.valid.json"),
+                str(CAPACITY_FIXTURES / "database.valid.json"), str(path),
+                str(CAPACITY_FIXTURES / "operations.valid.json"), expected=1,
+            )
+            payload = json.loads(result.stdout)
+            self.assertIn("hard ceiling exceeded for ocpu", payload["failures"][0])
+            schema = json.loads((ROOT / "contracts/operations/capacity-result-v0.schema.json").read_text(encoding="utf-8"))
+            from jsonschema import Draft202012Validator
+            self.assertEqual(list(Draft202012Validator(schema).iter_errors(payload)), [])
+
+    def test_capacity_fails_when_pooled_demand_exceeds_pgbouncer(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = json.loads((CAPACITY_FIXTURES / "runtime.valid.json").read_text(encoding="utf-8"))
+            runtime["components"][0]["postgres_connections"] = 40
+            path = Path(directory) / "runtime.json"
+            path.write_text(json.dumps(runtime), encoding="utf-8")
+            result = run(
+                PYTHON, "scripts/operations/check_capacity.py",
+                str(CAPACITY_FIXTURES / "infrastructure.valid.json"),
+                str(CAPACITY_FIXTURES / "database.valid.json"), str(path),
+                str(CAPACITY_FIXTURES / "operations.valid.json"), expected=1,
+            )
+            self.assertTrue(any("pooled runtime demand exceeds" in item for item in json.loads(result.stdout)["failures"]))
 
     def test_capacity_fails_when_provider_budget_is_missing(self) -> None:
         result = run(

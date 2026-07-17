@@ -218,6 +218,8 @@ def main() -> int:
             "reserved_memory_mib": 4096,
             "declared_ocpu": 0,
             "declared_memory_mib": 0,
+            "steady_state_ocpu": 0,
+            "steady_state_memory_mib": 0,
             "disk_budget_gib": 0,
         },
         "recovery": {

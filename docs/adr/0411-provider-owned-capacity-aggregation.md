@@ -10,12 +10,12 @@ Production capacity aggregation consumes four provider-owned `capacity-budget-v0
 
 - Senior 1: infrastructure/edge/host budget — pending.
 - Senior 2: `contracts/platform/database-capacity-budget-v0.json` — available.
-- Senior 3: API/realtime/worker budget — pending.
+- Senior 3: `contracts/platform/runtime-capacity-budget-v0.json` — available after commits `dd8d643`/`c8d9b96`.
 - Senior 4: `operations/capacity/operations-capacity-budget-v0.json` — available.
 
 `collect_provider_capacity.py` validates the registry, refuses missing or pending providers in strict mode, and delegates arithmetic and envelope enforcement to the canonical `check_capacity.py` aggregator. Source CI may emit a machine-readable `blocked` result while branches are unmerged; integration and promotion are strict.
 
-The result retains the V0 envelope: 4 OCPU/24 GiB host, 1 OCPU/4 GiB reserved, provider hard limits of 3 OCPU/20 GiB/180 GiB and 100 PostgreSQL connections.
+ADR 0416 supersedes the original single CPU sum. The result now carries steady-state admission totals and truthful hard ceilings separately: steady CPU is capped at 3 OCPU, hard CPU ceilings at the physical 4 OCPU, hard memory at 20 GiB, hard disk at 180 GiB and PostgreSQL server reservation at 100.
 
 ## Consequences
 

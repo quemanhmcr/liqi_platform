@@ -7,7 +7,9 @@
     "hard_limit_ocpu": 4,
     "reserved_memory_mib": 4096,
     "reserved_ocpu": 1,
-    "status": "passed"
+    "status": "passed",
+    "steady_state_memory_mib": 20480,
+    "steady_state_ocpu": 3.0
   },
   "completed_at": "2026-07-17T00:00:01Z",
   "environment": "development",

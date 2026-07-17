@@ -60,6 +60,8 @@
     "reserved_memory_mib": 4096,
     "declared_ocpu": 3,
     "declared_memory_mib": 20480,
+    "steady_state_ocpu": 2,
+    "steady_state_memory_mib": 8192,
     "disk_budget_gib": 180
   },
   "recovery": {
