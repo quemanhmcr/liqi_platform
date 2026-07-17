@@ -15,7 +15,7 @@ if [[ -f "$ROOT_DIR/contracts/events/examples/platform-probe-requested-v0.json" 
 fi
 PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tests/static/test_recovery_contract.py"
 for test_script in "$ROOT_DIR"/database/tests/static/test_*.sh; do
-  "$test_script"
+  bash "$test_script"
 done
 for script in \
   "$ROOT_DIR"/database/bin/*.sh \

@@ -12,8 +12,8 @@ dev-fakes = []
 
 [dependencies]
 async-trait.workspace = true
-liqi-application = { path = "../application" }
-liqi-protocol = { path = "../protocol" }
+liqi-application = { version = "0.1.0", path = "../application" }
+liqi-protocol = { version = "0.1.0", path = "../protocol" }
 serde_json.workspace = true
 time.workspace = true
 tokio.workspace = true

@@ -10,10 +10,10 @@ publish.workspace = true
 async-trait.workspace = true
 axum.workspace = true
 http.workspace = true
-liqi-application = { path = "../application" }
-liqi-configuration = { path = "../configuration" }
-liqi-protocol = { path = "../protocol" }
-liqi-telemetry = { path = "../telemetry" }
+liqi-application = { version = "0.1.0", path = "../application" }
+liqi-configuration = { version = "0.1.0", path = "../configuration" }
+liqi-protocol = { version = "0.1.0", path = "../protocol" }
+liqi-telemetry = { version = "0.1.0", path = "../telemetry" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

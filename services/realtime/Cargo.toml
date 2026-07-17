@@ -13,13 +13,13 @@ dev-fakes = ["dep:liqi-test-support"]
 [dependencies]
 axum.workspace = true
 futures-util.workspace = true
-liqi-application = { path = "../../crates/application" }
-liqi-configuration = { path = "../../crates/configuration" }
-liqi-protocol = { path = "../../crates/protocol" }
-liqi-persistence-postgres = { path = "../../crates/persistence-postgres" }
-liqi-runtime = { path = "../../crates/runtime" }
-liqi-telemetry = { path = "../../crates/telemetry" }
-liqi-test-support = { path = "../../crates/test-support", features = ["dev-fakes"], optional = true }
+liqi-application = { version = "0.1.0", path = "../../crates/application" }
+liqi-configuration = { version = "0.1.0", path = "../../crates/configuration" }
+liqi-protocol = { version = "0.1.0", path = "../../crates/protocol" }
+liqi-persistence-postgres = { version = "0.1.0", path = "../../crates/persistence-postgres" }
+liqi-runtime = { version = "0.1.0", path = "../../crates/runtime" }
+liqi-telemetry = { version = "0.1.0", path = "../../crates/telemetry" }
+liqi-test-support = { version = "0.1.0", path = "../../crates/test-support", features = ["dev-fakes"], optional = true }
 serde_json.workspace = true
 secrecy.workspace = true
 time.workspace = true

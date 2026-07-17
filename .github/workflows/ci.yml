@@ -47,6 +47,11 @@ jobs:
           tofu_wrapper: false
           cache: true
 
+      - name: Install pinned Rust source toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component clippy --component rustfmt --target aarch64-unknown-linux-gnu
+
       - name: Validate operations contracts
         run: python scripts/operations/validate_contracts.py
 
@@ -111,6 +116,7 @@ jobs:
             .artifacts/provider-compatibility-result.json
             .artifacts/provider-capacity-result.json
             .artifacts/source-integration-readiness-v0.json
+            .artifacts/provider-gates/**
           if-no-files-found: error
           retention-days: 14
 

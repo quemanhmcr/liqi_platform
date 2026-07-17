@@ -10,8 +10,8 @@ publish.workspace = true
 futures-util.workspace = true
 clap.workspace = true
 jsonschema.workspace = true
-liqi-configuration = { path = "../../crates/configuration" }
-liqi-protocol = { path = "../../crates/protocol" }
+liqi-configuration = { version = "0.1.0", path = "../../crates/configuration" }
+liqi-protocol = { version = "0.1.0", path = "../../crates/protocol" }
 oas3.workspace = true
 reqwest.workspace = true
 serde.workspace = true

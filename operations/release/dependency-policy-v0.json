@@ -1,7 +1,10 @@
 {
   "schema_version": "dependency-policy-v0",
   "vulnerability": {
-    "deny_severities": ["high", "critical"],
+    "deny_severities": [
+      "high",
+      "critical"
+    ],
     "yanked": "deny",
     "unmaintained": "warn",
     "unsound": "deny",
@@ -14,8 +17,10 @@
       "BSD-2-Clause",
       "BSD-3-Clause",
       "CC0-1.0",
+      "CDLA-Permissive-2.0",
       "ISC",
       "MIT",
+      "MIT-0",
       "MPL-2.0",
       "Unicode-3.0",
       "Unicode-DFS-2016",
@@ -39,7 +44,9 @@
     "unknown_registry": "deny",
     "unknown_git": "deny",
     "git_requires_full_revision": true,
-    "allowed_registries": ["https://github.com/rust-lang/crates.io-index"]
+    "allowed_registries": [
+      "https://github.com/rust-lang/crates.io-index"
+    ]
   },
   "exceptions": []
 }
