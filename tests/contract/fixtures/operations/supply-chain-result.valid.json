@@ -1,0 +1,36 @@
+{
+  "artifact_subjects": [
+    {
+      "name": "liqi-api",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "name": "liqi-realtime",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "name": "liqi-worker",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ],
+  "failures": [],
+  "git_sha": "2d72ce4176993324d36d6f4ea115ff2b43fd5355",
+  "provenance": {
+    "build_type": "https://liqi.internal/build/rust-release-v0",
+    "builder_id": "https://github.com/liqi/platform/.github/workflows/release.yml",
+    "predicate_type": "https://slsa.dev/provenance/v1",
+    "sha256": "6705437c670271d1c90abc9a9ff8c1ede16c05adf7f35af8faf306b191d4a4c0",
+    "source_git_sha": "2d72ce4176993324d36d6f4ea115ff2b43fd5355",
+    "statement_type": "https://in-toto.io/Statement/v1",
+    "subject_count": 3
+  },
+  "release_id": "liqi-v0.0.0-test",
+  "sbom": {
+    "artifact_count": 3,
+    "document_namespace": "https://liqi.internal/spdx/liqi-v0.0.0-test",
+    "sha256": "1f34ecc95b8fe292f46d3c2da2aea22f50e0af829f5633f0ce80c23c35da9206",
+    "spdx_version": "SPDX-2.3"
+  },
+  "schema_version": "supply-chain-result-v0",
+  "status": "passed"
+}

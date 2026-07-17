@@ -15,24 +15,24 @@
       "media_type": "application/vnd.liqi.elf",
       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "size_bytes": 1,
-      "sbom_ref": "sbom/liqi-api.spdx.json",
-      "provenance_ref": "provenance/liqi-api.intoto.jsonl"
+      "sbom_ref": "sbom/release.spdx.json",
+      "provenance_ref": "provenance/release.intoto.jsonl"
     },
     {
       "name": "liqi-realtime",
       "media_type": "application/vnd.liqi.elf",
       "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "size_bytes": 1,
-      "sbom_ref": "sbom/liqi-realtime.spdx.json",
-      "provenance_ref": "provenance/liqi-realtime.intoto.jsonl"
+      "sbom_ref": "sbom/release.spdx.json",
+      "provenance_ref": "provenance/release.intoto.jsonl"
     },
     {
       "name": "liqi-worker",
       "media_type": "application/vnd.liqi.elf",
       "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
       "size_bytes": 1,
-      "sbom_ref": "sbom/liqi-worker.spdx.json",
-      "provenance_ref": "provenance/liqi-worker.intoto.jsonl"
+      "sbom_ref": "sbom/release.spdx.json",
+      "provenance_ref": "provenance/release.intoto.jsonl"
     }
   ],
   "contract_versions": {
@@ -70,11 +70,11 @@
   "supply_chain": {
     "sbom": {
       "uri": "sbom/release.spdx.json",
-      "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      "sha256": "1f34ecc95b8fe292f46d3c2da2aea22f50e0af829f5633f0ce80c23c35da9206"
     },
     "provenance": {
       "uri": "provenance/release.intoto.jsonl",
-      "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+      "sha256": "6705437c670271d1c90abc9a9ff8c1ede16c05adf7f35af8faf306b191d4a4c0"
     },
     "attestation_policy": "required-before-staging"
   },
