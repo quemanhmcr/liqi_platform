@@ -56,6 +56,7 @@ python scripts/operations/validate_operability_catalog.py
 python scripts/operations/validate_telemetry_runtime.py
 python scripts/operations/validate_provider_compatibility.py --output .artifacts/provider-compatibility.json --allow-missing
 python scripts/operations/collect_provider_capacity.py --output .artifacts/provider-capacity.json --allow-blocked
+python scripts/operations/assemble_source_readiness.py --provider-result .artifacts/provider-source-result.json --compatibility-result .artifacts/provider-compatibility-result.json --capacity-result .artifacts/provider-capacity-result.json --output .artifacts/source-integration-readiness-v0.json --allow-blocked
 python scripts/operations/validate_ci_workflows.py
 python scripts/operations/scan_repository_secrets.py
 python scripts/release/validate_supply_chain_evidence.py --manifest <manifest.json> --sbom <release.spdx.json> --provenance <release.intoto.jsonl> --output <result.json>
@@ -85,3 +86,7 @@ Current integration blockers are machine-readable: Senior 1 and Senior 3 have no
 Senior 3 owns the Cargo workspace, artifact names and exact runtime build semantics. Senior 4 prepares deterministic release and CI source but does not run build/prebuild or invent missing provider commands. Build commands will be published only after the runtime provider contract is merged and reviewed.
 
 See `CONTRIBUTING.md`, `operations/release/`, `operations/deployment/` and `operations/runbooks/` for governance and procedures.
+
+## Integration order
+
+The low-conflict provider merge sequence and required pre-merge corrections are versioned in `operations/integration/merge-plan-v0.md`. Source readiness is authoritative; `blocked` means a seam is not merged, while `failed` means a present seam must be repaired by its owner.

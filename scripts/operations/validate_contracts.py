@@ -37,6 +37,7 @@ PAIRS = (
     ("provider-compatibility-result-v0.schema.json", "provider-compatibility-result.valid.json"),
     ("provider-capacity-registry-v0.schema.json", "../../../../operations/capacity/provider-capacity-registry-v0.json"),
     ("supply-chain-result-v0.schema.json", "supply-chain-result.valid.json"),
+    ("integration-readiness-result-v0.schema.json", "integration-readiness-result.valid.json"),
 )
 
 

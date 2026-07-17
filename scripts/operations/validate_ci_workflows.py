@@ -86,6 +86,29 @@ def main() -> int:
                         failures.append(f"{relative}: OpenTofu wrapper must be disabled for unambiguous provider exit codes")
         if checkout_count != checkout_hardened:
             failures.append(f"{relative}: every checkout step must set persist-credentials: false")
+        if path.name == "ci.yml":
+            required_source_seams = (
+                "assemble_source_readiness.py",
+                "source-integration-readiness-v0.json",
+                "provider-source-result.json",
+                "provider-compatibility-result.json",
+                "provider-capacity-result.json",
+            )
+            for required in required_source_seams:
+                if required not in text:
+                    failures.append(f"{relative}: source CI is missing integration readiness seam {required}")
+            step_by_name = {step.get("name"): step for step in iter_steps(workflow) if step.get("name")}
+            for evidence_step in (
+                "Validate cross-provider compatibility",
+                "Collect provider capacity budgets",
+                "Invoke published provider source gates",
+            ):
+                step = step_by_name.get(evidence_step)
+                if not isinstance(step, dict) or step.get("continue-on-error") != "true":
+                    failures.append(f"{relative}: {evidence_step} must preserve evidence with continue-on-error: true")
+            readiness_step = step_by_name.get("Assemble source integration readiness")
+            if not isinstance(readiness_step, dict) or readiness_step.get("if") != "always()":
+                failures.append(f"{relative}: source readiness composition must run with if: always()")
         if "provider-integration" in path.name:
             triggers = workflow.get("on")
             if not isinstance(triggers, dict) or "workflow_dispatch" not in triggers or "push" in triggers:

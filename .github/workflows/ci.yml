@@ -63,12 +63,14 @@ jobs:
         run: python scripts/operations/validate_telemetry_runtime.py
 
       - name: Validate cross-provider compatibility
+        continue-on-error: true
         run: >-
           python scripts/operations/validate_provider_compatibility.py
           --output .artifacts/provider-compatibility-result.json
           --allow-missing
 
       - name: Collect provider capacity budgets
+        continue-on-error: true
         run: >-
           python scripts/operations/collect_provider_capacity.py
           --output .artifacts/provider-capacity-result.json
@@ -81,11 +83,22 @@ jobs:
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
       - name: Invoke published provider source gates
+        continue-on-error: true
         run: >-
           python scripts/operations/run_provider_gates.py
           --stage source
           --environment development
           --output .artifacts/provider-source-result.json
+          --allow-blocked
+
+      - name: Assemble source integration readiness
+        if: always()
+        run: >-
+          python scripts/operations/assemble_source_readiness.py
+          --provider-result .artifacts/provider-source-result.json
+          --compatibility-result .artifacts/provider-compatibility-result.json
+          --capacity-result .artifacts/provider-capacity-result.json
+          --output .artifacts/source-integration-readiness-v0.json
           --allow-blocked
 
       - name: Upload provider source result
@@ -97,6 +110,7 @@ jobs:
             .artifacts/provider-source-result.json
             .artifacts/provider-compatibility-result.json
             .artifacts/provider-capacity-result.json
+            .artifacts/source-integration-readiness-v0.json
           if-no-files-found: error
           retention-days: 14
 

@@ -51,3 +51,7 @@ Promotion consumes a reviewed `oci-plan.json` artifact by workflow run ID. Do no
 Cross-provider compatibility failures must be fixed by the owning provider. Senior 4 does not add wrappers for mismatched host retention, database recovery ownership or runtime signal contracts.
 
 Promotion also requires `database_recovery_run_id`. Its artifact must use the checksummed layout in `operations/integration/database-recovery-evidence-v0.md`; never commit backup metadata, restore outputs or repository credentials.
+
+## Source readiness
+
+Review `.artifacts/source-integration-readiness-v0.json` before merging a provider branch. A `failed` blocker must be fixed by the named owner. Do not convert it to `blocked`, add a mock, or add Senior 4 glue merely to make CI green.
