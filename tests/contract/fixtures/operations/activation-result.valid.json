@@ -1,0 +1,42 @@
+{
+  "schema_version": "activation-result-v0",
+  "release_id": "liqi-v0-test",
+  "environment": "development",
+  "deployment_spec_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mode": "dry-run",
+  "started_at": "2026-07-17T00:00:00Z",
+  "completed_at": "2026-07-17T00:00:01Z",
+  "status": "planned",
+  "approval_ref": null,
+  "preflight": {
+    "deployment_spec": "passed",
+    "host_readiness": "passed",
+    "database_readiness": "passed",
+    "artifacts": "passed",
+    "systemd_units": "not-checked"
+  },
+  "actions": [
+    {
+      "sequence": 1,
+      "action": "install-release",
+      "target": "/opt/liqi/releases/liqi-v0-test",
+      "status": "planned",
+      "duration_ms": 0,
+      "error": null
+    }
+  ],
+  "health": {"status": "not-run", "result_ref": null},
+  "rollback": {
+    "attempted": false,
+    "target_release_id": null,
+    "status": "not-required",
+    "health_result_ref": null
+  },
+  "mutation": {
+    "performed": false,
+    "release_installed": false,
+    "systemd_changed": false,
+    "symlink_changed": false
+  },
+  "incident_reason": null
+}

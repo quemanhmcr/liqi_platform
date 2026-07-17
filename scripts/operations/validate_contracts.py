@@ -29,6 +29,7 @@ PAIRS = (
     ("recovery-freshness-result-v0.schema.json", "recovery-freshness-result.valid.json"),
     ("platform-probe-result-v0.schema.json", "../../../integration/fixtures/platform-probe-result.valid.json"),
     ("deployment-spec-v0.schema.json", "deployment-spec.valid.json"),
+    ("activation-result-v0.schema.json", "activation-result.valid.json"),
 )
 
 

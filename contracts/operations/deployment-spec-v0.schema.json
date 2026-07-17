@@ -76,7 +76,7 @@
       "type": "object", "additionalProperties": false,
       "required": [
         "integration_id", "integration_status", "capacity_status", "recovery_status",
-        "platform_probe_status", "database_compatibility", "infrastructure_cost_classification",
+        "platform_probe_status", "required_database_migration", "database_compatibility", "infrastructure_cost_classification",
         "approval_ref"
       ],
       "properties": {
@@ -85,6 +85,7 @@
         "capacity_status": {"const": "passed"},
         "recovery_status": {"enum": ["passed", "not-applicable"]},
         "platform_probe_status": {"const": "passed"},
+        "required_database_migration": {"type": "string", "pattern": "^[0-9]{1,20}$"},
         "database_compatibility": {"enum": ["expand-only", "expand-migrate", "contract-approved"]},
         "infrastructure_cost_classification": {"enum": ["always-free-safe", "free-trial-only", "paid", "unknown"]},
         "approval_ref": {"type": ["string", "null"], "maxLength": 512}
