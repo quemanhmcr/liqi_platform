@@ -22,7 +22,7 @@
       }
     ]
   },
-  "infrastructure_output_version": "0.2.0",
+  "infrastructure_output_version": "0.3.0",
   "release_target": {
     "current_symlink": "/opt/liqi/current",
     "deployment_path": "/opt/liqi/releases",

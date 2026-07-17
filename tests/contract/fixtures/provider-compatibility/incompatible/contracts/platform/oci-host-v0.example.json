@@ -1,1 +1,1 @@
-{"infrastructure_output_version": "0.2.0", "release_target": {"staging_path": "/var/tmp/liqi/releases", "deployment_path": "/opt/liqi/releases", "current_symlink": "/opt/liqi/current", "installation_semantics": "upload-to-staging-then-root-owned-atomic-install"}}
+{"infrastructure_output_version": "0.3.0", "release_target": {"staging_path": "/var/tmp/liqi/releases", "deployment_path": "/opt/liqi/releases", "current_symlink": "/opt/liqi/current", "installation_semantics": "upload-to-staging-then-root-owned-atomic-install"}}

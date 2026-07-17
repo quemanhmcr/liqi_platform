@@ -20,7 +20,7 @@ Before merge, Senior 1 must:
 
 - publish `contracts/platform/infrastructure-capacity-budget-v0.json`;
 - align cloud-init journald with the V0 policy: 2 GiB maximum use, 10 GiB keep-free, seven-day retention, 30-second/10,000-message rate limiting and no syslog forwarding;
-- keep host output `0.2.0`, staging/install/symlink semantics and read-only plan validation compatible;
+- consume canonical host output `0.3.0`, staging/install/symlink semantics and read-only plan validation compatible;
 - run `python infrastructure/validation/validate_infrastructure.py --with-tofu`.
 
 Do not merge Senior 1 while `provider-compatibility-result-v0` is failed.

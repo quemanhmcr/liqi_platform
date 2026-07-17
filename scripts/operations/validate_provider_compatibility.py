@@ -24,7 +24,7 @@ def main()->int:
         checks.append(check('Senior 1','OCI host output and host logging policy','blocked','INFRASTRUCTURE_SEAM_MISSING',f'missing provider paths: {infra_missing}','Senior 1 must merge the published OCI host output and cloud-init source.'))
     else:
         host_doc=load(host); failures=[]
-        if host_doc.get('infrastructure_output_version')!='0.2.0':failures.append('infrastructure output version must be 0.2.0')
+        if host_doc.get('infrastructure_output_version')!='0.3.0':failures.append('infrastructure output version must be 0.3.0')
         release=host_doc.get('release_target',{})
         expected={'staging_path':'/var/tmp/liqi/releases','deployment_path':'/opt/liqi/releases','current_symlink':'/opt/liqi/current','installation_semantics':'upload-to-staging-then-root-owned-atomic-install'}
         for key,value in expected.items():
@@ -41,7 +41,7 @@ def main()->int:
         for key,value in expected_journal.items():
             actual=journal_value(text,key)
             if actual!=value:failures.append(f'journald {key} expected {value}, got {actual}')
-        checks.append(check('Senior 1','OCI host output and host logging policy','failed' if failures else 'passed','HOST_OPERABILITY_INCOMPATIBLE' if failures else 'HOST_OPERABILITY_COMPATIBLE','; '.join(failures) if failures else 'host output 0.2.0, release target and journald policy are compatible','Senior 1 must align cloud-init journald and host output with contracts/operations and ADR 0408.' if failures else 'none'))
+        checks.append(check('Senior 1','OCI host output and host logging policy','failed' if failures else 'passed','HOST_OPERABILITY_INCOMPATIBLE' if failures else 'HOST_OPERABILITY_COMPATIBLE','; '.join(failures) if failures else 'host output 0.3.0, release target and journald policy are compatible','Senior 1 must align cloud-init journald and host output with contracts/operations and ADR 0408.' if failures else 'none'))
     database=provider/'contracts/platform/database-v0.example.json'
     if not database.is_file():
         checks.append(check('Senior 2','database recovery command ownership','blocked','DATABASE_SEAM_MISSING','database provider contract is not merged','Senior 2 must merge database-v0 and provider-owned recovery commands.'))
