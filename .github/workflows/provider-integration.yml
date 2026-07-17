@@ -80,7 +80,7 @@ jobs:
         run: python -m pip install -r operations/ci/requirements-v0.txt
 
       - name: Install pinned OpenTofu
-        uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f
+        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4
         with:
           tofu_version: "1.12.1"
           tofu_wrapper: false
