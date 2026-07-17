@@ -1,0 +1,47 @@
+[Unit]
+Description=LIQI API runtime
+Requires=liqi-host-readiness.service pgbouncer.service
+After=network-online.target liqi-host-readiness.service pgbouncer.service
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=liqi-api
+Group=liqi
+ExecStartPre=/usr/bin/test -x /opt/liqi/current/bin/liqi-api
+ExecStartPre=/usr/bin/test -r /etc/liqi/api.json
+ExecStartPre=/usr/bin/test -r /run/liqi/secrets/liqi-api/database-password
+ExecStart=/opt/liqi/current/bin/liqi-api --config /etc/liqi/api.json
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=30s
+TimeoutStopSec=20s
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadOnlyPaths=/opt/liqi/current /etc/liqi /run/liqi/secrets/liqi-api
+
+[Install]
+WantedBy=multi-user.target

@@ -8,6 +8,7 @@
   "required": [
     "schema_version",
     "infrastructure_output_version",
+    "bootstrap_version",
     "environment",
     "region",
     "capacity_profile",
@@ -30,6 +31,9 @@
     "infrastructure_output_version": {
       "type": "string",
       "pattern": "^0\\.[0-9]+\\.[0-9]+$"
+    },
+    "bootstrap_version": {
+      "const": "0.3.0"
     },
     "environment": {
       "type": "string",
@@ -350,13 +354,20 @@
           "const": "ready"
         },
         "required_checks": {
-          "type": "array",
-          "minItems": 5,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "uniqueItems": true
+          "const": [
+            "runtime-identities",
+            "runtime-directories",
+            "data-volume-mounted",
+            "swap-disabled",
+            "selinux-enforcing",
+            "firewall-policy",
+            "ssh-root-disabled",
+            "ssh-password-auth-disabled",
+            "legacy-imds-disabled",
+            "capacity-controls",
+            "runtime-service-units",
+            "edge-fail-closed"
+          ]
         }
       }
     },

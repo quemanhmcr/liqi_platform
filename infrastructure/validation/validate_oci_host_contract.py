@@ -59,6 +59,8 @@ def main() -> int:
 
     if example.get("infrastructure_output_version") != "0.3.0":
         semantic_errors.append("infrastructure_output_version must be 0.3.0")
+    if example.get("bootstrap_version") != "0.3.0":
+        semantic_errors.append("bootstrap_version must be 0.3.0")
 
     expected_runtime_files = {
         "liqi-api": "/etc/liqi/api.json",
@@ -143,8 +145,15 @@ def main() -> int:
             f"enabled provider slice hard memory must total 16384 MiB within 20480 MiB, got {child_memory}"
         )
     readiness_checks = set(example.get("readiness", {}).get("required_checks", []))
-    if "capacity-controls" not in readiness_checks:
-        semantic_errors.append("host readiness must require capacity-controls")
+    expected_readiness_checks = {
+        "runtime-identities", "runtime-directories", "data-volume-mounted", "swap-disabled",
+        "selinux-enforcing", "firewall-policy", "ssh-root-disabled", "ssh-password-auth-disabled",
+        "legacy-imds-disabled", "capacity-controls", "runtime-service-units", "edge-fail-closed",
+    }
+    if readiness_checks != expected_readiness_checks:
+        semantic_errors.append(
+            f"host readiness checks mismatch: {sorted(readiness_checks)}"
+        )
 
     services = {item["service"]: item for item in example["identities"]["services"]}
     expected_services = {

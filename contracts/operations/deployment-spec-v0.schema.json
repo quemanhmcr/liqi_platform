@@ -26,12 +26,13 @@
     "target": {
       "type": "object", "additionalProperties": false,
       "required": [
-        "host_schema_version", "host_output_version", "host_instance_ref", "transport_user",
+        "host_schema_version", "host_output_version", "host_bootstrap_version", "host_instance_ref", "transport_user",
         "staging_path", "deployment_root", "release_path", "current_symlink", "installation_semantics"
       ],
       "properties": {
         "host_schema_version": {"type": "string", "minLength": 1},
         "host_output_version": {"type": "string", "minLength": 1},
+        "host_bootstrap_version": {"const": "0.3.0"},
         "host_instance_ref": {"type": "string", "minLength": 1, "maxLength": 256},
         "transport_user": {"const": "opc"},
         "staging_path": {"type": "string", "pattern": "^/"},

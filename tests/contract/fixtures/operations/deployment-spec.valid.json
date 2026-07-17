@@ -104,6 +104,7 @@
     "installation_semantics": "upload-to-staging-then-root-owned-atomic-install",
     "release_path": "/opt/liqi/releases/liqi-v0.0.0-test",
     "staging_path": "/var/tmp/liqi/releases",
-    "transport_user": "opc"
+    "transport_user": "opc",
+    "host_bootstrap_version": "0.3.0"
   }
 }

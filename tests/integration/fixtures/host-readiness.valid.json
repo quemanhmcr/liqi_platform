@@ -2,7 +2,7 @@
   "schema_version": "liqi.platform.host-readiness/v0",
   "host_contract_schema_version": "liqi.platform.oci-host/v0",
   "infrastructure_output_version": "0.3.0",
-  "bootstrap_version": "0.1.0",
+  "bootstrap_version": "0.3.0",
   "status": "ready",
   "checked_at": "2026-07-17T00:00:00Z",
   "architecture": "aarch64",
@@ -20,6 +20,9 @@
     "firewall_policy": "pass",
     "ssh_root_disabled": "pass",
     "ssh_password_auth_disabled": "pass",
-    "legacy_imds_disabled": "pass"
+    "legacy_imds_disabled": "pass",
+    "capacity_controls": "pass",
+    "runtime_service_units": "pass",
+    "edge_fail_closed": "pass"
   }
 }

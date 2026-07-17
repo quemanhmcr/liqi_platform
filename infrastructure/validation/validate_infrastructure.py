@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import re
 import shutil
@@ -11,6 +12,8 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Iterable
+
+import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 INFRA = ROOT / "infrastructure"
@@ -198,7 +201,7 @@ def validate_capacity_and_outputs() -> None:
         "boot_volume_gb      = 50",
         "data_volume_gb      = 100",
         'infrastructure_output_version = "0.3.0"',
-        'bootstrap_version             = "0.2.0"',
+        'bootstrap_version             = "0.3.0"',
     )
     for fragment in required_fragments:
         if fragment not in combined:
@@ -244,6 +247,19 @@ def validate_cloud_init() -> None:
         "mv -f \"$tmp_file\" /run/liqi/host-ready.json",
         "refusing to treat root filesystem as LIQI data volume",
         "wipefs --no-act",
+        "nginx",
+        "content: ${jsonencode(liqi_api_unit)}",
+        "content: ${jsonencode(liqi_realtime_unit)}",
+        "content: ${jsonencode(liqi_worker_unit)}",
+        "content: ${jsonencode(nginx_config)}",
+        "content: ${jsonencode(nginx_hardening)}",
+        "/etc/systemd/system/liqi-api.service",
+        "/etc/systemd/system/liqi-realtime.service",
+        "/etc/systemd/system/liqi-worker.service",
+        "/usr/local/share/liqi-bootstrap/nginx.conf",
+        "/usr/local/share/liqi-bootstrap/nginx-liqi-hardening.conf",
+        "nginx -t && systemctl enable --now nginx.service",
+        "setsebool -P httpd_can_network_connect 1",
         "/etc/systemd/system/liqi-platform.slice",
         "CPUQuota=300%",
         "MemoryMax=20G",
@@ -268,6 +284,8 @@ def validate_cloud_init() -> None:
         "CPUQuota=35%",
         "Environment=LIQI_CONFIG_PATH=/etc/liqi/worker.json",
         '"capacity_controls": "pass"',
+        '"runtime_service_units": "pass"',
+        '"edge_fail_closed": "pass"',
     )
     joined = text + "\n" + read(MODULE / "compute.tf")
     for fragment in required:
@@ -279,6 +297,91 @@ def validate_cloud_init() -> None:
     for directory in REQUIRED_DIRECTORY_PATHS:
         if directory not in text:
             fail(f"cloud-init does not materialize required directory {directory}")
+
+
+def validate_provider_materialization() -> None:
+    environment = read(ENVIRONMENT / "main.tf")
+    compute = read(MODULE / "compute.tf")
+    for fragment in (
+        'file("${path.root}/../../../../services/systemd/liqi-api.service")',
+        'file("${path.root}/../../../../services/systemd/liqi-realtime.service")',
+        'file("${path.root}/../../../../services/systemd/liqi-worker.service")',
+        'file("${path.root}/../../../edge/nginx.conf")',
+        'file("${path.root}/../../../edge/nginx-liqi-hardening.conf")',
+    ):
+        if fragment not in environment:
+            fail(f"environment does not consume provider output directly: {fragment}")
+    if "user_data           = base64gzip(var.cloud_init_user_data)" not in compute:
+        fail("OCI user_data must use gzip compression")
+    if "length(base64gzip(var.cloud_init_user_data)) <= 16384" not in compute:
+        fail("OCI user_data lacks the 16 KiB platform-limit precondition")
+
+    service_expectations = {
+        "liqi-api": ("liqi-api", "8080", "/etc/liqi/api.json"),
+        "liqi-realtime": ("liqi-realtime", "8081", "/etc/liqi/realtime.json"),
+        "liqi-worker": ("liqi-worker", "8082", "/etc/liqi/worker.json"),
+    }
+    for service, (user, _port, config) in service_expectations.items():
+        unit_path = ROOT / "services" / "systemd" / f"{service}.service"
+        if not unit_path.is_file():
+            fail(f"runtime provider base unit missing: {unit_path.relative_to(ROOT)}")
+        unit = read(unit_path)
+        required = (
+            f"User={user}",
+            f"ExecStart=/opt/liqi/current/bin/{service} --config {config}",
+            f"ExecStartPre=/usr/bin/test -r /run/liqi/secrets/{service}/database-password",
+            "Restart=on-failure",
+            "RestartSec=5s",
+            "NoNewPrivileges=yes",
+            "CapabilityBoundingSet=",
+            "ProtectSystem=strict",
+            "ProtectHome=yes",
+            "MemoryDenyWriteExecute=yes",
+            "RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6",
+        )
+        for token in required:
+            if token not in unit:
+                fail(f"{unit_path.relative_to(ROOT)} missing hardening token {token}")
+        if "User=root" in unit or "0.0.0.0" in unit:
+            fail(f"{unit_path.relative_to(ROOT)} violates non-root/loopback ownership")
+
+    nginx = read(INFRA / "edge" / "nginx.conf")
+    for token in (
+        "listen 80 default_server;",
+        "return 444;",
+        "listen 443 ssl default_server;",
+        "ssl_reject_handshake on;",
+        "server 127.0.0.1:8080",
+        "server 127.0.0.1:8081",
+        "client_max_body_size 1m;",
+        "client_header_timeout 10s;",
+        "client_body_timeout 10s;",
+        "include /etc/nginx/liqi-enabled/*.conf;",
+    ):
+        if token not in nginx:
+            fail(f"fail-closed NGINX source missing {token}")
+    hardening = read(INFRA / "edge" / "nginx-liqi-hardening.conf")
+    for token in (
+        "Slice=liqi-platform-edge.slice",
+        "CPUQuota=10%",
+        "MemoryMax=256M",
+        "MemorySwapMax=0",
+        "NoNewPrivileges=yes",
+        "ProtectSystem=strict",
+        "CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETGID CAP_SETUID",
+    ):
+        if token not in hardening:
+            fail(f"NGINX systemd hardening missing {token}")
+    approved_site = read(INFRA / "edge" / "liqi-site-v0.conf.tftpl")
+    for token in (
+        "return 308 https://${server_name}$request_uri;",
+        "ssl_protocols TLSv1.2 TLSv1.3;",
+        "proxy_connect_timeout 3s;",
+        "proxy_intercept_errors on;",
+        "return 503 '{\"error\":\"service_unavailable\"}';",
+    ):
+        if token not in approved_site:
+            fail(f"approved edge template missing {token}")
 
 
 def validate_source_hygiene() -> None:
@@ -306,6 +409,65 @@ def validate_tofu() -> None:
     run([tofu, "init", "-backend=false", "-input=false"], cwd=ENVIRONMENT)
     run([tofu, "validate"], cwd=ENVIRONMENT)
 
+    expression = (
+        'jsonencode({encoded_size=length(base64gzip(local.cloud_init_user_data)),'
+        'cloud_config_b64=base64encode(local.cloud_init_user_data)})'
+    )
+    command = [
+        tofu,
+        "console",
+        "-var=tenancy_ocid=ocid1.tenancy.oc1..sourceonly",
+        "-var=region=ap-singapore-2",
+        "-var=availability_domain=source-only-ad",
+        "-var=oracle_linux_image_ocid=ocid1.image.oc1.ap-singapore-2.sourceonly",
+        "-var=admin_ssh_public_key=ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAISourceOnlyFixture liqi-source-only",
+    ]
+    completed = subprocess.run(
+        command,
+        cwd=ENVIRONMENT,
+        input=expression + "\n",
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    rendered = json.loads(json.loads(completed.stdout.strip()))
+    encoded_size = int(rendered["encoded_size"])
+    if encoded_size > 16384:
+        fail(f"rendered OCI user_data exceeds 16 KiB: {encoded_size} bytes")
+    cloud_config = base64.b64decode(rendered["cloud_config_b64"], validate=True).decode("utf-8")
+    document = yaml.safe_load(cloud_config)
+    if not isinstance(document, dict):
+        fail("rendered cloud-init is not a YAML object")
+    write_files = document.get("write_files")
+    if not isinstance(write_files, list):
+        fail("rendered cloud-init has no write_files list")
+    by_path = {
+        item.get("path"): item.get("content")
+        for item in write_files
+        if isinstance(item, dict) and isinstance(item.get("path"), str)
+    }
+    expected_provider_bytes = {
+        "/etc/systemd/system/liqi-api.service": read(ROOT / "services/systemd/liqi-api.service"),
+        "/etc/systemd/system/liqi-realtime.service": read(ROOT / "services/systemd/liqi-realtime.service"),
+        "/etc/systemd/system/liqi-worker.service": read(ROOT / "services/systemd/liqi-worker.service"),
+        "/usr/local/share/liqi-bootstrap/nginx.conf": read(INFRA / "edge/nginx.conf"),
+        "/usr/local/share/liqi-bootstrap/nginx-liqi-hardening.conf": read(
+            INFRA / "edge/nginx-liqi-hardening.conf"
+        ),
+    }
+    for destination, expected in expected_provider_bytes.items():
+        if by_path.get(destination) != expected:
+            fail(f"rendered cloud-init does not preserve exact provider bytes for {destination}")
+    commands = "\n".join(
+        " ".join(str(part) for part in item)
+        for item in document.get("runcmd", [])
+        if isinstance(item, list)
+    )
+    for service in ("liqi-api", "liqi-realtime", "liqi-worker"):
+        if f"enable --now {service}.service" in commands:
+            fail(f"bootstrap must not enable runtime service before activation: {service}")
+    print(f"rendered gzip OCI user_data: {encoded_size} bytes (limit 16384)")
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -322,6 +484,7 @@ def main() -> int:
     validate_network()
     validate_capacity_and_outputs()
     validate_cloud_init()
+    validate_provider_materialization()
     validate_source_hygiene()
     if args.with_tofu:
         validate_tofu()

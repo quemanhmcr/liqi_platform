@@ -12,7 +12,7 @@ The V0 host must be replaceable without manual configuration and must present a 
 
 ### Bootstrap mechanism
 
-Use OCI instance metadata `user_data` with a versioned cloud-init template. OpenTofu hashes the rendered template and marks a bootstrap revision change as a host-replacement trigger. The Oracle Linux platform image OCID, provider lock file, bootstrap version, and output version together define the reproducible host input.
+Use OCI instance metadata `user_data` with a versioned cloud-init template. OpenTofu gzip-compresses and Base64-encodes the rendered template, enforces the OCI 16 KiB encoded limit, hashes the uncompressed rendered template, and marks a bootstrap revision change as a host-replacement trigger. `validate_infrastructure.py --with-tofu` renders the cloud-config without planning, parses it, verifies exact provider-owned file bytes, and reports encoded size. The Oracle Linux platform image OCID, provider lock file, bootstrap version, and output version together define the reproducible host input.
 
 V0 guarantees deterministic semantics, identities, permissions, mount paths, and readiness checks. It does not claim bit-for-bit package reproducibility: packages are installed from the Oracle Linux repositories associated with the pinned image. A custom image pipeline is deferred until package drift or boot time justifies its operational cost.
 
@@ -38,10 +38,12 @@ The `nofail` mount option avoids an unbootable OS during device incidents, but t
 - Swap is disabled.
 - Conservative kernel/network sysctls are applied.
 - Legacy IMDS endpoints are disabled in OCI and checked from the host; IMDSv2 access requires the Oracle authorization header.
+- Runtime base units are owned under `services/systemd/**`, execute as dedicated non-root identities, and fail before start when config or per-service secret material is absent.
+- The infrastructure provider owns a default NGINX configuration that rejects HTTP and TLS traffic until an approved site file is installed; request sizes, upstream timeouts, WebSocket upgrade behavior, and filesystem/capability bounds are explicit.
 
 ### Readiness
 
-`liqi-host-readiness.service` writes `/run/liqi/host-ready.json` atomically only after all required identities, permissions, data mount, swap, SELinux, firewall, SSH, and IMDS checks pass. The file contains no secret. Consumers may read it directly but must treat absence, invalid JSON, a wrong schema version, or any non-`ready` status as not ready.
+`liqi-host-readiness.service` writes `/run/liqi/host-ready.json` atomically only after all required identities, permissions, data mount, swap, SELinux, firewall, SSH, IMDS, runtime-unit, capacity-control, and fail-closed-edge checks pass. The file contains no secret. Consumers require bootstrap version `0.3.0` and may read it directly, but must treat absence, invalid JSON, a wrong schema/version, or any non-`ready` status as not ready.
 
 Readiness proves the host seam, not application/database readiness. Senior 2 and Senior 3 must publish their own readiness under their owned service contracts.
 
@@ -61,6 +63,19 @@ Readiness proves the host seam, not application/database readiness. Senior 2 and
 - **Shared runtime user or world-readable secret directory:** expands blast radius after process compromise.
 - **Custom image pipeline in V0:** additional build, signing, patch, and registry lifecycle before it provides measured value.
 - **Kubernetes/OKE:** exceeds V0 complexity and capacity requirements.
+
+## V0 integration closeout
+
+Bootstrap `0.3.0` is the first version that directly materializes the runtime provider base units and the infrastructure-owned fail-closed edge. The host output publishes `bootstrap_version`; deployment and activation contracts consume it directly. Runtime services remain disabled until release activation has verified artifacts, configuration, per-service secrets, database readiness, and health targets.
+
+The compressed rendered cloud-config is machine-checked below the OCI `user_data` limit. This avoids a hidden portability failure while preserving the exact tracked bytes of the provider outputs.
+
+Official platform references used for this decision:
+
+- OCI instance metadata/user-data limits: https://docs.oracle.com/en-us/iaas/Content/Compute/Concepts/computeoverview.htm#Metadata_Key_Limits
+- OpenTofu `base64gzip`: https://opentofu.org/docs/language/functions/base64gzip/
+- cloud-init compressed user-data formats: https://docs.cloud-init.io/en/latest/explanation/format/index.html
+- NGINX TLS handshake rejection: https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_reject_handshake
 
 ## Consequences
 

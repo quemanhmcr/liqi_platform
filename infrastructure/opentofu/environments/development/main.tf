@@ -1,7 +1,7 @@
 locals {
   environment                   = "development"
   infrastructure_output_version = "0.3.0"
-  bootstrap_version             = "0.2.0"
+  bootstrap_version             = "0.3.0"
 
   capacity_profile = {
     name                = "free-tier-a1-4x24"
@@ -24,6 +24,11 @@ locals {
     enable_https_edge             = true
     data_device_path              = "/dev/oracleoci/oraclevdb"
     data_mount_path               = "/var/lib/liqi"
+    liqi_api_unit                 = file("${path.root}/../../../../services/systemd/liqi-api.service")
+    liqi_realtime_unit            = file("${path.root}/../../../../services/systemd/liqi-realtime.service")
+    liqi_worker_unit              = file("${path.root}/../../../../services/systemd/liqi-worker.service")
+    nginx_config                  = file("${path.root}/../../../edge/nginx.conf")
+    nginx_hardening               = file("${path.root}/../../../edge/nginx-liqi-hardening.conf")
   })
 }
 

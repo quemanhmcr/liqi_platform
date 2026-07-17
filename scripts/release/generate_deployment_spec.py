@@ -137,6 +137,7 @@ def main() -> int:
         "target": {
             "host_schema_version": host["schema_version"],
             "host_output_version": host["infrastructure_output_version"],
+            "host_bootstrap_version": host["bootstrap_version"],
             "host_instance_ref": host["host"]["instance_id"],
             "transport_user": release_target["transport_user"],
             "staging_path": release_target["staging_path"],

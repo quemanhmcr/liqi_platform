@@ -1,0 +1,6 @@
+User=liqi-api
+ExecStart=/opt/liqi/current/bin/liqi-api --config /etc/liqi/api.json
+ExecStartPre=/usr/bin/test -r /run/liqi/secrets/liqi-api/database-password
+NoNewPrivileges=yes
+ProtectSystem=strict
+MemoryDenyWriteExecute=yes
