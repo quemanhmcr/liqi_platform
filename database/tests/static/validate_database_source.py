@@ -136,6 +136,20 @@ for required_restore_guard in (
     if required_restore_guard not in restore_script:
         failures.append(f"missing restore safety guard: {required_restore_guard}")
 
+shell_scripts = sorted(ROOT.rglob("*.sh"))
+for path in shell_scripts:
+    relative = path.relative_to(ROOT.parent).as_posix()
+    stage = subprocess.check_output(
+        ["git", "ls-files", "--stage", relative],
+        cwd=ROOT.parent,
+        text=True,
+    ).strip()
+    mode = stage.split(maxsplit=1)[0] if stage else ""
+    if mode != "100755":
+        failures.append(
+            f"database shell command must be executable in Git: {relative} mode={mode or 'missing'}"
+        )
+
 recovery_dir = ROOT / "recovery"
 for command in (
     "fetch-backup-metadata.sh",
