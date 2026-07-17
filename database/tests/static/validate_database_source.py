@@ -66,7 +66,79 @@ for line in ["listen_addresses = ''", "max_connections = 80", "archive_timeout =
     if line not in postgres_config:
         failures.append(f"missing PostgreSQL contract line: {line}")
 
-text_suffixes = {".sql", ".sh", ".py", ".conf", ".ini", ".json", ".md", ".sha256"}
+text_suffixes = {".sql", ".sh", ".py", ".conf", ".ini", ".json", ".md", ".sha256", ".template", ".service", ".timer"}
+
+pgbackrest_config = (ROOT / "config/pgbackrest.conf.template").read_text(encoding="utf-8")
+required_pgbackrest = {
+    "repo1-type=s3",
+    "repo1-s3-uri-style=path",
+    "repo1-storage-verify-tls=y",
+    "repo1-cipher-type=aes-256-cbc",
+    "archive-async=y",
+    "archive-push-queue-max=2GiB",
+    "repo1-retention-full=2",
+    "repo1-retention-diff=7",
+    "cmd=@@PGBACKREST_WRAPPER@@",
+}
+for line in required_pgbackrest:
+    if line not in pgbackrest_config:
+        failures.append(f"missing pgBackRest contract line: {line}")
+for forbidden in ("repo1-s3-key=", "repo1-s3-key-secret=", "repo1-cipher-pass="):
+    if forbidden in pgbackrest_config:
+        failures.append(f"persistent pgBackRest template contains secret option: {forbidden}")
+
+if "pgbackrest-command.sh --stanza=liqi archive-push %p" not in postgres_config:
+    failures.append("PostgreSQL archive_command does not use the secret-safe pgBackRest boundary")
+
+backup_script = (ROOT / "bin/backup.sh").read_text(encoding="utf-8")
+metadata_position = backup_script.find('--name "$metadata_object"')
+checksum_position = backup_script.find('--name "$checksum_object"')
+if metadata_position < 0 or checksum_position < 0 or metadata_position >= checksum_position:
+    failures.append("backup metadata must publish before checksum completion marker")
+if backup_script.count("--no-overwrite") != 2 or "--force" in backup_script:
+    failures.append("backup metadata and checksum must be append-only OCI uploads")
+
+restore_metrics = (ROOT / "bin/restore-result-metrics.sh").read_text(encoding="utf-8")
+for required_metric_guard in (
+    "LIQI_RESTORE_RESULT_CHECKSUM_FILE",
+    "validate-restore-result",
+    "liqi_database_restore_verification_success",
+    "liqi_database_restore_duration_seconds",
+):
+    if required_metric_guard not in restore_metrics:
+        failures.append(f"restore-result metrics missing integrity/metric seam: {required_metric_guard}")
+
+restore_script = (ROOT.parent / "operations/disaster-recovery/database/restore.sh").read_text(encoding="utf-8")
+for required_restore_guard in (
+    "in-place restore is forbidden",
+    "restore target must be below LIQI_RESTORE_ROOT",
+    "--archive-mode=off",
+    "--target-action=promote",
+    "listen_addresses = ''",
+):
+    if required_restore_guard not in restore_script:
+        failures.append(f"missing restore safety guard: {required_restore_guard}")
+
+systemd_dir = ROOT / "systemd"
+for unit in systemd_dir.glob("*.service"):
+    unit_text = unit.read_text(encoding="utf-8")
+    for required_unit_line in ("NoNewPrivileges=true", "MemoryMax=", "TasksMax="):
+        if required_unit_line not in unit_text:
+            failures.append(f"{unit.name} missing bounded service setting: {required_unit_line}")
+
+for path in sorted((ROOT / "tests/pgtap").glob("*.sql")):
+    sql = path.read_text(encoding="utf-8")
+    plan_match = re.search(r"SELECT plan\((\d+)\)", sql)
+    if not plan_match:
+        failures.append(f"pgTAP plan missing: {path.name}")
+        continue
+    assertion_count = len(re.findall(
+        r"(?m)^SELECT\s+(?:ok|is|isnt|lives_ok|throws_ok|has_role|isnt_super|has_schema|schema_owner_is|hasnt_schema_privilege|hasnt_table_privilege|has_function_privilege|hasnt_function_privilege)\s*\(",
+        sql,
+    ))
+    if int(plan_match.group(1)) != assertion_count:
+        failures.append(f"pgTAP plan mismatch {path.name}: plan={plan_match.group(1)} assertions={assertion_count}")
+
 all_text = "\n".join(
     path.read_text(encoding="utf-8")
     for path in ROOT.rglob("*")
