@@ -1,0 +1,1 @@
+{"properties": {"service": {"properties": {"version": {"maxLength": 64}, "listen": {"properties": {"host": {"const": "127.0.0.1"}}}}}, "database": {"properties": {"endpoint": {"properties": {"host": {"const": "127.0.0.1"}, "port": {"const": 6432}, "poolingMode": {"const": "transaction"}}}}}}}

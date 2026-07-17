@@ -18,3 +18,25 @@ The workflow downloads and validates the plan. It does not run `tofu plan` or us
 ## Compatibility result
 
 `provider-compatibility-result-v0` is separate from provider validator output so ownership remains explicit. A failure identifies the owner, seam, code and required action. It is strict in integration/promotion and `--allow-missing` only in source CI while branches are not merged.
+
+## Runtime provider state
+
+Senior 3 commit `7ed9cc9` publishes the Rust workspace and non-building source seams. Source CI invokes only rustfmt and locked Cargo metadata. Build-dependent commands remain `pending-owner-build`; they are not run automatically.
+
+Owner-run commands, when requested:
+
+```bash
+cargo +1.97.1 run --locked -p liqi-platform-tool -- print-validation-manifest
+cargo +1.97.1 run --locked -p liqi-platform-tool -- validate-contracts --root .
+cargo +1.97.1 clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo +1.97.1 test --workspace --all-targets --all-features --locked
+```
+
+Expected evidence is JSON for the first two commands and a zero exit code plus complete logs for clippy/tests. Do not run them through automatic source CI under the current owner-only build rule.
+
+Current runtime promotion blockers are machine-readable:
+
+- missing `runtime-capacity-budget-v0`;
+- missing API/realtime/worker `telemetry-v0` capability declarations;
+- missing provider-owned `platform-probe-result-v0` runner;
+- realtime committed-handoff dependency not yet published by Senior 2.

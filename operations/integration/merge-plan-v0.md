@@ -39,16 +39,17 @@ Do not add a Senior 4 wrapper around the old `operations/**` paths.
 
 ## 4. Rebase and merge Senior 3
 
-Senior 3 must publish:
+Senior 3 commit `7ed9cc9` already publishes the root Cargo workspace, locked toolchain, runtime config/OpenAPI/realtime/error/event contracts, API/realtime/worker skeletons, health endpoints, artifact metadata and PostgreSQL probe adapters. Senior 2's wire-mapping validator accepts the published event example without semantic loss.
 
-- root Cargo workspace and locked toolchain;
-- the exact runtime source/config/protocol contract commands in the provider registry;
-- `contracts/platform/runtime-capacity-budget-v0.json` covering API, realtime and worker limits;
-- telemetry implementation matching `telemetry-v0` and the runtime telemetry policy;
-- a platform probe emitting `platform-probe-result-v0`, observing `LIQI_RELEASE_ID` and `LIQI_ENVIRONMENT`;
-- health endpoints and systemd unit behavior consumed by activation.
+Before merge, Senior 3 must still:
 
-Build commands remain owner-run under the project restriction. Senior 4 will integrate published commands, not infer them.
+- publish `contracts/platform/runtime-capacity-budget-v0.json` covering API, realtime and worker hard limits, disk, connections, queues, retries and failure behavior;
+- publish API/realtime/worker telemetry capability declarations satisfying `telemetry-v0`;
+- publish a provider-owned runner emitting `platform-probe-result-v0`; the existing POST probe only proves durable acceptance;
+- integrate the Senior 2 committed realtime handoff when that provider seam exists, keeping production realtime fail-closed until then;
+- preserve `service.version` as the release identity consumed by live/ready health checks and artifact metadata.
+
+Source CI may run rustfmt and locked Cargo metadata only. The project owner runs `cargo run`, clippy and tests using the commands in `operations/integration/provider-integration-v0.md`; Senior 4 does not infer or execute build-dependent validation.
 
 ## 5. Run strict integration and promotion evidence
 

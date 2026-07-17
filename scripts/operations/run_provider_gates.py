@@ -144,10 +144,14 @@ def main() -> int:
             log_ref = log_path.relative_to(ROOT).as_posix() if log_path.is_relative_to(ROOT) else log_path.as_posix()
             output_ref = log_ref
             status = "passed" if completed.returncode == 0 else "failed"
-            if status == "passed" and gate["result_mode"] == "json-file":
+            if status == "passed" and gate["result_mode"] in {"json-file", "stdout-json"}:
                 result_path = evidence_dir / f"{gate['id']}.json"
                 try:
-                    load_json(result_path)
+                    if gate["result_mode"] == "stdout-json":
+                        document = json.loads(completed.stdout)
+                        result_path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+                    else:
+                        load_json(result_path)
                     output_ref = result_path.relative_to(ROOT).as_posix() if result_path.is_relative_to(ROOT) else result_path.as_posix()
                 except (OSError, json.JSONDecodeError) as exc:
                     status = "failed"

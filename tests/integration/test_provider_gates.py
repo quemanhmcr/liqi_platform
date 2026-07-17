@@ -62,6 +62,16 @@ class ProviderGateTests(unittest.TestCase):
         output_path = ROOT / matching[0]["output_ref"] if not Path(matching[0]["output_ref"]).is_absolute() else Path(matching[0]["output_ref"])
         self.assertTrue(output_path.is_file())
 
+    def test_stdout_json_provider_result_is_materialized(self) -> None:
+        _, result, _ = self.invoke(True)
+        matching = [item for item in result["provider_results"] if item.get("gate_id") == "senior3-stdout-json"]
+        self.assertEqual(len(matching), 1)
+        self.assertEqual(matching[0]["status"], "passed")
+        output_path = ROOT / matching[0]["output_ref"] if not Path(matching[0]["output_ref"]).is_absolute() else Path(matching[0]["output_ref"])
+        payload = json.loads(output_path.read_text(encoding="utf-8"))
+        self.assertEqual(payload["schemaVersion"], "fixture-stdout-json-v0")
+        self.assertTrue(payload["valid"])
+
     def test_provider_logs_are_redacted(self) -> None:
         _, result, _ = self.invoke(True)
         logs = [ROOT / item["output_ref"] if item["output_ref"] and not Path(item["output_ref"]).is_absolute() else Path(item["output_ref"] or "") for item in result["provider_results"] if item["output_ref"]]

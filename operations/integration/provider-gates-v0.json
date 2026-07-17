@@ -1,6 +1,6 @@
 {
   "schema_version": "provider-gates-v0",
-  "registry_version": "0.3.0",
+  "registry_version": "0.4.0",
   "gates": [
     {
       "id": "oci-infrastructure-source",
@@ -153,14 +153,16 @@
         "integration",
         "promotion"
       ],
-      "provider_state": "pending-provider",
+      "provider_state": "available",
       "mutation_class": "read-only",
       "required_paths": [
         "Cargo.toml",
+        "Cargo.lock",
         "rust-toolchain.toml"
       ],
       "argv": [
         "cargo",
+        "+1.97.1",
         "fmt",
         "--all",
         "--",
@@ -169,7 +171,104 @@
       "timeout_seconds": 180,
       "result_mode": "exit-code",
       "failure_class": "contract",
-      "action_required": "Senior 3 must publish the root Cargo workspace and pinned toolchain before this source gate can become available."
+      "action_required": "Senior 3 owns rustfmt failures. This source gate does not compile or link artifacts."
+    },
+    {
+      "id": "runtime-metadata-source",
+      "owner": "Senior 3",
+      "seam": "pinned root Cargo workspace metadata and lockfile",
+      "stages": [
+        "source",
+        "integration",
+        "promotion"
+      ],
+      "provider_state": "available",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ],
+      "argv": [
+        "cargo",
+        "+1.97.1",
+        "metadata",
+        "--no-deps",
+        "--format-version",
+        "1",
+        "--locked"
+      ],
+      "timeout_seconds": 180,
+      "result_mode": "exit-code",
+      "failure_class": "contract",
+      "action_required": "Senior 3 owns workspace metadata, lockfile and pinned toolchain failures. This command does not compile artifacts."
+    },
+    {
+      "id": "runtime-validation-manifest",
+      "owner": "Senior 3",
+      "seam": "liqi-platform-tool print-validation-manifest",
+      "stages": [
+        "integration",
+        "promotion"
+      ],
+      "provider_state": "pending-owner-build",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml",
+        "services/admin-cli/Cargo.toml",
+        "services/admin-cli/src/main.rs"
+      ],
+      "argv": [
+        "cargo",
+        "+1.97.1",
+        "run",
+        "--locked",
+        "-p",
+        "liqi-platform-tool",
+        "--",
+        "print-validation-manifest"
+      ],
+      "timeout_seconds": 900,
+      "result_mode": "stdout-json",
+      "failure_class": "runtime",
+      "action_required": "Project owner must run the published validation-manifest command and provide the JSON evidence. Senior 4 does not auto-run build-dependent cargo run."
+    },
+    {
+      "id": "runtime-contract-validation",
+      "owner": "Senior 3",
+      "seam": "liqi-platform-tool validate-contracts provider report",
+      "stages": [
+        "integration",
+        "promotion"
+      ],
+      "provider_state": "pending-owner-build",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml",
+        "services/admin-cli/Cargo.toml",
+        "contracts/platform/runtime-config-v0.schema.json",
+        "contracts/openapi/platform-v0.yaml"
+      ],
+      "argv": [
+        "cargo",
+        "+1.97.1",
+        "run",
+        "--locked",
+        "-p",
+        "liqi-platform-tool",
+        "--",
+        "validate-contracts",
+        "--root",
+        "."
+      ],
+      "timeout_seconds": 900,
+      "result_mode": "stdout-json",
+      "failure_class": "contract",
+      "action_required": "Project owner must run Senior 3 contract validation and provide the JSON report. Senior 4 does not compile the tool automatically."
     },
     {
       "id": "runtime-clippy-source",
@@ -180,7 +279,7 @@
         "integration",
         "promotion"
       ],
-      "provider_state": "pending-provider",
+      "provider_state": "pending-owner-build",
       "mutation_class": "read-only",
       "required_paths": [
         "Cargo.toml",
@@ -188,10 +287,12 @@
       ],
       "argv": [
         "cargo",
+        "+1.97.1",
         "clippy",
         "--workspace",
         "--all-targets",
         "--all-features",
+        "--locked",
         "--",
         "-D",
         "warnings"
@@ -199,7 +300,7 @@
       "timeout_seconds": 900,
       "result_mode": "exit-code",
       "failure_class": "runtime",
-      "action_required": "Senior 3 owns clippy failures and dependency/runtime source warnings."
+      "action_required": "Project owner must run the published Senior 3 clippy command and provide evidence; Senior 4 must not auto-run build-dependent validation."
     },
     {
       "id": "runtime-contract-tests",
@@ -210,7 +311,7 @@
         "integration",
         "promotion"
       ],
-      "provider_state": "pending-provider",
+      "provider_state": "pending-owner-build",
       "mutation_class": "read-only",
       "required_paths": [
         "Cargo.toml",
@@ -218,20 +319,22 @@
       ],
       "argv": [
         "cargo",
+        "+1.97.1",
         "test",
         "--workspace",
         "--all-targets",
+        "--all-features",
         "--locked"
       ],
       "timeout_seconds": 1200,
       "result_mode": "exit-code",
       "failure_class": "runtime",
-      "action_required": "Senior 3 must implement and own deterministic runtime/protocol/config/telemetry contract tests."
+      "action_required": "Project owner must run the published Senior 3 workspace tests and provide evidence; Senior 4 must not auto-run build-dependent validation."
     },
     {
       "id": "runtime-platform-probe",
       "owner": "Senior 3",
-      "seam": "platform probe with durable command, outbox terminal effect and release ID observation",
+      "seam": "provider-owned platform-probe runner producing platform-probe-result-v0",
       "stages": [
         "integration",
         "promotion"
@@ -240,15 +343,11 @@
       "mutation_class": "disposable-database",
       "required_paths": [
         "Cargo.toml",
-        "services/admin-cli/Cargo.toml"
+        "services/admin-cli/Cargo.toml",
+        "contracts/operations/platform-probe-result-v0.schema.json"
       ],
       "argv": [
-        "cargo",
-        "run",
-        "--locked",
-        "-p",
-        "liqi-admin-cli",
-        "--",
+        "liqi-platform-tool",
         "platform-probe",
         "--output",
         "{output}"
@@ -261,7 +360,7 @@
       "timeout_seconds": 300,
       "result_mode": "json-file",
       "failure_class": "runtime",
-      "action_required": "Senior 3 must expose platform probe JSON matching platform-probe-result-v0 and observe LIQI_RELEASE_ID/LIQI_ENVIRONMENT while preserving Senior 2 outbox semantics."
+      "action_required": "Senior 3 must publish a provider-owned runner that emits platform-probe-result-v0 and proves API/worker/outbox/realtime checks. POST /platform/v0/probes alone is insufficient."
     }
   ]
 }

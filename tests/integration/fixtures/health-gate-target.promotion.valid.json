@@ -2,8 +2,8 @@
   "checks": [
     {
       "expected_json": {
-        "release_id": "liqi-v0.0.0-test",
-        "status": "live"
+        "status": "live",
+        "version": "liqi-v0.0.0-test"
       },
       "expected_status": 200,
       "kind": "liveness",
@@ -14,8 +14,8 @@
     },
     {
       "expected_json": {
-        "release_id": "liqi-v0.0.0-test",
-        "status": "ready"
+        "status": "ready",
+        "version": "liqi-v0.0.0-test"
       },
       "expected_status": 200,
       "kind": "readiness",

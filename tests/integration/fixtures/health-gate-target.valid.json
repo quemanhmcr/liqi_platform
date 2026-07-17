@@ -12,7 +12,7 @@
       "url": "http://127.0.0.1:1/health/live",
       "timeout_ms": 500,
       "expected_status": 200,
-      "expected_json": { "status": "live", "release_id": "liqi-v0-test" }
+      "expected_json": { "status": "live", "version": "liqi-v0-test" }
     },
     {
       "name": "api-ready",
@@ -21,7 +21,7 @@
       "url": "http://127.0.0.1:1/health/ready",
       "timeout_ms": 500,
       "expected_status": 200,
-      "expected_json": { "status": "ready", "release_id": "liqi-v0-test" }
+      "expected_json": { "status": "ready", "version": "liqi-v0-test" }
     },
     {
       "name": "platform-probe",
