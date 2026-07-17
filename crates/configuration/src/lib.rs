@@ -66,6 +66,12 @@ impl ServiceName {
 pub struct SecretReference(String);
 
 impl SecretReference {
+    /// Parses a supported secret reference without exposing its locator.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the reference is malformed, its locator is empty or contains
+    /// whitespace, or its scheme is not part of the V0 secret contract.
     pub fn parse(value: impl Into<String>) -> Result<Self, ConfigError> {
         let value = value.into();
         let (scheme, locator) = value
@@ -140,6 +146,11 @@ pub struct ListenConfig {
 }
 
 impl ListenConfig {
+    /// Resolves the configured host and port into a socket address.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the configured host and port do not form a valid socket address.
     pub fn socket_addr(&self) -> Result<SocketAddr, ConfigError> {
         format!("{}:{}", self.host, self.port)
             .parse()
@@ -252,6 +263,12 @@ pub struct TelemetryConfig {
 }
 
 impl RuntimeConfig {
+    /// Loads and validates a bounded runtime configuration for the expected service.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the file cannot be read, exceeds the size bound, contains invalid
+    /// JSON or secret references, or violates the expected service's V0 runtime contract.
     pub fn load(
         path: impl AsRef<Path>,
         expected_service: ServiceName,
@@ -274,6 +291,12 @@ impl RuntimeConfig {
         Ok(config)
     }
 
+    /// Validates this configuration against the V0 contract for the expected service.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when any schema, service, host, database, timeout, resource, telemetry,
+    /// secret, or feature constraint is invalid.
     pub fn validate(&self, expected_service: ServiceName) -> Result<(), ConfigError> {
         if self.schema_version != "0" {
             return Err(ConfigError::UnsupportedSchemaVersion(
@@ -376,10 +399,22 @@ pub struct RuntimeArgs {
 }
 
 impl RuntimeArgs {
+    /// Parses runtime arguments and the configured path environment variable for this process.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when arguments are unknown or incomplete, help is requested, or no
+    /// configuration path is available.
     pub fn from_process() -> Result<Self, ConfigError> {
         Self::parse(env::args().skip(1), env::var_os(CONFIG_PATH_ENV))
     }
 
+    /// Parses an explicit argument stream with an optional environment-provided config path.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when arguments are unknown or incomplete, help is requested, or no
+    /// configuration path is available.
     pub fn parse<I, S>(args: I, env_path: Option<std::ffi::OsString>) -> Result<Self, ConfigError>
     where
         I: IntoIterator<Item = S>,
@@ -441,9 +476,7 @@ impl SecretResolver for LocalSecretResolver {
                 }
                 let value =
                     fs::read_to_string(path).map_err(|_| SecretError::Unavailable("file"))?;
-                let value = value
-                    .trim_end_matches(|character| character == '\r' || character == '\n')
-                    .to_owned();
+                let value = value.trim_end_matches(['\r', '\n']).to_owned();
                 if value.is_empty() {
                     return Err(SecretError::Unavailable("file"));
                 }
