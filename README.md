@@ -11,15 +11,15 @@ Self-owned backend platform for LIQI on Oracle Cloud Infrastructure. V0 establis
 ## V0 runtime envelope
 
 ```text
-OCI VM.Standard.A1.Flex — 4 OCPU / 24 GiB RAM
-├── PostgreSQL authority
-├── PgBouncer
-├── Rust API
-├── Rust realtime gateway
-├── Rust worker
-├── TLS/reverse proxy edge
-├── OpenTelemetry Collector
-└── host observability
+OCI VM.Standard.A1.Flex â€” 4 OCPU / 24 GiB RAM
+â”œâ”€â”€ PostgreSQL authority
+â”œâ”€â”€ PgBouncer
+â”œâ”€â”€ Rust API
+â”œâ”€â”€ Rust realtime gateway
+â”œâ”€â”€ Rust worker
+â”œâ”€â”€ TLS/reverse proxy edge
+â”œâ”€â”€ OpenTelemetry Collector
+â””â”€â”€ host observability
 ```
 
 PostgreSQL is the only durable authority. V0 is a health-gated single-node replacement/restart design, not HA or zero-downtime canary. At least 1 OCPU and 4 GiB remain reserved; declared hard limits cannot exceed 3 OCPU, 20 GiB RAM or the 200 GiB combined disk envelope.
@@ -28,12 +28,12 @@ PostgreSQL is the only durable authority. V0 is a health-gated single-node repla
 
 ```text
 clean source
-→ operations/provider contract validation
-→ deterministic release manifest
-→ deployment specification and preflight
-→ liveness + readiness + platform-probe health gate
-→ activation or bounded rollback
-→ telemetry, SLO and recovery freshness evidence
+â†’ operations/provider contract validation
+â†’ deterministic release manifest
+â†’ deployment specification and preflight
+â†’ liveness + readiness + platform-probe health gate
+â†’ activation or bounded rollback
+â†’ telemetry, SLO and recovery freshness evidence
 ```
 
 Provider logic is never reproduced in CI. Missing provider seams produce an owner-attributed `blocked` integration result. Source CI may tolerate blocked seams during the V0 checkpoint grace period; manual integration and promotion gates are strict and contain no mock fallback.
@@ -53,6 +53,8 @@ python scripts/operations/validate_contracts.py
 python scripts/operations/validate_provider_registry.py --allow-pending
 python scripts/operations/validate_dependency_policy.py
 python scripts/operations/validate_operability_catalog.py
+python scripts/operations/validate_telemetry_runtime.py
+python scripts/operations/validate_provider_compatibility.py --output .artifacts/provider-compatibility.json --allow-missing
 python scripts/operations/validate_ci_workflows.py
 python scripts/operations/scan_repository_secrets.py
 python -m unittest discover -s tests -p 'test_*.py' -v
@@ -69,6 +71,12 @@ python scripts/operations/run_provider_gates.py \
 ```
 
 The manual GitHub provider integration workflow performs no OCI apply, host activation or production deployment. Paid/unknown resources, OCI mutations and build/release execution require explicit project-owner approval.
+
+The promotion form additionally requires `oci_plan_run_id`. That run must expose an artifact containing exactly one `oci-plan.json` produced by `tofu show -json`; Senior 4 downloads and validates it but never creates or applies the plan.
+
+Host activation remains an owner-run command. First run `scripts/release/activate_release.py` without `--execute`; execution requires the reviewed deployment-spec SHA-256 and approval reference. Recovery exercises follow the same dry-run-first rule through `scripts/operations/run_recovery_exercise.py`.
+
+Current integration blockers are machine-readable: Senior 3 has not published the runtime seam, Senior 2 has not published recovery freshness commands, Senior 1 journald keep-free differs from the 10 GiB operations policy, and Senior 2 restore command ownership conflicts with `operations/**`. No Senior 4 fallback is provided.
 
 ## Build boundary
 

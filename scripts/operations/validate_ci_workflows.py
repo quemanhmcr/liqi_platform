@@ -76,6 +76,14 @@ def main() -> int:
                     with_block = step.get("with", {})
                     if isinstance(with_block, dict) and with_block.get("persist-credentials") == "false":
                         checkout_hardened += 1
+                if uses.startswith("opentofu/setup-opentofu@"):
+                    with_block = step.get("with", {})
+                    version = with_block.get("tofu_version") if isinstance(with_block, dict) else None
+                    wrapper = with_block.get("tofu_wrapper") if isinstance(with_block, dict) else None
+                    if not isinstance(version, str) or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
+                        failures.append(f"{relative}: OpenTofu must be pinned to an exact semantic version")
+                    if wrapper != "false":
+                        failures.append(f"{relative}: OpenTofu wrapper must be disabled for unambiguous provider exit codes")
         if checkout_count != checkout_hardened:
             failures.append(f"{relative}: every checkout step must set persist-credentials: false")
         if "provider-integration" in path.name:
@@ -84,6 +92,9 @@ def main() -> int:
                 failures.append(f"{relative}: provider integration must be manual-only")
             if "--allow-blocked" in text or "mock:" in text:
                 failures.append(f"{relative}: strict provider integration cannot allow blocked or mock gates")
+            for required in ("oci_plan_run_id", "actions/download-artifact@", "LIQI_OCI_PLAN_JSON"):
+                if required not in text:
+                    failures.append(f"{relative}: promotion workflow is missing protected OCI plan evidence seam {required}")
     if failures:
         for failure in failures:
             print(f"ERROR ci-workflow: {failure}", file=sys.stderr)

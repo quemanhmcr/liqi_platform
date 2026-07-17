@@ -23,6 +23,16 @@ on:
         required: true
         type: boolean
         default: false
+      oci_plan_run_id:
+        description: Required for promotion; workflow run ID containing the reviewed oci-plan-json artifact.
+        required: false
+        type: string
+        default: ""
+      oci_plan_artifact_name:
+        description: Artifact containing a single oci-plan.json produced by tofu show -json.
+        required: false
+        type: string
+        default: "oci-plan-json"
 
 concurrency:
   group: v0-provider-${{ inputs.environment }}-${{ inputs.stage }}
@@ -30,6 +40,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 env:
   PYTHONDONTWRITEBYTECODE: "1"
@@ -58,14 +69,50 @@ jobs:
       - name: Install pinned control-plane dependencies
         run: python -m pip install -r operations/ci/requirements-v0.txt
 
+      - name: Install pinned OpenTofu
+        uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f
+        with:
+          tofu_version: "1.12.1"
+          tofu_wrapper: false
+          cache: true
+
+      - name: Require reviewed OCI plan artifact for promotion
+        if: inputs.stage == 'promotion' && inputs.oci_plan_run_id == ''
+        run: |
+          echo "::error title=OCI plan evidence missing::Promotion requires oci_plan_run_id for a reviewed tofu show -json artifact."
+          exit 2
+
+      - name: Download reviewed OCI plan artifact
+        if: inputs.stage == 'promotion' && inputs.oci_plan_run_id != ''
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ inputs.oci_plan_artifact_name }}
+          path: .artifacts/oci-plan
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.oci_plan_run_id }}
+
+      - name: Validate reviewed OCI plan artifact shape
+        if: inputs.stage == 'promotion'
+        run: |
+          test -f .artifacts/oci-plan/oci-plan.json
+          test "$(find .artifacts/oci-plan -type f | wc -l)" -eq 1
+
       - name: Validate registry and operations contracts
         run: |
           python scripts/operations/validate_contracts.py
           python scripts/operations/validate_provider_registry.py --allow-pending
+          python scripts/operations/validate_telemetry_runtime.py
+
+      - name: Validate cross-provider compatibility strictly
+        run: >-
+          python scripts/operations/validate_provider_compatibility.py
+          --output .artifacts/provider-compatibility-result.json
 
       - name: Run strict provider gates without mock fallback
         env:
           LIQI_TEST_DATABASE: liqi_v0_ci
+          LIQI_OCI_PLAN_JSON: ${{ github.workspace }}/.artifacts/oci-plan/oci-plan.json
         run: |
           args=(
             --stage "${{ inputs.stage }}"
@@ -82,6 +129,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: provider-integration-result-${{ github.sha }}-${{ inputs.stage }}
-          path: .artifacts/provider-integration-result.json
+          path: |
+            .artifacts/provider-integration-result.json
+            .artifacts/provider-compatibility-result.json
           if-no-files-found: error
           retention-days: 30

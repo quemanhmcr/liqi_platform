@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,7 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_PATH = ROOT / "contracts" / "operations" / "provider-gates-v0.schema.json"
 DEFAULT_REGISTRY = ROOT / "operations" / "integration" / "provider-gates-v0.json"
+ENV_PLACEHOLDER = re.compile(r"\{env:([A-Z][A-Z0-9_]{1,63})\}")
 
 
 def load_json(path: Path) -> Any:
@@ -45,6 +47,12 @@ def validate(registry_path: Path, allow_pending: bool) -> list[str]:
             errors.append(f"{gate.get('id')}: json-file gate must receive an explicit {{output}} argument")
         if gate.get("provider_state") == "deprecated" and "promotion" in gate.get("stages", []):
             errors.append(f"{gate.get('id')}: deprecated gate cannot participate in promotion")
+        placeholders = {name for part in gate.get("argv", []) for name in ENV_PLACEHOLDER.findall(part)}
+        declared = set(gate.get("required_environment", []))
+        if placeholders - declared:
+            errors.append(f"{gate.get('id')}: env placeholders must be declared in required_environment: {sorted(placeholders - declared)}")
+        if declared - placeholders and gate.get("id") == "oci-plan-read-only":
+            errors.append(f"{gate.get('id')}: OCI plan environment must be consumed through a secret-safe env placeholder")
     return errors
 
 

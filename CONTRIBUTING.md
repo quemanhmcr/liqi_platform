@@ -2,7 +2,7 @@
 
 ## Branch and ownership
 
-All V0 workstreams branch from baseline `2d72ce4` and stay within their DRI boundaries. Senior 4 is single writer for `.github/**`, `operations/**`, `scripts/**`, `README.md`, `CONTRIBUTING.md`, `.gitignore`, `contracts/operations/**` and ADR range `0400–0499`.
+All V0 workstreams branch from baseline `2d72ce4` and stay within their DRI boundaries. Senior 4 is single writer for `.github/**`, `operations/**`, `scripts/**`, `README.md`, `CONTRIBUTING.md`, `.gitignore`, `contracts/operations/**` and ADR range `0400â€“0499`.
 
 Do not modify provider internals to make an integration gate pass. Return failures with owner, seam, action required and machine-readable evidence.
 
@@ -43,3 +43,9 @@ Decision note: <ADR path if applicable>
 ```
 
 Breaking changes additionally require old/new provider tests during the migration window, consumer updates, removal condition and owner.
+
+## Provider plan evidence
+
+Promotion consumes a reviewed `oci-plan.json` artifact by workflow run ID. Do not commit saved plans, state, OCI credentials or PEM files. A plan artifact is evidence, not approval to apply.
+
+Cross-provider compatibility failures must be fixed by the owning provider. Senior 4 does not add wrappers for mismatched host retention, database recovery ownership or runtime signal contracts.

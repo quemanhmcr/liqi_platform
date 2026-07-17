@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
 import sys
 print("password=TEST_ONLY_REDACTION_VALUE")
-print("fixture gate passed", file=sys.stderr)
+if len(sys.argv) > 1:
+    print("plan-path-received")

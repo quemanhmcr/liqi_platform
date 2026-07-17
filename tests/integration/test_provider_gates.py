@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -27,7 +28,9 @@ class ProviderGateTests(unittest.TestCase):
         ]
         if allow_blocked:
             command.append("--allow-blocked")
-        completed = subprocess.run(command, cwd=ROOT, text=True, capture_output=True, check=False)
+        environment = os.environ.copy()
+        environment["LIQI_TEST_PLAN_PATH"] = "C:/private/never-render-this-plan.json"
+        completed = subprocess.run(command, cwd=ROOT, text=True, capture_output=True, check=False, env=environment)
         return completed, json.loads(output.read_text(encoding="utf-8")), base
 
     def test_allow_blocked_emits_valid_owner_attributed_result(self) -> None:
@@ -42,6 +45,13 @@ class ProviderGateTests(unittest.TestCase):
         completed, result, _ = self.invoke(False)
         self.assertEqual(completed.returncode, 2)
         self.assertEqual(result["overall_status"], "blocked")
+
+    def test_environment_placeholder_is_not_exposed(self) -> None:
+        _, result, _ = self.invoke(True)
+        matching = [item for item in result["provider_results"] if item["seam"] == "secret-safe plan path fixture"]
+        self.assertEqual(len(matching), 1)
+        self.assertIn("<env:LIQI_TEST_PLAN_PATH>", matching[0]["command"])
+        self.assertNotIn("never-render-this-plan", matching[0]["command"])
 
     def test_provider_logs_are_redacted(self) -> None:
         _, result, _ = self.invoke(True)
