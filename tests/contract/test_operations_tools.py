@@ -1,0 +1,90 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+PYTHON = sys.executable
+CAPACITY_FIXTURES = ROOT / "tests" / "contract" / "fixtures" / "capacity"
+RELEASE_INPUT = ROOT / "tests" / "contract" / "fixtures" / "release-input" / "release-input.json"
+FIXED_SHA = "2d72ce4176993324d36d6f4ea115ff2b43fd5355"
+FIXED_EPOCH = "1784246400"
+
+
+def run(*args: str, expected: int = 0) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(args, cwd=ROOT, text=True, capture_output=True, check=False)
+    if result.returncode != expected:
+        raise AssertionError(
+            f"command returned {result.returncode}, expected {expected}: {args}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+    return result
+
+
+class OperationsToolTests(unittest.TestCase):
+    def test_contract_fixtures_validate(self) -> None:
+        run(PYTHON, "scripts/operations/validate_contracts.py", "--quiet")
+
+    def test_capacity_aggregate_preserves_headroom(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "capacity.json"
+            run(
+                PYTHON,
+                "scripts/operations/check_capacity.py",
+                str(CAPACITY_FIXTURES / "infrastructure.valid.json"),
+                str(CAPACITY_FIXTURES / "database.valid.json"),
+                str(CAPACITY_FIXTURES / "runtime.valid.json"),
+                str(CAPACITY_FIXTURES / "operations.valid.json"),
+                "--output",
+                str(output),
+            )
+            result = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual("passed", result["status"])
+            self.assertLessEqual(result["totals"]["ocpu"], 3)
+            self.assertLessEqual(result["totals"]["memory_mib"], 20480)
+            self.assertLessEqual(result["totals"]["disk_gib"], 180)
+            self.assertLessEqual(result["totals"]["postgres_connections"], 100)
+
+    def test_capacity_fails_when_provider_budget_is_missing(self) -> None:
+        result = run(
+            PYTHON,
+            "scripts/operations/check_capacity.py",
+            str(CAPACITY_FIXTURES / "infrastructure.valid.json"),
+            str(CAPACITY_FIXTURES / "database.valid.json"),
+            str(CAPACITY_FIXTURES / "runtime.valid.json"),
+            expected=1,
+        )
+        report = json.loads(result.stdout)
+        self.assertEqual("failed", report["status"])
+        self.assertIn("missing provider budgets: operations", report["failures"])
+
+    def test_release_manifest_is_byte_deterministic(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            first = Path(directory) / "first.json"
+            second = Path(directory) / "second.json"
+            common = (
+                PYTHON,
+                "scripts/release/generate_release_manifest.py",
+                "--input",
+                str(RELEASE_INPUT),
+                "--git-sha",
+                FIXED_SHA,
+                "--source-date-epoch",
+                FIXED_EPOCH,
+            )
+            run(*common, "--output", str(first))
+            run(*common, "--output", str(second))
+            first_bytes = first.read_bytes()
+            self.assertEqual(first_bytes, second.read_bytes())
+            self.assertEqual(
+                "a7f5263236d67fd136162a69f2504d143a879afe0a42dd2d81aef39478918b3e",
+                hashlib.sha256(first_bytes).hexdigest(),
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -19,6 +19,7 @@ PAIRS = (
     ("release-manifest-v0.schema.json", "release-manifest.valid.json"),
     ("telemetry-v0.schema.json", "telemetry.valid.json"),
     ("integration-result-v0.schema.json", "integration-result.valid.json"),
+    ("capacity-budget-v0.schema.json", "../capacity/infrastructure.valid.json"),
 )
 
 
