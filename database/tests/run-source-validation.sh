@@ -2,8 +2,22 @@
 set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tools/validate_database_contract.py"
+PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tools/validate_database_capacity.py"
+if [[ -f "$ROOT_DIR/contracts/platform/oci-host-v0.example.json" ]]; then
+  PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tools/validate_oci_host_adapter.py" \
+    "$ROOT_DIR/contracts/platform/oci-host-v0.example.json"
+fi
+PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tools/recovery_contract.py" validate-contracts
 PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tests/static/validate_database_source.py"
-for script in "$ROOT_DIR"/database/bin/*.sh "$ROOT_DIR"/database/tests/integration/*.sh; do
+PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tests/static/test_recovery_contract.py"
+for test_script in "$ROOT_DIR"/database/tests/static/test_*.sh; do
+  "$test_script"
+done
+for script in \
+  "$ROOT_DIR"/database/bin/*.sh \
+  "$ROOT_DIR"/database/tests/integration/*.sh \
+  "$ROOT_DIR"/database/tests/static/*.sh \
+  "$ROOT_DIR"/operations/disaster-recovery/database/*.sh; do
   bash -n "$script"
 done
 printf '%s\n' '{"validation":"database-shell-syntax-v0","passed":true}'
