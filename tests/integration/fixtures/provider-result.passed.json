@@ -1,0 +1,78 @@
+{
+  "capacity": {
+    "declared_memory_mib": 20480,
+    "declared_ocpu": 3,
+    "disk_budget_gib": 180,
+    "hard_limit_memory_mib": 24576,
+    "hard_limit_ocpu": 4,
+    "reserved_memory_mib": 4096,
+    "reserved_ocpu": 1,
+    "status": "passed"
+  },
+  "completed_at": "2026-07-17T00:00:01Z",
+  "environment": "development",
+  "gates": [
+    {
+      "command": "python scripts/operations/validate_contracts.py",
+      "duration_ms": 1,
+      "exit_code": 0,
+      "failure_class": null,
+      "output_ref": null,
+      "owner": "Senior 4",
+      "seam": "operations contract schemas",
+      "status": "passed"
+    }
+  ],
+  "git_sha": "2d72ce4176993324d36d6f4ea115ff2b43fd5355",
+  "integration_id": "int-checkpoint1",
+  "mode": "provider",
+  "overall_status": "passed",
+  "platform_probe": {
+    "release_id_observed": null,
+    "result_ref": null,
+    "status": "not-run"
+  },
+  "provider_results": [
+    {
+      "command": "python infrastructure/validation/validate_oci_host_contract.py",
+      "duration_ms": 1,
+      "exit_code": 0,
+      "failure_class": null,
+      "output_ref": "evidence/provider/oci.json",
+      "owner": "Senior 1",
+      "seam": "infrastructure validation",
+      "status": "passed"
+    },
+    {
+      "command": "bash database/tests/run-source-validation.sh",
+      "duration_ms": 1,
+      "exit_code": 0,
+      "failure_class": null,
+      "output_ref": "evidence/provider/database.json",
+      "owner": "Senior 2",
+      "seam": "database authority validation",
+      "status": "passed"
+    },
+    {
+      "command": "cargo test --workspace --all-targets --locked",
+      "duration_ms": 1,
+      "exit_code": 0,
+      "failure_class": null,
+      "output_ref": "evidence/provider/runtime.json",
+      "owner": "Senior 3",
+      "seam": "runtime contract validation",
+      "status": "passed"
+    }
+  ],
+  "recovery": {
+    "backup_age_seconds": null,
+    "evidence_ref": null,
+    "restore_verified_at": null,
+    "status": "not-applicable",
+    "wal_archive_lag_seconds": null
+  },
+  "release_id": "liqi-v0.0.0-test",
+  "schema_version": "integration-result-v0",
+  "started_at": "2026-07-17T00:00:00Z",
+  "violations": []
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/capacity-result-v0.schema.json",
+  "title": "LIQI aggregated capacity result V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "envelope", "totals", "components", "failures"],
+  "properties": {
+    "schema_version": {"const": "capacity-result-v0"},
+    "status": {"enum": ["passed", "failed"]},
+    "envelope": {
+      "type": "object",
+      "required": ["schema_version", "host", "reserved", "provider_hard_limit", "policy"]
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ocpu", "memory_mib", "disk_gib", "postgres_connections"],
+      "properties": {
+        "ocpu": {"type": "number", "minimum": 0, "maximum": 3},
+        "memory_mib": {"type": "integer", "minimum": 0, "maximum": 20480},
+        "disk_gib": {"type": "number", "minimum": 0, "maximum": 180},
+        "postgres_connections": {"type": "integer", "minimum": 0, "maximum": 100}
+      }
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["provider", "name", "ocpu", "memory_mib", "disk_gib", "postgres_connections"],
+        "properties": {
+          "provider": {"enum": ["infrastructure", "database", "runtime", "operations"]},
+          "name": {"type": "string", "minLength": 1},
+          "ocpu": {"type": "number", "minimum": 0},
+          "memory_mib": {"type": "integer", "minimum": 0},
+          "disk_gib": {"type": "number", "minimum": 0},
+          "postgres_connections": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "failures": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  }
+}

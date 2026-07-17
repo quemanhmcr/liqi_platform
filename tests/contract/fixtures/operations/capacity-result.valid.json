@@ -1,0 +1,104 @@
+{
+  "components": [
+    {
+      "disk_gib": 0.2,
+      "memory_mib": 256,
+      "name": "pgbouncer",
+      "ocpu": 0.1,
+      "postgres_connections": 8,
+      "provider": "database"
+    },
+    {
+      "disk_gib": 120,
+      "memory_mib": 8192,
+      "name": "postgresql",
+      "ocpu": 1.3,
+      "postgres_connections": 70,
+      "provider": "database"
+    },
+    {
+      "disk_gib": 2,
+      "memory_mib": 256,
+      "name": "reverse-proxy",
+      "ocpu": 0.1,
+      "postgres_connections": 0,
+      "provider": "infrastructure"
+    },
+    {
+      "disk_gib": 8,
+      "memory_mib": 512,
+      "name": "host-observability",
+      "ocpu": 0.1,
+      "postgres_connections": 0,
+      "provider": "operations"
+    },
+    {
+      "disk_gib": 8,
+      "memory_mib": 512,
+      "name": "otel-collector",
+      "ocpu": 0.15,
+      "postgres_connections": 0,
+      "provider": "operations"
+    },
+    {
+      "disk_gib": 1,
+      "memory_mib": 1536,
+      "name": "liqi-api",
+      "ocpu": 0.4,
+      "postgres_connections": 6,
+      "provider": "runtime"
+    },
+    {
+      "disk_gib": 1,
+      "memory_mib": 2048,
+      "name": "liqi-realtime",
+      "ocpu": 0.45,
+      "postgres_connections": 2,
+      "provider": "runtime"
+    },
+    {
+      "disk_gib": 1,
+      "memory_mib": 1024,
+      "name": "liqi-worker",
+      "ocpu": 0.3,
+      "postgres_connections": 6,
+      "provider": "runtime"
+    }
+  ],
+  "envelope": {
+    "host": {
+      "combined_storage_gib": 200,
+      "memory_mib": 24576,
+      "ocpu": 4
+    },
+    "policy": {
+      "missing_budget": "fail",
+      "over_budget": "fail",
+      "paid_or_unknown_default_enabled": false,
+      "same_volume_backup_is_backup": false,
+      "swap_is_capacity": false
+    },
+    "provider_hard_limit": {
+      "disk_gib": 180,
+      "memory_mib": 20480,
+      "ocpu": 3,
+      "postgres_connections": 100
+    },
+    "reserved": {
+      "disk_gib": 20,
+      "memory_mib": 4096,
+      "ocpu": 1,
+      "purpose": "OS, recovery, incident spikes and emergency disk operations"
+    },
+    "schema_version": "capacity-envelope-v0"
+  },
+  "failures": [],
+  "schema_version": "capacity-result-v0",
+  "status": "passed",
+  "totals": {
+    "disk_gib": 141.2,
+    "memory_mib": 14336,
+    "ocpu": 2.9,
+    "postgres_connections": 92
+  }
+}

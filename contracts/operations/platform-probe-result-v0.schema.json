@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/platform-probe-result-v0.schema.json",
+  "title": "LIQI platform probe result V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "owner", "release_id", "observed_release_id", "environment",
+    "started_at", "completed_at", "status", "checks", "errors"
+  ],
+  "properties": {
+    "schema_version": {"const": "platform-probe-result-v0"},
+    "owner": {"const": "Senior 3"},
+    "release_id": {"type": "string", "pattern": "^liqi-[a-z0-9][a-z0-9._-]{2,95}$"},
+    "observed_release_id": {"type": "string", "pattern": "^liqi-[a-z0-9][a-z0-9._-]{2,95}$"},
+    "environment": {"enum": ["development", "staging", "production"]},
+    "started_at": {"type": "string", "format": "date-time"},
+    "completed_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["passed", "failed"]},
+    "checks": {
+      "type": "array",
+      "minItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status", "duration_ms", "evidence_ref", "error_class"],
+        "properties": {
+          "name": {
+            "enum": [
+              "api-liveness", "api-readiness", "realtime-liveness", "realtime-readiness",
+              "worker-readiness", "durable-command", "outbox-terminal", "realtime-delivery"
+            ]
+          },
+          "status": {"enum": ["passed", "failed"]},
+          "duration_ms": {"type": "integer", "minimum": 0, "maximum": 300000},
+          "evidence_ref": {"type": ["string", "null"], "maxLength": 1024},
+          "error_class": {"type": ["string", "null"], "maxLength": 128}
+        }
+      },
+      "allOf": [
+        {"contains": {"properties": {"name": {"const": "api-liveness"}}, "required": ["name"]}},
+        {"contains": {"properties": {"name": {"const": "api-readiness"}}, "required": ["name"]}},
+        {"contains": {"properties": {"name": {"const": "durable-command"}}, "required": ["name"]}},
+        {"contains": {"properties": {"name": {"const": "outbox-terminal"}}, "required": ["name"]}},
+        {"contains": {"properties": {"name": {"const": "realtime-delivery"}}, "required": ["name"]}}
+      ]
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["error_class", "message"],
+        "properties": {
+          "error_class": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{2,63}$"},
+          "message": {"type": "string", "minLength": 1, "maxLength": 500}
+        }
+      }
+    }
+  }
+}
