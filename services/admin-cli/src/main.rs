@@ -1,9 +1,12 @@
 #![forbid(unsafe_code)]
 
+mod platform_probe;
+
 use clap::{Parser, Subcommand, ValueEnum};
 use jsonschema::{Retrieve, Uri};
 use liqi_configuration::{RuntimeConfig, ServiceName};
 use liqi_protocol::{ClientFrame, ERROR_CODE_REGISTRY, ServerFrame};
+use platform_probe::{PlatformProbeExit, PlatformProbeOptions};
 use serde::Serialize;
 use serde_json::Value;
 use std::{
@@ -12,6 +15,7 @@ use std::{
     fs,
     io::{self, Write as _},
     path::{Path, PathBuf},
+    time::Duration,
 };
 use thiserror::Error;
 
@@ -42,6 +46,21 @@ enum Command {
         #[arg(long)]
         config: PathBuf,
     },
+    /// Run the provider-owned end-to-end platform promotion probe.
+    PlatformProbe {
+        #[arg(long)]
+        output: PathBuf,
+        #[arg(long, default_value = "http://127.0.0.1:8080")]
+        api_base_url: String,
+        #[arg(long, default_value = "http://127.0.0.1:8081")]
+        realtime_base_url: String,
+        #[arg(long, default_value = "ws://127.0.0.1:8081/platform/v0/realtime")]
+        realtime_ws_url: String,
+        #[arg(long, default_value = "http://127.0.0.1:8082")]
+        worker_base_url: String,
+        #[arg(long, default_value_t = 10)]
+        timeout_seconds: u64,
+    },
     /// Print stable commands and runtime health/artifact interfaces for CI/release consumers.
     PrintValidationManifest,
 }
@@ -63,7 +82,8 @@ impl From<ServiceArgument> for ServiceName {
     }
 }
 
-fn main() -> Result<(), ToolError> {
+#[tokio::main]
+async fn main() -> Result<(), ToolError> {
     let cli = Cli::parse();
     match cli.command {
         Command::ValidateContracts { root } => {
@@ -80,6 +100,30 @@ fn main() -> Result<(), ToolError> {
                 secret_scheme: config.database.secret_ref.scheme().to_owned(),
                 required_migration_version: config.database.required_migration_version,
             })?;
+        }
+        Command::PlatformProbe {
+            output,
+            api_base_url,
+            realtime_base_url,
+            realtime_ws_url,
+            worker_base_url,
+            timeout_seconds,
+        } => {
+            if !(1..=15).contains(&timeout_seconds) {
+                return Err(ToolError::InvalidProbeTimeout);
+            }
+            let result = platform_probe::run(PlatformProbeOptions {
+                output: output.clone(),
+                api_base_url,
+                realtime_base_url,
+                realtime_ws_url,
+                worker_base_url,
+                timeout: Duration::from_secs(timeout_seconds),
+            })
+            .await?;
+            if result == PlatformProbeExit::Failed {
+                return Err(ToolError::PlatformProbeFailed(output));
+            }
         }
         Command::PrintValidationManifest => write_json(&ValidationManifest::v0())?,
     }
@@ -167,6 +211,7 @@ fn validate_contracts(root: &Path) -> Result<ValidationReport, ToolError> {
 
     validate_error_registry(&contracts.join("errors/error-codes-v0.json"))?;
     validate_openapi(&contracts.join("openapi/platform-v0.yaml"))?;
+    let provider_declarations = validate_provider_declarations(&contracts)?;
     scan_for_embedded_secrets(root)?;
 
     Ok(ValidationReport {
@@ -178,6 +223,7 @@ fn validate_contracts(root: &Path) -> Result<ValidationReport, ToolError> {
         realtime_examples: realtime_example_count,
         openapi_version: "3.1.0",
         error_codes: ERROR_CODE_REGISTRY.len(),
+        provider_declarations,
         secret_scan: "clean",
     })
 }
@@ -278,6 +324,7 @@ fn validate_openapi(path: &Path) -> Result<(), ToolError> {
     for pointer in [
         "/paths/~1health~1live/get",
         "/paths/~1health~1ready/get",
+        "/paths/~1health~1platform/get",
         "/paths/~1metrics/get",
         "/paths/~1platform~1v0~1metadata/get",
         "/paths/~1platform~1v0~1probes/post",
@@ -293,6 +340,81 @@ fn validate_openapi(path: &Path) -> Result<(), ToolError> {
         }
     }
     Ok(())
+}
+
+fn validate_provider_declarations(contracts: &Path) -> Result<usize, ToolError> {
+    let capacity_path = contracts.join("platform/runtime-capacity-budget-v0.json");
+    let telemetry_paths = [
+        (
+            "liqi-api",
+            contracts.join("platform/runtime-telemetry-api-v0.json"),
+        ),
+        (
+            "liqi-realtime",
+            contracts.join("platform/runtime-telemetry-realtime-v0.json"),
+        ),
+        (
+            "liqi-worker",
+            contracts.join("platform/runtime-telemetry-worker-v0.json"),
+        ),
+    ];
+    let capacity = read_json(&capacity_path)?;
+    if capacity.get("schema_version").and_then(Value::as_str) != Some("capacity-budget-v0")
+        || capacity.get("provider").and_then(Value::as_str) != Some("runtime")
+        || capacity.get("owner").and_then(Value::as_str) != Some("Senior 3")
+    {
+        return Err(ToolError::ContractShape(
+            capacity_path,
+            "runtime capacity provider identity is invalid",
+        ));
+    }
+
+    let capacity_schema_path = contracts.join("operations/capacity-budget-v0.schema.json");
+    if capacity_schema_path.is_file() {
+        let capacity_schema = read_json(&capacity_schema_path)?;
+        jsonschema::meta::validate(&capacity_schema).map_err(|error| {
+            ToolError::InvalidSchema("capacity-budget-v0".to_owned(), error.to_string())
+        })?;
+        validate_instance(
+            &validator(&capacity_schema, ContractRetriever::default())?,
+            &capacity,
+            &capacity_path,
+        )?;
+    }
+
+    let telemetry_schema_path = contracts.join("operations/telemetry-v0.schema.json");
+    let telemetry_validator = if telemetry_schema_path.is_file() {
+        let schema = read_json(&telemetry_schema_path)?;
+        jsonschema::meta::validate(&schema).map_err(|error| {
+            ToolError::InvalidSchema("telemetry-v0".to_owned(), error.to_string())
+        })?;
+        Some(validator(&schema, ContractRetriever::default())?)
+    } else {
+        None
+    };
+    for (expected_service, path) in telemetry_paths {
+        let document = read_json(&path)?;
+        let service = document.get("service").and_then(Value::as_object);
+        if document.get("schema_version").and_then(Value::as_str) != Some("telemetry-v0")
+            || service
+                .and_then(|value| value.get("name"))
+                .and_then(Value::as_str)
+                != Some(expected_service)
+            || service
+                .and_then(|value| value.get("owner"))
+                .and_then(Value::as_str)
+                != Some("Senior 3")
+        {
+            return Err(ToolError::ContractShape(
+                path,
+                "runtime telemetry provider identity is invalid",
+            ));
+        }
+        if let Some(validator) = &telemetry_validator {
+            validate_instance(validator, &document, &path)?;
+        }
+    }
+    Ok(4)
 }
 
 fn scan_for_embedded_secrets(root: &Path) -> Result<(), ToolError> {
@@ -434,6 +556,7 @@ struct ValidationReport {
     realtime_examples: usize,
     openapi_version: &'static str,
     error_codes: usize,
+    provider_declarations: usize,
     secret_scan: &'static str,
 }
 
@@ -455,6 +578,8 @@ struct ValidationManifest {
     contract_command: &'static str,
     workspace_test_command: &'static str,
     workspace_lint_command: &'static str,
+    platform_probe_command: &'static str,
+    platform_probe_result_schema: &'static str,
     artifacts: [ArtifactInterface; 3],
 }
 
@@ -465,10 +590,12 @@ struct ArtifactInterface {
     target_triple: &'static str,
     default_port: u16,
     steady_cpu_cores: f64,
+    hard_cpu_cores: f64,
     hard_memory_mib: u32,
     failure_behavior: &'static str,
     liveness_path: &'static str,
     readiness_path: &'static str,
+    platform_health_path: &'static str,
     metrics_path: &'static str,
     metadata_path: &'static str,
     metadata_command: &'static str,
@@ -478,9 +605,11 @@ impl ValidationManifest {
     const fn v0() -> Self {
         Self {
             schema_version: "liqi.platform.runtime-validation/v0",
-            contract_command: "cargo run -p liqi-platform-tool -- validate-contracts --root .",
-            workspace_test_command: "cargo test --workspace --all-targets --all-features",
-            workspace_lint_command: "cargo clippy --workspace --all-targets --all-features -- -D warnings",
+            contract_command: "cargo +1.97.1 run --locked -p liqi-platform-tool -- validate-contracts --root .",
+            workspace_test_command: "cargo +1.97.1 test --workspace --all-targets --all-features --locked",
+            workspace_lint_command: "cargo +1.97.1 clippy --workspace --all-targets --all-features --locked -- -D warnings",
+            platform_probe_command: "liqi-platform-tool platform-probe --output {output}",
+            platform_probe_result_schema: "platform-probe-result-v0",
             artifacts: [
                 ArtifactInterface::new("liqi-api", 8080),
                 ArtifactInterface::new("liqi-realtime", 8081),
@@ -499,18 +628,21 @@ impl ArtifactInterface {
             }
             _ => "liqi-worker --config /etc/liqi/worker.json --print-artifact-metadata",
         };
-        let (steady_cpu_cores, hard_memory_mib, failure_behavior) = match name {
+        let (steady_cpu_cores, hard_cpu_cores, hard_memory_mib, failure_behavior) = match name {
             "liqi-api" => (
+                0.25,
                 0.45,
                 2048,
                 "fail-closed-on-secret-database-or-migration-unavailability",
             ),
             "liqi-realtime" => (
+                0.35,
                 0.65,
                 3072,
                 "bounded-queue-disconnect-and-not-ready-without-committed-handoff",
             ),
             _ => (
+                0.20,
                 0.35,
                 2048,
                 "at-least-once-bounded-retry-and-dead-letter-after-eight-attempts",
@@ -521,10 +653,12 @@ impl ArtifactInterface {
             target_triple: "aarch64-unknown-linux-gnu",
             default_port,
             steady_cpu_cores,
+            hard_cpu_cores,
             hard_memory_mib,
             failure_behavior,
             liveness_path: "/health/live",
             readiness_path: "/health/ready",
+            platform_health_path: "/health/platform",
             metrics_path: "/metrics",
             metadata_path: "/platform/v0/metadata",
             metadata_command,
@@ -570,6 +704,12 @@ enum ToolError {
     EmbeddedSecret(PathBuf, String),
     #[error("runtime configuration is invalid")]
     RuntimeConfig(#[from] liqi_configuration::ConfigError),
+    #[error("platform probe configuration or result failed")]
+    PlatformProbe(#[from] platform_probe::PlatformProbeError),
+    #[error("platform probe completed with failed evidence: {0}")]
+    PlatformProbeFailed(PathBuf),
+    #[error("platform probe per-step timeout must be between 1 and 15 seconds")]
+    InvalidProbeTimeout,
     #[error("JSON output failed")]
     WriteJson(#[source] serde_json::Error),
     #[error("stdout write failed")]
