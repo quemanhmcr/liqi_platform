@@ -25,6 +25,10 @@ PAIRS = (
     ("slo-catalog-v0.schema.json", "../../../../operations/slo/slo-catalog-v0.json"),
     ("provider-gates-v0.schema.json", "../../../../operations/integration/provider-gates-v0.json"),
     ("dependency-policy-v0.schema.json", "../../../../operations/release/dependency-policy-v0.json"),
+    ("capacity-result-v0.schema.json", "capacity-result.valid.json"),
+    ("recovery-freshness-result-v0.schema.json", "recovery-freshness-result.valid.json"),
+    ("platform-probe-result-v0.schema.json", "../../../integration/fixtures/platform-probe-result.valid.json"),
+    ("deployment-spec-v0.schema.json", "deployment-spec.valid.json"),
 )
 
 
@@ -57,6 +61,31 @@ def validate_semantics(fixture_name: str, fixture: Any) -> list[str]:
             overlap = forbidden.intersection(metric.get("labels", []))
             if overlap:
                 errors.append(f"metric {metric.get('name')} uses forbidden labels: {sorted(overlap)}")
+    elif fixture_name == "capacity-result.valid.json":
+        if fixture.get("status") == "passed" and fixture.get("failures"):
+            errors.append("passed capacity result cannot contain failures")
+        providers = {item.get("provider") for item in fixture.get("components", [])}
+        if providers != {"infrastructure", "database", "runtime", "operations"}:
+            errors.append("capacity result must aggregate all four provider budgets")
+    elif fixture_name == "recovery-freshness-result.valid.json":
+        if fixture.get("status") == "passed" and fixture.get("failures"):
+            errors.append("passed recovery freshness result cannot contain failures")
+    elif fixture_name == "platform-probe-result.valid.json":
+        if fixture.get("status") == "passed":
+            if fixture.get("release_id") != fixture.get("observed_release_id"):
+                errors.append("passed platform probe must observe the requested release ID")
+            if fixture.get("errors"):
+                errors.append("passed platform probe cannot contain errors")
+            if any(item.get("status") != "passed" for item in fixture.get("checks", [])):
+                errors.append("passed platform probe cannot contain failed checks")
+    elif fixture_name == "deployment-spec.valid.json":
+        artifact_names = [item.get("name") for item in fixture.get("artifacts", [])]
+        service_names = [item.get("name") for item in fixture.get("services", [])]
+        expected = {"liqi-api", "liqi-realtime", "liqi-worker"}
+        if set(artifact_names) != expected or len(artifact_names) != 3:
+            errors.append("deployment spec must install each runtime artifact exactly once")
+        if set(service_names) != expected or len(service_names) != 3:
+            errors.append("deployment spec must control each runtime service exactly once")
     elif fixture_name == "integration-result.valid.json":
         statuses = [item.get("status") for item in fixture.get("provider_results", []) + fixture.get("gates", [])]
         expected_overall = "failed" if "failed" in statuses else "blocked" if "blocked" in statuses else "passed"

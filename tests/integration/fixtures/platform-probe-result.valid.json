@@ -1,0 +1,62 @@
+{
+  "checks": [
+    {
+      "duration_ms": 10,
+      "error_class": null,
+      "evidence_ref": "evidence://probe/api-live",
+      "name": "api-liveness",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 12,
+      "error_class": null,
+      "evidence_ref": "evidence://probe/api-ready",
+      "name": "api-readiness",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 11,
+      "error_class": null,
+      "evidence_ref": "evidence://probe/realtime-ready",
+      "name": "realtime-readiness",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 9,
+      "error_class": null,
+      "evidence_ref": "evidence://probe/worker-ready",
+      "name": "worker-readiness",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 35,
+      "error_class": null,
+      "evidence_ref": "evidence://probe/command",
+      "name": "durable-command",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 45,
+      "error_class": null,
+      "evidence_ref": "evidence://probe/outbox",
+      "name": "outbox-terminal",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 50,
+      "error_class": null,
+      "evidence_ref": "evidence://probe/delivery",
+      "name": "realtime-delivery",
+      "status": "passed"
+    }
+  ],
+  "completed_at": "2026-07-17T00:00:01Z",
+  "environment": "development",
+  "errors": [],
+  "observed_release_id": "liqi-v0.0.0-test",
+  "owner": "Senior 3",
+  "release_id": "liqi-v0.0.0-test",
+  "schema_version": "platform-probe-result-v0",
+  "started_at": "2026-07-17T00:00:00Z",
+  "status": "passed"
+}

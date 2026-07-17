@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/deployment-spec-v0.schema.json",
+  "title": "LIQI health-gated single-node deployment specification V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "release_id", "git_sha", "environment", "strategy", "claims",
+    "target", "artifacts", "services", "preflight", "health_gate", "rollback", "mutation_policy"
+  ],
+  "properties": {
+    "schema_version": {"const": "deployment-spec-v0"},
+    "release_id": {"type": "string", "pattern": "^liqi-[a-z0-9][a-z0-9._-]{2,95}$"},
+    "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "environment": {"enum": ["development", "staging", "production"]},
+    "strategy": {"const": "health-gated-replacement"},
+    "claims": {
+      "type": "object", "additionalProperties": false,
+      "required": ["high_availability", "zero_downtime", "canary"],
+      "properties": {
+        "high_availability": {"const": false},
+        "zero_downtime": {"const": false},
+        "canary": {"const": false}
+      }
+    },
+    "target": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "host_schema_version", "host_output_version", "host_instance_ref", "transport_user",
+        "staging_path", "deployment_root", "release_path", "current_symlink", "installation_semantics"
+      ],
+      "properties": {
+        "host_schema_version": {"type": "string", "minLength": 1},
+        "host_output_version": {"type": "string", "minLength": 1},
+        "host_instance_ref": {"type": "string", "minLength": 1, "maxLength": 256},
+        "transport_user": {"const": "opc"},
+        "staging_path": {"type": "string", "pattern": "^/"},
+        "deployment_root": {"type": "string", "pattern": "^/"},
+        "release_path": {"type": "string", "pattern": "^/opt/liqi/releases/"},
+        "current_symlink": {"type": "string", "pattern": "^/"},
+        "installation_semantics": {"const": "upload-to-staging-then-root-owned-atomic-install"}
+      }
+    },
+    "artifacts": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "sha256", "size_bytes", "target_path", "owner", "group", "mode"],
+        "properties": {
+          "name": {"enum": ["liqi-api", "liqi-realtime", "liqi-worker"]},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "size_bytes": {"type": "integer", "minimum": 1},
+          "target_path": {"type": "string", "pattern": "^/opt/liqi/releases/"},
+          "owner": {"enum": ["liqi-api", "liqi-realtime", "liqi-worker"]},
+          "group": {"const": "liqi"},
+          "mode": {"const": "0550"}
+        }
+      }
+    },
+    "services": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "unit", "artifact", "start_order", "stop_timeout_seconds", "shutdown_signal"],
+        "properties": {
+          "name": {"enum": ["liqi-api", "liqi-realtime", "liqi-worker"]},
+          "unit": {"type": "string", "pattern": "^liqi-(api|realtime|worker)\\.service$"},
+          "artifact": {"enum": ["liqi-api", "liqi-realtime", "liqi-worker"]},
+          "start_order": {"type": "integer", "minimum": 1, "maximum": 3},
+          "stop_timeout_seconds": {"type": "integer", "minimum": 5, "maximum": 120},
+          "shutdown_signal": {"const": "SIGTERM"}
+        }
+      }
+    },
+    "preflight": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "integration_id", "integration_status", "capacity_status", "recovery_status",
+        "platform_probe_status", "database_compatibility", "infrastructure_cost_classification",
+        "approval_ref"
+      ],
+      "properties": {
+        "integration_id": {"type": "string", "pattern": "^int-"},
+        "integration_status": {"const": "passed"},
+        "capacity_status": {"const": "passed"},
+        "recovery_status": {"enum": ["passed", "not-applicable"]},
+        "platform_probe_status": {"const": "passed"},
+        "database_compatibility": {"enum": ["expand-only", "expand-migrate", "contract-approved"]},
+        "infrastructure_cost_classification": {"enum": ["always-free-safe", "free-trial-only", "paid", "unknown"]},
+        "approval_ref": {"type": ["string", "null"], "maxLength": 512}
+      }
+    },
+    "health_gate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["target_ref", "target_digest", "deadline_seconds", "failure_action"],
+      "properties": {
+        "target_ref": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "target_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "deadline_seconds": {"type": "integer", "minimum": 1, "maximum": 600},
+        "failure_action": {"const": "stop-new-release-select-predeclared-rollback-or-incident"}
+      }
+    },
+    "rollback": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "compatible", "previous_release_id", "previous_release_path", "deadline_seconds",
+        "database_rollback_allowed", "first_release_failure_action"
+      ],
+      "properties": {
+        "compatible": {"type": "boolean"},
+        "previous_release_id": {"type": ["string", "null"], "pattern": "^liqi-"},
+        "previous_release_path": {"type": ["string", "null"], "pattern": "^/opt/liqi/releases/"},
+        "deadline_seconds": {"type": "integer", "minimum": 30, "maximum": 1800},
+        "database_rollback_allowed": {"const": false},
+        "first_release_failure_action": {"const": "stop-services-and-enter-incident"}
+      }
+    },
+    "mutation_policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["owner_approval_required", "oci_apply", "destructive_migration", "automatic_activation"],
+      "properties": {
+        "owner_approval_required": {"const": true},
+        "oci_apply": {"const": false},
+        "destructive_migration": {"const": false},
+        "automatic_activation": {"const": false}
+      }
+    }
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "artifacts": [
+    {
+      "group": "liqi",
+      "mode": "0550",
+      "name": "liqi-api",
+      "owner": "liqi-api",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "size_bytes": 1,
+      "target_path": "/opt/liqi/releases/liqi-v0.0.0-test/bin/liqi-api"
+    },
+    {
+      "group": "liqi",
+      "mode": "0550",
+      "name": "liqi-realtime",
+      "owner": "liqi-realtime",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "size_bytes": 1,
+      "target_path": "/opt/liqi/releases/liqi-v0.0.0-test/bin/liqi-realtime"
+    },
+    {
+      "group": "liqi",
+      "mode": "0550",
+      "name": "liqi-worker",
+      "owner": "liqi-worker",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "size_bytes": 1,
+      "target_path": "/opt/liqi/releases/liqi-v0.0.0-test/bin/liqi-worker"
+    }
+  ],
+  "claims": {
+    "canary": false,
+    "high_availability": false,
+    "zero_downtime": false
+  },
+  "environment": "development",
+  "git_sha": "2d72ce4176993324d36d6f4ea115ff2b43fd5355",
+  "health_gate": {
+    "deadline_seconds": 1,
+    "failure_action": "stop-new-release-select-predeclared-rollback-or-incident",
+    "target_digest": "7646394807560448f08705c1bbfa87565e5abb8e7963e080993407bb725b4fe3",
+    "target_ref": "tests/integration/fixtures/health-gate-target.promotion.valid.json"
+  },
+  "mutation_policy": {
+    "automatic_activation": false,
+    "destructive_migration": false,
+    "oci_apply": false,
+    "owner_approval_required": true
+  },
+  "preflight": {
+    "approval_ref": null,
+    "capacity_status": "passed",
+    "database_compatibility": "expand-only",
+    "infrastructure_cost_classification": "always-free-safe",
+    "integration_id": "int-checkpoint1",
+    "integration_status": "passed",
+    "platform_probe_status": "passed",
+    "recovery_status": "passed"
+  },
+  "release_id": "liqi-v0.0.0-test",
+  "rollback": {
+    "compatible": false,
+    "database_rollback_allowed": false,
+    "deadline_seconds": 300,
+    "first_release_failure_action": "stop-services-and-enter-incident",
+    "previous_release_id": null,
+    "previous_release_path": null
+  },
+  "schema_version": "deployment-spec-v0",
+  "services": [
+    {
+      "artifact": "liqi-api",
+      "name": "liqi-api",
+      "shutdown_signal": "SIGTERM",
+      "start_order": 1,
+      "stop_timeout_seconds": 30,
+      "unit": "liqi-api.service"
+    },
+    {
+      "artifact": "liqi-realtime",
+      "name": "liqi-realtime",
+      "shutdown_signal": "SIGTERM",
+      "start_order": 2,
+      "stop_timeout_seconds": 30,
+      "unit": "liqi-realtime.service"
+    },
+    {
+      "artifact": "liqi-worker",
+      "name": "liqi-worker",
+      "shutdown_signal": "SIGTERM",
+      "start_order": 3,
+      "stop_timeout_seconds": 60,
+      "unit": "liqi-worker.service"
+    }
+  ],
+  "strategy": "health-gated-replacement",
+  "target": {
+    "current_symlink": "/opt/liqi/current",
+    "deployment_root": "/opt/liqi/releases",
+    "host_instance_ref": "ocid1.instance.oc1.ap-singapore-2.testfixture",
+    "host_output_version": "0.2.0",
+    "host_schema_version": "liqi.platform.oci-host/v0",
+    "installation_semantics": "upload-to-staging-then-root-owned-atomic-install",
+    "release_path": "/opt/liqi/releases/liqi-v0.0.0-test",
+    "staging_path": "/var/tmp/liqi/releases",
+    "transport_user": "opc"
+  }
+}
