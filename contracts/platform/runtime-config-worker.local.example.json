@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "0",
+  "environment": "local",
+  "host": {
+    "readinessFile": "/run/liqi/host-ready.json",
+    "readinessSchemaVersion": "liqi.platform.host-readiness/v0"
+  },
+  "service": {
+    "name": "liqi-worker",
+    "version": "0.1.0-dev",
+    "instanceId": "local-worker-1",
+    "listen": {
+      "host": "127.0.0.1",
+      "port": 8082
+    }
+  },
+  "database": {
+    "endpoint": {
+      "host": "127.0.0.1",
+      "port": 6432,
+      "poolingMode": "transaction"
+    },
+    "databaseName": "liqi",
+    "role": "liqi_worker",
+    "secretRef": "env://LIQI_DATABASE_PASSWORD",
+    "connectTimeoutMs": 3000,
+    "acquireTimeoutMs": 2000,
+    "statementTimeoutMs": 30000,
+    "lockTimeoutMs": 5000,
+    "idleInTransactionTimeoutMs": 30000,
+    "maxConnections": 10,
+    "minConnections": 1,
+    "requiredMigrationVersion": 2
+  },
+  "runtime": {
+    "requestTimeoutMs": 5000,
+    "shutdownDeadlineMs": 15000,
+    "maxInFlightRequests": 256,
+    "maxBlockingTasks": 4
+  },
+  "limits": {
+    "maxRequestBodyBytes": 1048576,
+    "maxRealtimeMessageBytes": 65536,
+    "realtimeOutboundQueue": 128,
+    "workerClaimBatch": 32,
+    "workerConcurrency": 8,
+    "validationErrorItems": 8,
+    "eventMetadataBytes": 4096,
+    "workerMaxAttempts": 8,
+    "workerRetryBaseMs": 500,
+    "workerRetryMaxMs": 30000,
+    "realtimeHeartbeatIntervalMs": 15000,
+    "realtimeHeartbeatTimeoutMs": 45000,
+    "realtimeSlowConsumerDisconnectMs": 1000,
+    "realtimeMaxSubscriptions": 64
+  },
+  "telemetry": {
+    "logLevel": "info,liqi=debug",
+    "otlpEndpoint": "http://127.0.0.1:4318",
+    "traceSampleRatio": 1.0
+  },
+  "features": {
+    "platform.probe": true,
+    "telemetry.otlp": false,
+    "persistence.fake": true
+  }
+}

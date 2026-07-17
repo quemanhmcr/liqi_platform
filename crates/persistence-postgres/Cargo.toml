@@ -1,0 +1,23 @@
+[package]
+name = "liqi-persistence-postgres"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+liqi-application = { path = "../application" }
+liqi-configuration = { path = "../configuration" }
+liqi-protocol = { path = "../protocol" }
+secrecy.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+time.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,190 @@
+openapi: 3.1.0
+info:
+  title: LIQI Platform V0
+  version: 0.1.0
+  description: >-
+    Operational walking-skeleton API. PostgreSQL is the sole durable authority.
+    Probe success means the probe and its outbox event committed atomically.
+servers:
+  - url: https://platform.invalid
+    description: Placeholder only; runtime does not depend on an OCI hostname.
+paths:
+  /health/live:
+    get:
+      operationId: getLiveness
+      summary: Process liveness independent of database availability
+      responses:
+        '200':
+          description: The process event loop is alive.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /health/ready:
+    get:
+      operationId: getReadiness
+      summary: Dependency and migration readiness
+      responses:
+        '200':
+          description: The process can accept its configured workload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: A required dependency or migration is not ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /health/platform:
+    get:
+      operationId: getPlatformHealth
+      summary: Application-layer dependency health used by provider capability checks
+      description: This is not end-to-end promotion evidence; platform-probe-result-v0 remains authoritative for promotion.
+      responses:
+        '200':
+          description: Required application dependencies are ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: A required application provider seam is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /metrics:
+    get:
+      operationId: getRuntimeMetrics
+      summary: Bounded process metrics in Prometheus text format
+      responses:
+        '200':
+          description: Runtime metrics.
+          content:
+            text/plain:
+              schema:
+                type: string
+                maxLength: 65536
+  /platform/v0/metadata:
+    get:
+      operationId: getArtifactMetadata
+      summary: Stable artifact identity for release verification
+      responses:
+        '200':
+          description: Binary and contract metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactMetadata'
+  /platform/v0/probes:
+    post:
+      operationId: createPlatformProbe
+      summary: Commit a platform-only probe and durable outbox event
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/TraceParent'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProbeRequest'
+      responses:
+        '202':
+          description: Probe and requested event committed atomically.
+          headers:
+            x-request-id:
+              schema: { type: string, format: uuid }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateProbeResponse'
+        '400': { $ref: '#/components/responses/ErrorResponse' }
+        '413': { $ref: '#/components/responses/ErrorResponse' }
+        '429': { $ref: '#/components/responses/ErrorResponse' }
+        '503': { $ref: '#/components/responses/ErrorResponse' }
+        '504': { $ref: '#/components/responses/ErrorResponse' }
+components:
+  parameters:
+    RequestId:
+      name: x-request-id
+      in: header
+      required: false
+      schema: { type: string, format: uuid }
+      description: A valid caller-provided ID is preserved; otherwise the server creates one.
+    TraceParent:
+      name: traceparent
+      in: header
+      required: false
+      schema:
+        type: string
+        pattern: '^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$'
+      description: W3C trace context. Invalid values are ignored and replaced, never reflected blindly.
+  responses:
+    ErrorResponse:
+      description: Safe platform error. Internal causes and secrets never appear on the wire.
+      content:
+        application/json:
+          schema:
+            $ref: '../errors/error-model-v0.schema.json'
+  schemas:
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [status, service, version, checks]
+      properties:
+        status: { enum: [live, ready, not_ready, draining] }
+        service: { type: string, maxLength: 64 }
+        version: { type: string, maxLength: 64 }
+        checks:
+          type: array
+          maxItems: 16
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, status]
+            properties:
+              name: { type: string, maxLength: 64 }
+              status: { enum: [up, down, unknown] }
+              detail: { type: string, maxLength: 128 }
+    ArtifactMetadata:
+      type: object
+      additionalProperties: false
+      required: [artifact, version, releaseId, environment, rustToolchain, contractVersions]
+      properties:
+        artifact: { enum: [liqi-api, liqi-realtime, liqi-worker] }
+        version: { type: string, maxLength: 64 }
+        releaseId: { type: string, maxLength: 64 }
+        environment: { enum: [local, development, test, staging, production] }
+        sourceRevision: { type: [string, 'null'], maxLength: 64 }
+        builtAt: { type: [string, 'null'], format: date-time }
+        rustToolchain: { const: "1.97.1" }
+        contractVersions:
+          type: object
+          additionalProperties: false
+          required: [platformApi, errorModel, eventEnvelope, realtime, runtimeConfig]
+          properties:
+            platformApi: { const: '0' }
+            errorModel: { const: '0' }
+            eventEnvelope: { const: '0' }
+            realtime: { const: '0' }
+            runtimeConfig: { const: '0' }
+    CreateProbeRequest:
+      type: object
+      additionalProperties: false
+      required: [clientProbeId]
+      properties:
+        clientProbeId:
+          type: string
+          format: uuid
+          description: Platform-probe idempotency key. Reusing it returns the same probe/event identities.
+    CreateProbeResponse:
+      type: object
+      additionalProperties: false
+      required: [probeId, eventId, status]
+      properties:
+        probeId: { type: string, format: uuid }
+        eventId: { type: string, format: uuid }
+        status: { const: accepted }

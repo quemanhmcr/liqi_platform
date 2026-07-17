@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.app/errors/error-model-v0.schema.json",
+  "title": "LIQI Platform Error V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "status", "retryable", "requestId", "message"],
+  "properties": {
+    "code": {
+      "type": "string",
+      "pattern": "^PLATFORM_[A-Z0-9_]{3,64}$",
+      "maxLength": 73
+    },
+    "status": {
+      "type": "integer",
+      "minimum": 400,
+      "maximum": 599
+    },
+    "retryable": { "type": "boolean" },
+    "requestId": { "type": "string", "format": "uuid" },
+    "traceId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "details": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reason"],
+        "properties": {
+          "path": { "type": "string", "maxLength": 256 },
+          "reason": { "type": "string", "maxLength": 256 }
+        }
+      }
+    }
+  }
+}
