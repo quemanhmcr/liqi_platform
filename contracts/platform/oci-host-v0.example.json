@@ -1,6 +1,6 @@
 {
   "schema_version": "liqi.platform.oci-host/v0",
-  "infrastructure_output_version": "0.1.0",
+  "infrastructure_output_version": "0.2.0",
   "environment": "development",
   "region": {
     "name": "ap-singapore-2",
@@ -29,7 +29,8 @@
       "public_ipv4": "203.0.113.10",
       "private_address_semantics": "service-and-approved-administration",
       "public_address_semantics": "edge-only"
-    }
+    },
+    "image_id": "ocid1.image.oc1.ap-singapore-2.example"
   },
   "identities": {
     "runtime_group": {
@@ -98,7 +99,7 @@
       "path": "/run/liqi/secrets",
       "owner": "root",
       "group": "liqi",
-      "mode": "0750",
+      "mode": "0710",
       "storage": "tmpfs",
       "consumer": "shared"
     },
@@ -137,6 +138,42 @@
       "mode": "0750",
       "storage": "boot-volume",
       "consumer": "shared"
+    },
+    {
+      "purpose": "liqi-api-secrets",
+      "path": "/run/liqi/secrets/liqi-api",
+      "owner": "liqi-api",
+      "group": "liqi",
+      "mode": "0700",
+      "storage": "tmpfs",
+      "consumer": "senior-3"
+    },
+    {
+      "purpose": "liqi-realtime-secrets",
+      "path": "/run/liqi/secrets/liqi-realtime",
+      "owner": "liqi-realtime",
+      "group": "liqi",
+      "mode": "0700",
+      "storage": "tmpfs",
+      "consumer": "senior-3"
+    },
+    {
+      "purpose": "liqi-worker-secrets",
+      "path": "/run/liqi/secrets/liqi-worker",
+      "owner": "liqi-worker",
+      "group": "liqi",
+      "mode": "0700",
+      "storage": "tmpfs",
+      "consumer": "senior-3"
+    },
+    {
+      "purpose": "release-staging",
+      "path": "/var/tmp/liqi/releases",
+      "owner": "opc",
+      "group": "liqi",
+      "mode": "0750",
+      "storage": "boot-volume",
+      "consumer": "senior-4"
     }
   ],
   "ports": [
@@ -248,7 +285,7 @@
     "enabled": true,
     "capabilities": [
       "object-storage:read-buckets-in-environment-compartment",
-      "object-storage:manage-objects-in-designated-backup-bucket"
+      "object-storage:list-read-create-objects-in-designated-backup-bucket"
     ],
     "user_credentials_present": false
   },
@@ -261,6 +298,9 @@
       "runtime-identities",
       "runtime-directories",
       "data-volume-mounted",
+      "swap-disabled",
+      "selinux-enforcing",
+      "firewall-policy",
       "ssh-root-disabled",
       "ssh-password-auth-disabled",
       "legacy-imds-disabled"
@@ -271,7 +311,10 @@
     "deployment_path": "/opt/liqi/releases",
     "current_symlink": "/opt/liqi/current",
     "transport": "ssh-over-approved-admin-path",
-    "admin_path_default_enabled": false
+    "admin_path_default_enabled": false,
+    "staging_path": "/var/tmp/liqi/releases",
+    "installation_semantics": "upload-to-staging-then-root-owned-atomic-install",
+    "privileged_install_required": true
   },
   "replacement": {
     "host_replaceable": true,

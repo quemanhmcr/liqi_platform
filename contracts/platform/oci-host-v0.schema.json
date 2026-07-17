@@ -38,10 +38,19 @@
     "region": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "availability_domain"],
+      "required": [
+        "name",
+        "availability_domain"
+      ],
       "properties": {
-        "name": {"type": "string", "minLength": 1},
-        "availability_domain": {"type": "string", "minLength": 1}
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "availability_domain": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "capacity_profile": {
@@ -58,33 +67,88 @@
         "cost_classification"
       ],
       "properties": {
-        "name": {"type": "string", "minLength": 1},
-        "shape": {"type": "string", "minLength": 1},
-        "architecture": {"enum": ["aarch64", "x86_64"]},
-        "ocpus": {"type": "number", "exclusiveMinimum": 0},
-        "memory_gb": {"type": "number", "exclusiveMinimum": 0},
-        "boot_volume_gb": {"type": "integer", "minimum": 50},
-        "data_volume_gb": {"type": "integer", "minimum": 50},
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "shape": {
+          "type": "string",
+          "minLength": 1
+        },
+        "architecture": {
+          "enum": [
+            "aarch64",
+            "x86_64"
+          ]
+        },
+        "ocpus": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "memory_gb": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "boot_volume_gb": {
+          "type": "integer",
+          "minimum": 50
+        },
+        "data_volume_gb": {
+          "type": "integer",
+          "minimum": 50
+        },
         "cost_classification": {
-          "enum": ["always-free-safe", "free-trial-only", "paid", "unknown"]
+          "enum": [
+            "always-free-safe",
+            "free-trial-only",
+            "paid",
+            "unknown"
+          ]
         }
       }
     },
     "host": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["instance_id", "display_name", "os", "addresses"],
+      "required": [
+        "instance_id",
+        "display_name",
+        "os",
+        "addresses",
+        "image_id"
+      ],
       "properties": {
-        "instance_id": {"type": "string", "pattern": "^ocid1\\.instance\\."},
-        "display_name": {"type": "string", "minLength": 1},
+        "instance_id": {
+          "type": "string",
+          "pattern": "^ocid1\\.instance\\."
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        },
         "os": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["family", "major_version", "architecture"],
+          "required": [
+            "family",
+            "major_version",
+            "architecture"
+          ],
           "properties": {
-            "family": {"type": "string", "minLength": 1},
-            "major_version": {"type": "string", "minLength": 1},
-            "architecture": {"enum": ["aarch64", "x86_64"]}
+            "family": {
+              "type": "string",
+              "minLength": 1
+            },
+            "major_version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "architecture": {
+              "enum": [
+                "aarch64",
+                "x86_64"
+              ]
+            }
           }
         },
         "addresses": {
@@ -97,39 +161,76 @@
             "public_address_semantics"
           ],
           "properties": {
-            "private_ipv4": {"type": "string", "format": "ipv4"},
+            "private_ipv4": {
+              "type": "string",
+              "format": "ipv4"
+            },
             "public_ipv4": {
               "oneOf": [
-                {"type": "string", "format": "ipv4"},
-                {"type": "null"}
+                {
+                  "type": "string",
+                  "format": "ipv4"
+                },
+                {
+                  "type": "null"
+                }
               ]
             },
-            "private_address_semantics": {"const": "service-and-approved-administration"},
-            "public_address_semantics": {"enum": ["edge-only", "none"]}
+            "private_address_semantics": {
+              "const": "service-and-approved-administration"
+            },
+            "public_address_semantics": {
+              "enum": [
+                "edge-only",
+                "none"
+              ]
+            }
           }
+        },
+        "image_id": {
+          "type": "string",
+          "pattern": "^ocid1\\.image\\."
         }
       }
     },
     "identities": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["runtime_group", "services", "transport_user"],
+      "required": [
+        "runtime_group",
+        "services",
+        "transport_user"
+      ],
       "properties": {
-        "runtime_group": {"$ref": "#/$defs/groupIdentity"},
+        "runtime_group": {
+          "$ref": "#/$defs/groupIdentity"
+        },
         "services": {
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
-          "items": {"$ref": "#/$defs/serviceIdentity"}
+          "items": {
+            "$ref": "#/$defs/serviceIdentity"
+          }
         },
         "transport_user": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["name", "purpose", "runs_services"],
+          "required": [
+            "name",
+            "purpose",
+            "runs_services"
+          ],
           "properties": {
-            "name": {"const": "opc"},
-            "purpose": {"const": "approved-administration-and-release-transport"},
-            "runs_services": {"const": false}
+            "name": {
+              "const": "opc"
+            },
+            "purpose": {
+              "const": "approved-administration-and-release-transport"
+            },
+            "runs_services": {
+              "const": false
+            }
           }
         }
       }
@@ -137,17 +238,23 @@
     "directories": {
       "type": "array",
       "minItems": 8,
-      "items": {"$ref": "#/$defs/directory"}
+      "items": {
+        "$ref": "#/$defs/directory"
+      }
     },
     "ports": {
       "type": "array",
       "minItems": 8,
-      "items": {"$ref": "#/$defs/port"}
+      "items": {
+        "$ref": "#/$defs/port"
+      }
     },
     "object_storage_references": {
       "type": "array",
       "minItems": 1,
-      "items": {"$ref": "#/$defs/objectStorageReference"}
+      "items": {
+        "$ref": "#/$defs/objectStorageReference"
+      }
     },
     "secret_reference_format": {
       "type": "object",
@@ -159,34 +266,64 @@
         "plaintext_in_output"
       ],
       "properties": {
-        "provider": {"const": "oci-vault"},
-        "uri_template": {"const": "oci-vault://<secret-ocid>@<version-or-CURRENT>"},
-        "materialization_root": {"const": "/run/liqi/secrets"},
-        "plaintext_in_output": {"const": false}
+        "provider": {
+          "const": "oci-vault"
+        },
+        "uri_template": {
+          "const": "oci-vault://<secret-ocid>@<version-or-CURRENT>"
+        },
+        "materialization_root": {
+          "const": "/run/liqi/secrets"
+        },
+        "plaintext_in_output": {
+          "const": false
+        }
       }
     },
     "service_gateway": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "service", "private_access"],
+      "required": [
+        "enabled",
+        "service",
+        "private_access"
+      ],
       "properties": {
-        "enabled": {"type": "boolean"},
-        "service": {"type": "string", "minLength": 1},
-        "private_access": {"const": true}
+        "enabled": {
+          "type": "boolean"
+        },
+        "service": {
+          "type": "string",
+          "minLength": 1
+        },
+        "private_access": {
+          "const": true
+        }
       }
     },
     "instance_principal": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "capabilities", "user_credentials_present"],
+      "required": [
+        "enabled",
+        "capabilities",
+        "user_credentials_present"
+      ],
       "properties": {
-        "enabled": {"type": "boolean"},
+        "enabled": {
+          "type": "boolean"
+        },
         "capabilities": {
           "type": "array",
-          "items": {"type": "string", "minLength": 1},
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "uniqueItems": true
         },
-        "user_credentials_present": {"const": false}
+        "user_credentials_present": {
+          "const": false
+        }
       }
     },
     "readiness": {
@@ -200,14 +337,25 @@
         "required_checks"
       ],
       "properties": {
-        "file": {"const": "/run/liqi/host-ready.json"},
-        "schema_version": {"const": "liqi.platform.host-readiness/v0"},
-        "atomic_write": {"const": true},
-        "ready_status": {"const": "ready"},
+        "file": {
+          "const": "/run/liqi/host-ready.json"
+        },
+        "schema_version": {
+          "const": "liqi.platform.host-readiness/v0"
+        },
+        "atomic_write": {
+          "const": true
+        },
+        "ready_status": {
+          "const": "ready"
+        },
         "required_checks": {
           "type": "array",
           "minItems": 5,
-          "items": {"type": "string", "minLength": 1},
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "uniqueItems": true
         }
       }
@@ -220,14 +368,36 @@
         "deployment_path",
         "current_symlink",
         "transport",
-        "admin_path_default_enabled"
+        "admin_path_default_enabled",
+        "staging_path",
+        "installation_semantics",
+        "privileged_install_required"
       ],
       "properties": {
-        "transport_user": {"const": "opc"},
-        "deployment_path": {"const": "/opt/liqi/releases"},
-        "current_symlink": {"const": "/opt/liqi/current"},
-        "transport": {"const": "ssh-over-approved-admin-path"},
-        "admin_path_default_enabled": {"const": false}
+        "transport_user": {
+          "const": "opc"
+        },
+        "deployment_path": {
+          "const": "/opt/liqi/releases"
+        },
+        "current_symlink": {
+          "const": "/opt/liqi/current"
+        },
+        "transport": {
+          "const": "ssh-over-approved-admin-path"
+        },
+        "admin_path_default_enabled": {
+          "const": false
+        },
+        "staging_path": {
+          "const": "/var/tmp/liqi/releases"
+        },
+        "installation_semantics": {
+          "const": "upload-to-staging-then-root-owned-atomic-install"
+        },
+        "privileged_install_required": {
+          "const": true
+        }
       }
     },
     "replacement": {
@@ -240,13 +410,26 @@
         "stateful_resource_kinds"
       ],
       "properties": {
-        "host_replaceable": {"const": true},
-        "data_volume_preserved": {"const": true},
-        "destruction_acknowledgement_required": {"const": true},
+        "host_replaceable": {
+          "const": true
+        },
+        "data_volume_preserved": {
+          "const": true
+        },
+        "destruction_acknowledgement_required": {
+          "const": true
+        },
         "stateful_resource_kinds": {
           "type": "array",
-          "contains": {"const": "block-volume"},
-          "items": {"enum": ["block-volume", "object-storage-bucket"]},
+          "contains": {
+            "const": "block-volume"
+          },
+          "items": {
+            "enum": [
+              "block-volume",
+              "object-storage-bucket"
+            ]
+          },
           "uniqueItems": true
         }
       }
@@ -256,47 +439,147 @@
     "groupIdentity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "gid"],
+      "required": [
+        "name",
+        "gid"
+      ],
       "properties": {
-        "name": {"const": "liqi"},
-        "gid": {"type": "integer", "minimum": 1000, "maximum": 60000}
+        "name": {
+          "const": "liqi"
+        },
+        "gid": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 60000
+        }
       }
     },
     "serviceIdentity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["service", "user", "uid", "group", "login_shell"],
+      "required": [
+        "service",
+        "user",
+        "uid",
+        "group",
+        "login_shell"
+      ],
       "properties": {
-        "service": {"enum": ["liqi-api", "liqi-realtime", "liqi-worker"]},
-        "user": {"enum": ["liqi-api", "liqi-realtime", "liqi-worker"]},
-        "uid": {"type": "integer", "minimum": 1000, "maximum": 60000},
-        "group": {"const": "liqi"},
-        "login_shell": {"const": "/sbin/nologin"}
+        "service": {
+          "enum": [
+            "liqi-api",
+            "liqi-realtime",
+            "liqi-worker"
+          ]
+        },
+        "user": {
+          "enum": [
+            "liqi-api",
+            "liqi-realtime",
+            "liqi-worker"
+          ]
+        },
+        "uid": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 60000
+        },
+        "group": {
+          "const": "liqi"
+        },
+        "login_shell": {
+          "const": "/sbin/nologin"
+        }
       }
     },
     "directory": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["purpose", "path", "owner", "group", "mode", "storage", "consumer"],
+      "required": [
+        "purpose",
+        "path",
+        "owner",
+        "group",
+        "mode",
+        "storage",
+        "consumer"
+      ],
       "properties": {
-        "purpose": {"type": "string", "minLength": 1},
-        "path": {"type": "string", "pattern": "^/"},
-        "owner": {"type": "string", "minLength": 1},
-        "group": {"type": "string", "minLength": 1},
-        "mode": {"type": "string", "pattern": "^0[0-7]{3}$", "not": {"pattern": "^0..[2367]$"}},
-        "storage": {"enum": ["boot-volume", "data-volume", "tmpfs"]},
-        "consumer": {"enum": ["shared", "senior-2", "senior-3", "senior-4"]}
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "group": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": {
+          "type": "string",
+          "pattern": "^0[0-7]{3}$",
+          "not": {
+            "pattern": "^0..[2367]$"
+          }
+        },
+        "storage": {
+          "enum": [
+            "boot-volume",
+            "data-volume",
+            "tmpfs"
+          ]
+        },
+        "consumer": {
+          "enum": [
+            "shared",
+            "senior-2",
+            "senior-3",
+            "senior-4"
+          ]
+        }
       }
     },
     "port": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "protocol", "port", "bind_scope", "exposure", "default_enabled"],
+      "required": [
+        "name",
+        "protocol",
+        "port",
+        "bind_scope",
+        "exposure",
+        "default_enabled"
+      ],
       "properties": {
-        "name": {"type": "string", "minLength": 1},
-        "protocol": {"enum": ["tcp", "udp"]},
-        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
-        "bind_scope": {"enum": ["public-edge", "private-address", "loopback", "none"]},
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "protocol": {
+          "enum": [
+            "tcp",
+            "udp"
+          ]
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "bind_scope": {
+          "enum": [
+            "public-edge",
+            "private-address",
+            "loopback",
+            "none"
+          ]
+        },
         "exposure": {
           "enum": [
             "public-edge",
@@ -306,7 +589,9 @@
             "no-listener"
           ]
         },
-        "default_enabled": {"type": "boolean"}
+        "default_enabled": {
+          "type": "boolean"
+        }
       }
     },
     "objectStorageReference": {
@@ -323,15 +608,39 @@
         "cost_classification"
       ],
       "properties": {
-        "purpose": {"type": "string", "minLength": 1},
-        "region": {"type": "string", "minLength": 1},
-        "namespace": {"type": "string", "minLength": 1},
-        "bucket_name": {"type": "string", "minLength": 1},
-        "prefix": {"type": "string"},
-        "uri": {"type": "string", "pattern": "^oci://"},
-        "access_path": {"const": "service-gateway"},
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "region": {
+          "type": "string",
+          "minLength": 1
+        },
+        "namespace": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bucket_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prefix": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string",
+          "pattern": "^oci://"
+        },
+        "access_path": {
+          "const": "service-gateway"
+        },
         "cost_classification": {
-          "enum": ["always-free-safe", "free-trial-only", "paid", "unknown"]
+          "enum": [
+            "always-free-safe",
+            "free-trial-only",
+            "paid",
+            "unknown"
+          ]
         }
       }
     }
