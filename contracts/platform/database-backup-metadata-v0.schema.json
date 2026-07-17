@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/platform/database-backup-metadata-v0.schema.json",
+  "title": "LIQI Database Backup Metadata V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "backupRunId",
+    "stanza",
+    "source",
+    "repository",
+    "backup",
+    "postgresql",
+    "migration",
+    "probe",
+    "pgBackRest",
+    "recoveryTargets",
+    "costClassification"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "database-backup-metadata-v0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "backupRunId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "stanza": {
+      "const": "liqi"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "database",
+        "authority",
+        "hostRef"
+      ],
+      "properties": {
+        "database": {
+          "const": "liqi"
+        },
+        "authority": {
+          "const": "postgresql"
+        },
+        "hostRef": {
+          "type": "string",
+          "pattern": "^oci-host-v0://host/[a-z0-9-]+$"
+        }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "bucket",
+        "namespace",
+        "region",
+        "path",
+        "uriStyle",
+        "clientSideEncryption",
+        "dedicated"
+      ],
+      "properties": {
+        "type": {
+          "const": "oci-object-storage-s3-compatible"
+        },
+        "bucket": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$"
+        },
+        "namespace": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "region": {
+          "type": "string",
+          "pattern": "^[a-z]{2}-[a-z]+-[0-9]+$"
+        },
+        "path": {
+          "const": "/postgresql/v0"
+        },
+        "uriStyle": {
+          "const": "path"
+        },
+        "clientSideEncryption": {
+          "const": "aes-256-cbc"
+        },
+        "dedicated": {
+          "const": true
+        }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "type",
+        "startedAt",
+        "stoppedAt",
+        "archiveStart",
+        "archiveStop",
+        "annotation",
+        "infoSha256"
+      ],
+      "properties": {
+        "label": {
+          "type": "string",
+          "pattern": "^[0-9]{8}-[0-9]{6}[FDI](?:_[0-9]{8}-[0-9]{6}[DI])?$"
+        },
+        "type": {
+          "enum": [
+            "full",
+            "diff"
+          ]
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "stoppedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "archiveStart": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "archiveStop": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "annotation": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "required": [
+            "liqi-run-id",
+            "liqi-migration-version",
+            "liqi-probe-event-id",
+            "liqi-manifest-sha256"
+          ]
+        },
+        "infoSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "postgresql": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "major",
+        "version"
+      ],
+      "properties": {
+        "major": {
+          "const": 17
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^17(?:\\.[0-9]+)?"
+        }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currentVersion",
+        "manifestSha256"
+      ],
+      "properties": {
+        "currentVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "manifestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probeId",
+        "eventId",
+        "probeStatus",
+        "outboxState",
+        "effectCount",
+        "completedAt"
+      ],
+      "properties": {
+        "probeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "eventId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "probeStatus": {
+          "const": "completed"
+        },
+        "outboxState": {
+          "const": "succeeded"
+        },
+        "effectCount": {
+          "const": 1
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "pgBackRest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "repositoryFormat"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$"
+        },
+        "repositoryFormat": {
+          "const": "pgbackrest-encrypted-s3-v0"
+        }
+      }
+    },
+    "recoveryTargets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workingRpo",
+        "workingRto",
+        "pitr",
+        "restoreScope"
+      ],
+      "properties": {
+        "workingRpo": {
+          "const": "5m"
+        },
+        "workingRto": {
+          "const": "60m"
+        },
+        "pitr": {
+          "const": true
+        },
+        "restoreScope": {
+          "const": "entire-postgresql-cluster"
+        }
+      }
+    },
+    "costClassification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class",
+        "v0ObjectBudgetGiB"
+      ],
+      "properties": {
+        "class": {
+          "const": "always-free-safe-with-v0-cap"
+        },
+        "v0ObjectBudgetGiB": {
+          "const": 18
+        }
+      }
+    }
+  }
+}

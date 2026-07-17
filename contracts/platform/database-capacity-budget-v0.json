@@ -1,0 +1,91 @@
+{
+  "schema_version": "capacity-budget-v0",
+  "provider": "database",
+  "owner": "Senior 2",
+  "components": [
+    {
+      "name": "postgresql-authority",
+      "class": "database",
+      "default_enabled": true,
+      "steady_state": {
+        "ocpu": 0.65,
+        "memory_mib": 4096,
+        "disk_gib": 60
+      },
+      "hard_limit": {
+        "ocpu": 1.0,
+        "memory_mib": 6144,
+        "disk_gib": 118
+      },
+      "postgres_connections": 40,
+      "queue": {
+        "bounded": true,
+        "capacity": 0,
+        "overflow_behavior": "not-applicable"
+      },
+      "retry": {
+        "maximum_attempts": 0,
+        "maximum_elapsed_seconds": 0,
+        "backoff": "none",
+        "jitter": false
+      },
+      "failure_behavior": "manual-recovery"
+    },
+    {
+      "name": "pgbouncer-boundary",
+      "class": "pooler",
+      "default_enabled": true,
+      "steady_state": {
+        "ocpu": 0.03,
+        "memory_mib": 64,
+        "disk_gib": 0.1
+      },
+      "hard_limit": {
+        "ocpu": 0.1,
+        "memory_mib": 256,
+        "disk_gib": 0.2
+      },
+      "postgres_connections": 40,
+      "queue": {
+        "bounded": true,
+        "capacity": 300,
+        "overflow_behavior": "reject"
+      },
+      "retry": {
+        "maximum_attempts": 0,
+        "maximum_elapsed_seconds": 0,
+        "backoff": "none",
+        "jitter": false
+      },
+      "failure_behavior": "reject-new-work"
+    },
+    {
+      "name": "database-recovery",
+      "class": "recovery",
+      "default_enabled": true,
+      "steady_state": {
+        "ocpu": 0.05,
+        "memory_mib": 256,
+        "disk_gib": 2
+      },
+      "hard_limit": {
+        "ocpu": 0.4,
+        "memory_mib": 1536,
+        "disk_gib": 12
+      },
+      "postgres_connections": 2,
+      "queue": {
+        "bounded": true,
+        "capacity": 1,
+        "overflow_behavior": "reject"
+      },
+      "retry": {
+        "maximum_attempts": 0,
+        "maximum_elapsed_seconds": 0,
+        "backoff": "none",
+        "jitter": false
+      },
+      "failure_behavior": "manual-recovery"
+    }
+  ]
+}

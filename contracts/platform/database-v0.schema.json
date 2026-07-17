@@ -124,7 +124,7 @@
         },
         "reference": {
           "type": "string",
-          "pattern": "^oci-host-v0://secrets/[a-z0-9-]+$"
+          "pattern": "^oci-vault://ocid1\\.vaultsecret\\.[A-Za-z0-9._-]+@(?:CURRENT|[1-9][0-9]*)$"
         },
         "materialization": {
           "enum": [
@@ -275,7 +275,7 @@
         },
         "hostRef": {
           "type": "string",
-          "pattern": "^oci-host-v0://network/[a-z0-9-]+$"
+          "pattern": "^oci-host-v0://ports/(?:postgresql|pgbouncer)$"
         },
         "port": {
           "type": "integer",

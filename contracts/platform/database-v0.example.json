@@ -31,7 +31,7 @@
   "endpoints": {
     "runtimePool": {
       "kind": "pgbouncer",
-      "hostRef": "oci-host-v0://network/database-pool",
+      "hostRef": "oci-host-v0://ports/pgbouncer",
       "port": 6432,
       "networkExposure": "unix-socket-or-loopback",
       "transportSecurity": "local-peer-or-scram",
@@ -44,7 +44,7 @@
     },
     "directAdministrative": {
       "kind": "postgresql",
-      "hostRef": "oci-host-v0://network/database-direct",
+      "hostRef": "oci-host-v0://ports/postgresql",
       "port": 5432,
       "networkExposure": "unix-socket-or-loopback",
       "transportSecurity": "local-peer-or-scram",
@@ -66,56 +66,56 @@
   "secretReferences": {
     "apiPassword": {
       "provider": "oci-vault",
-      "reference": "oci-host-v0://secrets/database-api-password",
+      "reference": "oci-vault://ocid1.vaultsecret.oc1.ap-singapore-2.example-database-api-password@CURRENT",
       "materialization": "systemd-credential",
       "targetPath": "/run/liqi/secrets/database/api-password",
       "encoding": "utf-8-single-line"
     },
     "realtimePassword": {
       "provider": "oci-vault",
-      "reference": "oci-host-v0://secrets/database-realtime-password",
+      "reference": "oci-vault://ocid1.vaultsecret.oc1.ap-singapore-2.example-database-realtime-password@CURRENT",
       "materialization": "systemd-credential",
       "targetPath": "/run/liqi/secrets/database/realtime-password",
       "encoding": "utf-8-single-line"
     },
     "workerPassword": {
       "provider": "oci-vault",
-      "reference": "oci-host-v0://secrets/database-worker-password",
+      "reference": "oci-vault://ocid1.vaultsecret.oc1.ap-singapore-2.example-database-worker-password@CURRENT",
       "materialization": "systemd-credential",
       "targetPath": "/run/liqi/secrets/database/worker-password",
       "encoding": "utf-8-single-line"
     },
     "migratorPassword": {
       "provider": "oci-vault",
-      "reference": "oci-host-v0://secrets/database-migrator-password",
+      "reference": "oci-vault://ocid1.vaultsecret.oc1.ap-singapore-2.example-database-migrator-password@CURRENT",
       "materialization": "systemd-credential",
       "targetPath": "/run/liqi/secrets/database/migrator-password",
       "encoding": "utf-8-single-line"
     },
     "pgbouncerUserlist": {
       "provider": "oci-vault",
-      "reference": "oci-host-v0://secrets/database-pgbouncer-userlist",
+      "reference": "oci-vault://ocid1.vaultsecret.oc1.ap-singapore-2.example-database-pgbouncer-userlist@CURRENT",
       "materialization": "tmpfs-file",
       "targetPath": "/run/liqi/secrets/database/pgbouncer-userlist.txt",
       "encoding": "pgbouncer-userlist"
     },
     "backupRepositoryKey": {
       "provider": "oci-vault",
-      "reference": "oci-host-v0://secrets/database-backup-s3-key",
+      "reference": "oci-vault://ocid1.vaultsecret.oc1.ap-singapore-2.example-database-backup-s3-key@CURRENT",
       "materialization": "systemd-credential",
       "targetPath": "/run/liqi/secrets/database/backup-s3-key",
       "encoding": "utf-8-single-line"
     },
     "backupRepositorySecret": {
       "provider": "oci-vault",
-      "reference": "oci-host-v0://secrets/database-backup-s3-secret",
+      "reference": "oci-vault://ocid1.vaultsecret.oc1.ap-singapore-2.example-database-backup-s3-secret@CURRENT",
       "materialization": "systemd-credential",
       "targetPath": "/run/liqi/secrets/database/backup-s3-secret",
       "encoding": "utf-8-single-line"
     },
     "backupCipherPassphrase": {
       "provider": "oci-vault",
-      "reference": "oci-host-v0://secrets/database-backup-cipher-passphrase",
+      "reference": "oci-vault://ocid1.vaultsecret.oc1.ap-singapore-2.example-database-backup-cipher-passphrase@CURRENT",
       "materialization": "systemd-credential",
       "targetPath": "/run/liqi/secrets/database/backup-cipher-passphrase",
       "encoding": "utf-8-single-line"
@@ -451,19 +451,20 @@
     }
   ],
   "capacity": {
-    "steadyStateCpu": 1.5,
-    "steadyStateMemoryMiB": 6656,
-    "hardMemoryMiB": 10240,
-    "diskBudgetGiB": 130,
+    "steadyStateCpu": 0.73,
+    "steadyStateMemoryMiB": 4416,
+    "hardMemoryMiB": 7936,
+    "diskBudgetGiB": 131,
     "v0DatabaseDataCapGiB": 8,
     "failureBehavior": "reject-or-degrade-with-alert-never-unbounded-growth"
   },
   "consumerInterfaces": {
     "senior1": [
-      "host directory outputs for PGDATA, pgBackRest spool, logs and runtime secrets",
-      "postgres, pgbouncer and backup runtime identities",
-      "private or loopback endpoint outputs",
-      "OCI Object Storage bucket, namespace, endpoint and Vault secret references"
+      "read contracts/platform/oci-host-v0 output only after /run/liqi/host-ready.json reports ready",
+      "use postgresql-data at /var/lib/liqi/postgresql/data and postgresql-backup-staging at /var/lib/liqi/postgresql/backup-staging",
+      "use loopback host ports named postgresql and pgbouncer",
+      "consume purpose=postgresql-backups Object Storage namespace, bucket_name and prefix",
+      "materialize oci-vault references below /run/liqi/secrets without plaintext infrastructure output"
     ],
     "senior3": [
       "runtime connections use PgBouncer transaction mode",

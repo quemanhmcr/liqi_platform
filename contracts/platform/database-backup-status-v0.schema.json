@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/platform/database-backup-status-v0.schema.json",
+  "title": "LIQI Database Backup Status V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "recoveryReady",
+    "reasons",
+    "latestBackup",
+    "archive",
+    "migrationVersion",
+    "probe",
+    "observedAt"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "database-backup-status-v0"
+    },
+    "recoveryReady": {
+      "type": "boolean"
+    },
+    "reasons": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "pgbackrest-repository-error",
+          "no-backup",
+          "failed-migration-run",
+          "wal-archive-failure",
+          "wal-archive-stale"
+        ]
+      }
+    },
+    "latestBackup": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "label",
+            "type",
+            "ageSeconds"
+          ],
+          "properties": {
+            "label": {
+              "type": "string",
+              "minLength": 1
+            },
+            "type": {
+              "enum": [
+                "full",
+                "diff"
+              ]
+            },
+            "ageSeconds": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        }
+      ]
+    },
+    "archive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "archivedCount",
+        "failedCount",
+        "lastArchivedWal",
+        "lastArchivedAt",
+        "lastFailedWal",
+        "lastFailedAt",
+        "secondsSinceLastArchive"
+      ],
+      "properties": {
+        "archivedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lastArchivedWal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lastArchivedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "lastFailedWal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lastFailedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "secondsSinceLastArchive": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "migrationVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probeId",
+        "eventId",
+        "probeStatus",
+        "outboxState",
+        "effectCount",
+        "completedAt"
+      ],
+      "properties": {
+        "probeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "eventId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "probeStatus": {
+          "const": "completed"
+        },
+        "outboxState": {
+          "const": "succeeded"
+        },
+        "effectCount": {
+          "const": 1
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

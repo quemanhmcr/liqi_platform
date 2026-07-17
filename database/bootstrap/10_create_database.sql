@@ -4,8 +4,12 @@
   \set database_name liqi
 \endif
 
-SELECT format('CREATE DATABASE %I OWNER liqi_owner TEMPLATE template0 ENCODING %L LC_COLLATE %L LC_CTYPE %L',
-              :'database_name', 'UTF8', 'C.UTF-8', 'C.UTF-8')
+SELECT format(
+    'CREATE DATABASE %I OWNER liqi_owner TEMPLATE template0 ENCODING %L LOCALE_PROVIDER builtin BUILTIN_LOCALE %L',
+    :'database_name',
+    'UTF8',
+    'C.UTF-8'
+)
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'database_name')
 \gexec
 
