@@ -1,0 +1,8 @@
+# Derived subdirectories inside Senior 1-owned host contract parents.
+d /var/lib/liqi/postgresql/backup-staging/pgbackrest-spool 0700 postgres postgres -
+d /var/lib/liqi/postgresql/backup-staging/metadata 0700 postgres postgres -
+d /var/lib/liqi/postgresql/backup-staging/restore 0700 postgres postgres -
+d /var/log/liqi/postgresql 0750 postgres postgres -
+d /var/log/liqi/postgresql/pgbackrest 0750 postgres postgres -
+d /run/liqi/secrets/database 0700 postgres postgres -
+d /run/pgbouncer 0750 pgbouncer pgbouncer -

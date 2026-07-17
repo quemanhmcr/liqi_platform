@@ -1,0 +1,30 @@
+[Unit]
+Description=Check LIQI PostgreSQL archive and backup repository
+After=postgresql-17.service network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/liqi/database/backup.env
+
+[Service]
+Type=oneshot
+User=postgres
+Group=postgres
+EnvironmentFile=/etc/liqi/database/backup.env
+Environment=LIQI_SECRET_PGBACKREST_S3_KEY_FILE=%d/pgbackrest-s3-key
+Environment=LIQI_SECRET_PGBACKREST_S3_SECRET_FILE=%d/pgbackrest-s3-secret
+Environment=LIQI_SECRET_PGBACKREST_CIPHER_FILE=%d/pgbackrest-cipher-passphrase
+ExecStart=/opt/liqi/current/database/bin/repository-check.sh
+TimeoutStartSec=30m
+UMask=0077
+CPUQuota=20%
+MemoryMax=512M
+TasksMax=32
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
