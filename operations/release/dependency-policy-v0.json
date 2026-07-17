@@ -1,0 +1,45 @@
+{
+  "schema_version": "dependency-policy-v0",
+  "vulnerability": {
+    "deny_severities": ["high", "critical"],
+    "yanked": "deny",
+    "unmaintained": "warn",
+    "unsound": "deny",
+    "exceptions_require_expiry": true
+  },
+  "licenses": {
+    "allow": [
+      "Apache-2.0",
+      "Apache-2.0 WITH LLVM-exception",
+      "BSD-2-Clause",
+      "BSD-3-Clause",
+      "CC0-1.0",
+      "ISC",
+      "MIT",
+      "MPL-2.0",
+      "Unicode-3.0",
+      "Unicode-DFS-2016",
+      "Zlib"
+    ],
+    "deny": [
+      "AGPL-3.0-only",
+      "AGPL-3.0-or-later",
+      "BUSL-1.1",
+      "GPL-2.0-only",
+      "GPL-2.0-or-later",
+      "GPL-3.0-only",
+      "GPL-3.0-or-later",
+      "SSPL-1.0"
+    ],
+    "unknown": "deny",
+    "unlicensed": "deny",
+    "confidence_threshold": 0.93
+  },
+  "sources": {
+    "unknown_registry": "deny",
+    "unknown_git": "deny",
+    "git_requires_full_revision": true,
+    "allowed_registries": ["https://github.com/rust-lang/crates.io-index"]
+  },
+  "exceptions": []
+}
