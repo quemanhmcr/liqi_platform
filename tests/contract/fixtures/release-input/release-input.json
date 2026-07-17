@@ -1,0 +1,80 @@
+{
+  "release_id_prefix": "liqi-v0",
+  "environment": "development",
+  "rust_toolchain": {
+    "channel": "1.88.0",
+    "target": "aarch64-unknown-linux-gnu",
+    "profile": "minimal"
+  },
+  "artifacts": [
+    {
+      "name": "liqi-api",
+      "path": "tests/contract/fixtures/release-input/liqi-api",
+      "media_type": "application/vnd.liqi.elf",
+      "sbom_ref": "sbom/release.spdx.json",
+      "provenance_ref": "provenance/release.intoto.jsonl"
+    },
+    {
+      "name": "liqi-realtime",
+      "path": "tests/contract/fixtures/release-input/liqi-realtime",
+      "media_type": "application/vnd.liqi.elf",
+      "sbom_ref": "sbom/release.spdx.json",
+      "provenance_ref": "provenance/release.intoto.jsonl"
+    },
+    {
+      "name": "liqi-worker",
+      "path": "tests/contract/fixtures/release-input/liqi-worker",
+      "media_type": "application/vnd.liqi.elf",
+      "sbom_ref": "sbom/release.spdx.json",
+      "provenance_ref": "provenance/release.intoto.jsonl"
+    }
+  ],
+  "contract_versions": {
+    "infrastructure_output": "oci-host-v0",
+    "database_authority": "database-authority-v0",
+    "runtime_configuration": "runtime-config-v0",
+    "openapi": "openapi-v0",
+    "realtime": "realtime-v0",
+    "telemetry": "telemetry-v0",
+    "integration_result": "integration-result-v0"
+  },
+  "database_migration": {
+    "minimum": "00000000000000",
+    "maximum": "00000000000000",
+    "compatibility": "expand-only",
+    "destructive_allowed": false
+  },
+  "infrastructure": {
+    "required_output_version": "oci-host-v0",
+    "cost_classification": "always-free-safe",
+    "plan_path": "tests/contract/fixtures/release-input/plan.json"
+  },
+  "configuration": {
+    "schema_version": "runtime-config-v0",
+    "path": "tests/contract/fixtures/release-input/runtime-config.json"
+  },
+  "rollback": {
+    "compatible": false,
+    "previous_release_id": null,
+    "deadline_seconds": 300,
+    "database_rollback_allowed": false,
+    "first_release_reason": "Initial fixture release."
+  },
+  "supply_chain": {
+    "sbom": {
+      "path": "tests/contract/fixtures/release-input/release.spdx.json",
+      "uri": "sbom/release.spdx.json"
+    },
+    "provenance": {
+      "path": "tests/contract/fixtures/release-input/release.intoto.jsonl",
+      "uri": "provenance/release.intoto.jsonl"
+    },
+    "attestation_policy": "required-before-staging"
+  },
+  "deployment": {
+    "strategy": "health-gated-replacement",
+    "status": "validated",
+    "approved_by": null,
+    "activated_at": null
+  }
+}

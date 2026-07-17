@@ -1,0 +1,29 @@
+{
+  "schema_version": "capacity-budget-v0",
+  "provider": "operations",
+  "owner": "Senior 4",
+  "components": [
+    {
+      "name": "otel-collector",
+      "class": "telemetry",
+      "default_enabled": true,
+      "steady_state": { "ocpu": 0.05, "memory_mib": 128, "disk_gib": 2 },
+      "hard_limit": { "ocpu": 0.15, "memory_mib": 512, "disk_gib": 8 },
+      "postgres_connections": 0,
+      "queue": { "bounded": true, "capacity": 4096, "overflow_behavior": "drop-noncritical" },
+      "retry": { "maximum_attempts": 5, "maximum_elapsed_seconds": 300, "backoff": "exponential", "jitter": true },
+      "failure_behavior": "degrade-noncritical"
+    },
+    {
+      "name": "host-observability",
+      "class": "telemetry",
+      "default_enabled": true,
+      "steady_state": { "ocpu": 0.03, "memory_mib": 96, "disk_gib": 1 },
+      "hard_limit": { "ocpu": 0.1, "memory_mib": 512, "disk_gib": 8 },
+      "postgres_connections": 0,
+      "queue": { "bounded": true, "capacity": 1024, "overflow_behavior": "drop-noncritical" },
+      "retry": { "maximum_attempts": 3, "maximum_elapsed_seconds": 60, "backoff": "exponential", "jitter": true },
+      "failure_behavior": "degrade-noncritical"
+    }
+  ]
+}

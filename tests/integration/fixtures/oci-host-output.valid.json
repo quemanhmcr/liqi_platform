@@ -1,0 +1,34 @@
+{
+  "capacity_profile": {
+    "cost_classification": "always-free-safe"
+  },
+  "environment": "development",
+  "host": {
+    "instance_id": "ocid1.instance.oc1.ap-singapore-2.testfixture"
+  },
+  "identities": {
+    "services": [
+      {
+        "service": "liqi-api",
+        "user": "liqi-api"
+      },
+      {
+        "service": "liqi-realtime",
+        "user": "liqi-realtime"
+      },
+      {
+        "service": "liqi-worker",
+        "user": "liqi-worker"
+      }
+    ]
+  },
+  "infrastructure_output_version": "0.2.0",
+  "release_target": {
+    "current_symlink": "/opt/liqi/current",
+    "deployment_path": "/opt/liqi/releases",
+    "installation_semantics": "upload-to-staging-then-root-owned-atomic-install",
+    "staging_path": "/var/tmp/liqi/releases",
+    "transport_user": "opc"
+  },
+  "schema_version": "liqi.platform.oci-host/v0"
+}

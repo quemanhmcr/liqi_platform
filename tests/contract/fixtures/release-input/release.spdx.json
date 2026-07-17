@@ -1,0 +1,16 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "liqi-v0.0.0-test",
+  "documentNamespace": "https://liqi.internal/spdx/liqi-v0.0.0-test",
+  "creationInfo": {
+    "created": "2026-07-17T00:00:00Z",
+    "creators": ["Tool: syft", "Organization: LIQI"]
+  },
+  "files": [
+    {"fileName": "liqi-api", "SPDXID": "SPDXRef-File-liqi-api", "checksums": [{"algorithm": "SHA256", "checksumValue": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]},
+    {"fileName": "liqi-realtime", "SPDXID": "SPDXRef-File-liqi-realtime", "checksums": [{"algorithm": "SHA256", "checksumValue": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}]},
+    {"fileName": "liqi-worker", "SPDXID": "SPDXRef-File-liqi-worker", "checksums": [{"algorithm": "SHA256", "checksumValue": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}]}
+  ]
+}

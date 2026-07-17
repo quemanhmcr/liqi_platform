@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/recovery-exercise-result-v0.schema.json",
+  "title": "LIQI recovery exercise result V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "exercise_id", "mode", "source_environment", "target_database", "started_at", "completed_at", "status", "approval_ref", "steps", "verification", "cleanup", "mutation", "failures"],
+  "properties": {
+    "schema_version": {"const": "recovery-exercise-result-v0"},
+    "exercise_id": {"type": "string", "pattern": "^rx-"},
+    "mode": {"enum": ["provider", "mock"]},
+    "source_environment": {"enum": ["development", "staging", "production"]},
+    "target_database": {"type": "string", "pattern": "^liqi_restore_"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "completed_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["planned", "blocked", "passed", "failed", "incident"]},
+    "approval_ref": {"type": ["string", "null"], "maxLength": 512},
+    "steps": {
+      "type": "array", "minItems": 4, "maxItems": 4,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "owner", "command", "status", "exit_code", "duration_ms", "log_ref", "error"],
+        "properties": {
+          "name": {"enum": ["prepare", "restore", "verify", "cleanup"]},
+          "owner": {"const": "Senior 2"},
+          "command": {"type": "string", "minLength": 1, "maxLength": 2048},
+          "status": {"enum": ["planned", "passed", "failed", "blocked", "skipped"]},
+          "exit_code": {"type": ["integer", "null"], "minimum": 0, "maximum": 255},
+          "duration_ms": {"type": "integer", "minimum": 0},
+          "log_ref": {"type": ["string", "null"], "maxLength": 1024},
+          "error": {"type": ["string", "null"], "maxLength": 1000}
+        }
+      }
+    },
+    "verification": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "provider_result_ref", "freshness_result_ref"],
+      "properties": {
+        "status": {"enum": ["not-run", "passed", "failed"]},
+        "provider_result_ref": {"type": ["string", "null"], "maxLength": 1024},
+        "freshness_result_ref": {"type": ["string", "null"], "maxLength": 1024}
+      }
+    },
+    "cleanup": {
+      "type": "object", "additionalProperties": false,
+      "required": ["required", "status"],
+      "properties": {"required": {"const": true}, "status": {"enum": ["not-run", "passed", "failed"]}}
+    },
+    "mutation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["isolated_target_mutated", "source_database_mutated", "production_traffic_changed", "oci_mutated"],
+      "properties": {
+        "isolated_target_mutated": {"type": "boolean"},
+        "source_database_mutated": {"const": false},
+        "production_traffic_changed": {"const": false},
+        "oci_mutated": {"const": false}
+      }
+    },
+    "failures": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 1000}}
+  }
+}

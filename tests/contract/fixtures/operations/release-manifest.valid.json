@@ -1,0 +1,88 @@
+{
+  "schema_version": "release-manifest-v0",
+  "release_id": "liqi-v0.0.0-test",
+  "git_sha": "2d72ce4176993324d36d6f4ea115ff2b43fd5355",
+  "source_timestamp": "2026-07-17T00:00:00Z",
+  "source_date_epoch": 1784246400,
+  "rust_toolchain": {
+    "channel": "1.88.0",
+    "target": "aarch64-unknown-linux-gnu",
+    "profile": "minimal"
+  },
+  "artifacts": [
+    {
+      "name": "liqi-api",
+      "media_type": "application/vnd.liqi.elf",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "size_bytes": 1,
+      "sbom_ref": "sbom/release.spdx.json",
+      "provenance_ref": "provenance/release.intoto.jsonl"
+    },
+    {
+      "name": "liqi-realtime",
+      "media_type": "application/vnd.liqi.elf",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "size_bytes": 1,
+      "sbom_ref": "sbom/release.spdx.json",
+      "provenance_ref": "provenance/release.intoto.jsonl"
+    },
+    {
+      "name": "liqi-worker",
+      "media_type": "application/vnd.liqi.elf",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "size_bytes": 1,
+      "sbom_ref": "sbom/release.spdx.json",
+      "provenance_ref": "provenance/release.intoto.jsonl"
+    }
+  ],
+  "contract_versions": {
+    "infrastructure_output": "oci-host-v0",
+    "database_authority": "database-authority-v0",
+    "runtime_configuration": "runtime-config-v0",
+    "openapi": "openapi-v0",
+    "realtime": "realtime-v0",
+    "telemetry": "telemetry-v0",
+    "integration_result": "integration-result-v0"
+  },
+  "database_migration": {
+    "minimum": "00000000000000",
+    "maximum": "00000000000000",
+    "compatibility": "expand-only",
+    "destructive_allowed": false
+  },
+  "infrastructure": {
+    "required_output_version": "oci-host-v0",
+    "cost_classification": "always-free-safe",
+    "plan_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "configuration": {
+    "schema_version": "runtime-config-v0",
+    "digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "contains_secrets": false
+  },
+  "rollback": {
+    "compatible": false,
+    "previous_release_id": null,
+    "deadline_seconds": 300,
+    "database_rollback_allowed": false,
+    "first_release_reason": "Initial V0 fixture has no previous release."
+  },
+  "supply_chain": {
+    "sbom": {
+      "uri": "sbom/release.spdx.json",
+      "sha256": "1f34ecc95b8fe292f46d3c2da2aea22f50e0af829f5633f0ce80c23c35da9206"
+    },
+    "provenance": {
+      "uri": "provenance/release.intoto.jsonl",
+      "sha256": "6705437c670271d1c90abc9a9ff8c1ede16c05adf7f35af8faf306b191d4a4c0"
+    },
+    "attestation_policy": "required-before-staging"
+  },
+  "deployment": {
+    "environment": "development",
+    "strategy": "health-gated-replacement",
+    "status": "validated",
+    "approved_by": null,
+    "activated_at": null
+  }
+}

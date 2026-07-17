@@ -1,0 +1,14 @@
+{
+  "as_of": "2026-07-17T00:00:00Z",
+  "backup_age_seconds": 3600,
+  "backup_completed_at": "2026-07-16T23:00:00Z",
+  "evidence_ref": "evidence://restore/fixture",
+  "failures": [],
+  "restore_verification_age_seconds": 604800,
+  "restore_verified_at": "2026-07-10T00:00:00Z",
+  "rpo_observed_seconds": 120,
+  "rto_observed_seconds": 1800,
+  "schema_version": "recovery-freshness-result-v0",
+  "status": "passed",
+  "wal_archive_lag_seconds": 30
+}

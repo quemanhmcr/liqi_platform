@@ -1,0 +1,120 @@
+{
+  "capacity": {
+    "declared_memory_mib": 16384,
+    "declared_ocpu": 3.3,
+    "disk_budget_gib": 160.2,
+    "hard_limit_memory_mib": 24576,
+    "hard_limit_ocpu": 4,
+    "reserved_memory_mib": 4096,
+    "reserved_ocpu": 1,
+    "status": "passed",
+    "steady_state_memory_mib": 6528,
+    "steady_state_ocpu": 1.66
+  },
+  "completed_at": "2026-07-17T00:00:01Z",
+  "environment": "development",
+  "gates": [
+    {
+      "command": "python scripts/operations/validate_contracts.py",
+      "duration_ms": 1,
+      "exit_code": 0,
+      "failure_class": null,
+      "output_ref": null,
+      "owner": "Senior 4",
+      "seam": "operations contract schemas",
+      "status": "passed"
+    },
+    {
+      "command": "scripts/operations/check_capacity.py",
+      "duration_ms": 0,
+      "exit_code": 0,
+      "failure_class": null,
+      "output_ref": "tests/contract/fixtures/operations/capacity-result.valid.json",
+      "owner": "Senior 4",
+      "seam": "capacity aggregation",
+      "status": "passed"
+    },
+    {
+      "command": "scripts/operations/check_recovery_freshness.py",
+      "duration_ms": 0,
+      "exit_code": 0,
+      "failure_class": null,
+      "output_ref": "tests/contract/fixtures/operations/recovery-freshness-result.valid.json",
+      "owner": "Senior 4",
+      "seam": "recovery freshness",
+      "status": "passed"
+    },
+    {
+      "command": "provider-owned platform probe",
+      "duration_ms": 0,
+      "exit_code": 0,
+      "failure_class": null,
+      "output_ref": "tests/integration/fixtures/platform-probe-result.valid.json",
+      "owner": "Senior 4",
+      "seam": "platform probe evaluation",
+      "status": "passed"
+    },
+    {
+      "command": "scripts/operations/assemble_integration_result.py",
+      "duration_ms": 0,
+      "exit_code": 0,
+      "failure_class": null,
+      "output_ref": "tests/integration/fixtures/integration-result.promotion.valid.json",
+      "owner": "Senior 4",
+      "seam": "promotion evidence compatibility",
+      "status": "passed"
+    }
+  ],
+  "git_sha": "2d72ce4176993324d36d6f4ea115ff2b43fd5355",
+  "integration_id": "int-checkpoint1",
+  "mode": "provider",
+  "overall_status": "passed",
+  "platform_probe": {
+    "release_id_observed": "liqi-v0.0.0-test",
+    "result_ref": "tests/integration/fixtures/platform-probe-result.valid.json",
+    "status": "passed"
+  },
+  "provider_results": [
+    {
+      "command": "python infrastructure/validation/validate_oci_host_contract.py",
+      "duration_ms": 1,
+      "exit_code": 0,
+      "failure_class": null,
+      "output_ref": "evidence/provider/oci.json",
+      "owner": "Senior 1",
+      "seam": "infrastructure validation",
+      "status": "passed"
+    },
+    {
+      "command": "bash database/tests/run-source-validation.sh",
+      "duration_ms": 1,
+      "exit_code": 0,
+      "failure_class": null,
+      "output_ref": "evidence/provider/database.json",
+      "owner": "Senior 2",
+      "seam": "database authority validation",
+      "status": "passed"
+    },
+    {
+      "command": "cargo test --workspace --all-targets --locked",
+      "duration_ms": 1,
+      "exit_code": 0,
+      "failure_class": null,
+      "output_ref": "evidence/provider/runtime.json",
+      "owner": "Senior 3",
+      "seam": "runtime contract validation",
+      "status": "passed"
+    }
+  ],
+  "recovery": {
+    "backup_age_seconds": 3600,
+    "evidence_ref": "evidence://restore/fixture",
+    "restore_verified_at": "2026-07-10T00:00:00Z",
+    "status": "passed",
+    "wal_archive_lag_seconds": 30
+  },
+  "release_id": "liqi-v0.0.0-test",
+  "schema_version": "integration-result-v0",
+  "started_at": "2026-07-17T00:00:00Z",
+  "violations": []
+}

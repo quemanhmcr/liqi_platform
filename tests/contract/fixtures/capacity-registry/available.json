@@ -1,0 +1,10 @@
+{
+  "schema_version": "provider-capacity-registry-v0",
+  "registry_version": "0.1.0",
+  "providers": [
+    {"provider": "infrastructure", "owner": "Senior 1", "state": "available", "path": "tests/contract/fixtures/capacity/infrastructure.valid.json", "action_required": "fixture"},
+    {"provider": "database", "owner": "Senior 2", "state": "available", "path": "tests/contract/fixtures/capacity/database.valid.json", "action_required": "fixture"},
+    {"provider": "runtime", "owner": "Senior 3", "state": "available", "path": "tests/contract/fixtures/capacity/runtime.valid.json", "action_required": "fixture"},
+    {"provider": "operations", "owner": "Senior 4", "state": "available", "path": "operations/capacity/operations-capacity-budget-v0.json", "action_required": "fixture"}
+  ]
+}

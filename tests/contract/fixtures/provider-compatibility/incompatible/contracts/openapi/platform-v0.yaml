@@ -1,0 +1,6 @@
+paths:
+  /health/live: {}
+  /health/ready: {}
+  /metrics: {}
+  /platform/v0/metadata: {}
+  /platform/v0/probes: {}

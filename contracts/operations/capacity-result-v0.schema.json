@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/capacity-result-v0.schema.json",
+  "title": "LIQI aggregated capacity result V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "envelope",
+    "totals",
+    "steady_state_totals",
+    "hard_limit_totals",
+    "postgres_connection_accounting",
+    "components",
+    "failures"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "capacity-result-v0"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed",
+        "blocked"
+      ]
+    },
+    "envelope": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "host",
+        "reserved",
+        "steady_state_limit",
+        "provider_hard_limit",
+        "policy"
+      ]
+    },
+    "totals": {
+      "description": "Backward-compatible alias of hard_limit_totals.",
+      "$ref": "#/$defs/hardTotals"
+    },
+    "steady_state_totals": {
+      "$ref": "#/$defs/steadyTotals"
+    },
+    "hard_limit_totals": {
+      "$ref": "#/$defs/hardTotals"
+    },
+    "postgres_connection_accounting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "server_reservation",
+        "pooled_server_capacity",
+        "pooled_runtime_demand",
+        "direct_reserved_capacity"
+      ],
+      "properties": {
+        "server_reservation": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pooled_server_capacity": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pooled_runtime_demand": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "direct_reserved_capacity": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "provider",
+          "name",
+          "steady_state",
+          "hard_limit",
+          "ocpu",
+          "memory_mib",
+          "disk_gib",
+          "postgres_connections"
+        ],
+        "properties": {
+          "provider": {
+            "enum": [
+              "infrastructure",
+              "database",
+              "runtime",
+              "operations"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "steady_state": {
+            "$ref": "#/$defs/resources"
+          },
+          "hard_limit": {
+            "$ref": "#/$defs/resources"
+          },
+          "ocpu": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 4
+          },
+          "memory_mib": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20480
+          },
+          "disk_gib": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 180
+          },
+          "postgres_connections": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        }
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "$defs": {
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ocpu",
+        "memory_mib",
+        "disk_gib"
+      ],
+      "properties": {
+        "ocpu": {
+          "type": "number",
+          "minimum": 0
+        },
+        "memory_mib": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "disk_gib": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "steadyTotals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ocpu",
+        "memory_mib",
+        "disk_gib",
+        "postgres_connections"
+      ],
+      "properties": {
+        "ocpu": {
+          "type": "number",
+          "minimum": 0
+        },
+        "memory_mib": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "disk_gib": {
+          "type": "number",
+          "minimum": 0
+        },
+        "postgres_connections": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "hardTotals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ocpu",
+        "memory_mib",
+        "disk_gib",
+        "postgres_connections"
+      ],
+      "properties": {
+        "ocpu": {
+          "type": "number",
+          "minimum": 0
+        },
+        "memory_mib": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "disk_gib": {
+          "type": "number",
+          "minimum": 0
+        },
+        "postgres_connections": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "steady_state_totals": {
+            "properties": {
+              "ocpu": {
+                "maximum": 3
+              },
+              "memory_mib": {
+                "maximum": 20480
+              },
+              "disk_gib": {
+                "maximum": 180
+              },
+              "postgres_connections": {
+                "maximum": 100
+              }
+            }
+          },
+          "hard_limit_totals": {
+            "properties": {
+              "ocpu": {
+                "maximum": 4
+              },
+              "memory_mib": {
+                "maximum": 20480
+              },
+              "disk_gib": {
+                "maximum": 180
+              },
+              "postgres_connections": {
+                "maximum": 100
+              }
+            }
+          },
+          "totals": {
+            "properties": {
+              "ocpu": {
+                "maximum": 4
+              },
+              "memory_mib": {
+                "maximum": 20480
+              },
+              "disk_gib": {
+                "maximum": 180
+              },
+              "postgres_connections": {
+                "maximum": 100
+              }
+            }
+          },
+          "postgres_connection_accounting": {
+            "properties": {
+              "server_reservation": {
+                "maximum": 100
+              },
+              "pooled_server_capacity": {
+                "maximum": 100
+              },
+              "pooled_runtime_demand": {
+                "maximum": 100
+              },
+              "direct_reserved_capacity": {
+                "maximum": 100
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

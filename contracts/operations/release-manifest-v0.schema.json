@@ -1,0 +1,212 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/release-manifest-v0.schema.json",
+  "title": "LIQI Platform release manifest V0",
+  "description": "Traceable, deterministic release metadata. It contains no secret material and does not authorize deployment by itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "release_id",
+    "git_sha",
+    "source_timestamp",
+    "source_date_epoch",
+    "rust_toolchain",
+    "artifacts",
+    "contract_versions",
+    "database_migration",
+    "infrastructure",
+    "configuration",
+    "rollback",
+    "supply_chain",
+    "deployment"
+  ],
+  "properties": {
+    "schema_version": { "const": "release-manifest-v0" },
+    "release_id": {
+      "type": "string",
+      "pattern": "^liqi-[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "source_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_date_epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rust_toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channel", "target"],
+      "properties": {
+        "channel": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "target": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "profile": { "type": "string", "enum": ["minimal", "default", "complete"] }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 3,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/artifact" }
+    },
+    "contract_versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "infrastructure_output",
+        "database_authority",
+        "runtime_configuration",
+        "openapi",
+        "realtime",
+        "telemetry",
+        "integration_result"
+      ],
+      "properties": {
+        "infrastructure_output": { "$ref": "#/$defs/version" },
+        "database_authority": { "$ref": "#/$defs/version" },
+        "runtime_configuration": { "$ref": "#/$defs/version" },
+        "openapi": { "$ref": "#/$defs/version" },
+        "realtime": { "$ref": "#/$defs/version" },
+        "telemetry": { "$ref": "#/$defs/version" },
+        "integration_result": { "$ref": "#/$defs/version" }
+      }
+    },
+    "database_migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum", "maximum", "compatibility", "destructive_allowed"],
+      "properties": {
+        "minimum": { "$ref": "#/$defs/version" },
+        "maximum": { "$ref": "#/$defs/version" },
+        "compatibility": {
+          "type": "string",
+          "enum": ["expand-only", "expand-migrate", "contract-approved"]
+        },
+        "destructive_allowed": { "const": false }
+      }
+    },
+    "infrastructure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_output_version", "cost_classification", "plan_digest"],
+      "properties": {
+        "required_output_version": { "$ref": "#/$defs/version" },
+        "cost_classification": {
+          "type": "string",
+          "enum": ["always-free-safe", "free-trial-only", "paid", "unknown"]
+        },
+        "plan_digest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "digest", "contains_secrets"],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/version" },
+        "digest": { "$ref": "#/$defs/sha256" },
+        "contains_secrets": { "const": false }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compatible", "previous_release_id", "deadline_seconds", "database_rollback_allowed"],
+      "properties": {
+        "compatible": { "type": "boolean" },
+        "previous_release_id": {
+          "type": ["string", "null"],
+          "pattern": "^liqi-[a-z0-9][a-z0-9._-]{2,95}$"
+        },
+        "deadline_seconds": { "type": "integer", "minimum": 30, "maximum": 1800 },
+        "database_rollback_allowed": { "const": false },
+        "first_release_reason": { "type": ["string", "null"], "maxLength": 300 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "previous_release_id": { "type": "null" } } },
+          "then": { "required": ["first_release_reason"] }
+        }
+      ]
+    },
+    "supply_chain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sbom", "provenance", "attestation_policy"],
+      "properties": {
+        "sbom": { "$ref": "#/$defs/externalReference" },
+        "provenance": { "$ref": "#/$defs/externalReference" },
+        "attestation_policy": {
+          "type": "string",
+          "enum": ["required-before-staging", "required-before-production"]
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["environment", "strategy", "status", "approved_by", "activated_at"],
+      "properties": {
+        "environment": {
+          "type": "string",
+          "enum": ["development", "staging", "production"]
+        },
+        "strategy": { "const": "health-gated-replacement" },
+        "status": {
+          "type": "string",
+          "enum": [
+            "drafted",
+            "validated",
+            "artifacts-ready",
+            "preflight-passed",
+            "activating",
+            "active",
+            "failed",
+            "rolled-back",
+            "incident"
+          ]
+        },
+        "approved_by": { "type": ["string", "null"], "maxLength": 128 },
+        "activated_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    }
+  },
+  "$defs": {
+    "version": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "media_type", "sha256", "size_bytes", "sbom_ref", "provenance_ref"],
+      "properties": {
+        "name": { "type": "string", "enum": ["liqi-api", "liqi-realtime", "liqi-worker"] },
+        "media_type": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "size_bytes": { "type": "integer", "minimum": 1 },
+        "sbom_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "provenance_ref": { "type": "string", "minLength": 1, "maxLength": 512 }
+      }
+    },
+    "externalReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "sha256"],
+      "properties": {
+        "uri": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}
