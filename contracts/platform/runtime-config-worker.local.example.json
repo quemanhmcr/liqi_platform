@@ -30,7 +30,7 @@
     "idleInTransactionTimeoutMs": 30000,
     "maxConnections": 10,
     "minConnections": 1,
-    "requiredMigrationVersion": 2
+    "requiredMigrationVersion": 4
   },
   "runtime": {
     "requestTimeoutMs": 5000,

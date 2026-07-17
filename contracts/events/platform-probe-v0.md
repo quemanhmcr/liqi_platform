@@ -15,9 +15,9 @@ This probe is an operational walking skeleton only. It is not a LIQI domain abst
 
 ## Current checkpoint status
 
-- API durable commit: implemented by Senior 3 adapter against Senior 2 migration version 2.
-- Worker claim/effect/ack: implemented by Senior 3 adapter against Senior 2 migration version 2.
-- Realtime publication: intentionally not ready; Senior 2 has not yet published the committed-handoff function.
+- API durable commit: implemented by Senior 3 adapter against Senior 2 migration version 4.
+- Worker claim/effect/ack: implemented by Senior 3 adapter against Senior 2 migration version 4.
+- Realtime publication: implemented through `platform.read_realtime_handoff_v0(bigint, integer)` after provider commit.
 - Dev/test orchestration: fake provider exists only behind `dev-fakes` plus `persistence.fake=true` and is rejected in staging/production.
 
 ## Provider validation after merge

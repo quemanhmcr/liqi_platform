@@ -182,7 +182,7 @@
         },
         "requiredMigrationVersion": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 4
         }
       }
     },

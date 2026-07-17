@@ -9,12 +9,17 @@ VALUES (true, 0);
 CREATE TABLE platform.realtime_handoff_events_v0 (
     handoff_id bigint PRIMARY KEY CHECK (handoff_id > 0),
     event_id uuid NOT NULL UNIQUE REFERENCES platform.outbox_events(event_id) ON DELETE RESTRICT,
+    schema_version smallint NOT NULL CHECK (schema_version = 0),
     event_type text NOT NULL CHECK (event_type ~ '^[a-z][a-z0-9_.-]{2,127}$'),
     event_version integer NOT NULL CHECK (event_version >= 0),
     occurred_at timestamptz NOT NULL,
-    aggregate_key text NOT NULL CHECK (length(aggregate_key) BETWEEN 1 AND 256),
-    ordering_key text NOT NULL CHECK (length(ordering_key) BETWEEN 1 AND 256),
+    producer text NOT NULL CHECK (producer ~ '^liqi-[a-z0-9-]{2,48}$'),
+    correlation_id uuid,
+    causation_id uuid,
+    aggregate_key text NOT NULL CHECK (length(aggregate_key) BETWEEN 1 AND 160),
+    ordering_key text NOT NULL CHECK (length(ordering_key) BETWEEN 1 AND 128),
     payload jsonb NOT NULL CHECK (jsonb_typeof(payload) = 'object'),
+    metadata jsonb NOT NULL CHECK (jsonb_typeof(metadata) = 'object' AND octet_length(metadata::text) <= 4096),
     recorded_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
 
@@ -83,22 +88,32 @@ BEGIN
     INSERT INTO platform.realtime_handoff_events_v0 (
         handoff_id,
         event_id,
+        schema_version,
         event_type,
         event_version,
         occurred_at,
+        producer,
+        correlation_id,
+        causation_id,
         aggregate_key,
         ordering_key,
-        payload
+        payload,
+        metadata
     )
     SELECT
         next_handoff_id,
         event.event_id,
+        event.schema_version,
         event.event_type,
         event.event_version,
         event.occurred_at,
+        event.producer,
+        event.correlation_id,
+        event.causation_id,
         event.aggregate_key,
         event.ordering_key,
-        event.payload
+        event.payload,
+        event.metadata
     FROM platform.outbox_events event
     WHERE event.event_id = requested_event_id;
 
@@ -113,12 +128,17 @@ CREATE FUNCTION platform.read_realtime_handoff_v0(
 RETURNS TABLE (
     handoff_id bigint,
     event_id uuid,
+    schema_version smallint,
     event_type text,
     event_version integer,
     occurred_at timestamptz,
+    producer text,
+    correlation_id uuid,
+    causation_id uuid,
     aggregate_key text,
     ordering_key text,
     payload jsonb,
+    metadata jsonb,
     recorded_at timestamptz
 )
 LANGUAGE plpgsql
@@ -138,12 +158,17 @@ BEGIN
     SELECT
         handoff.handoff_id,
         handoff.event_id,
+        handoff.schema_version,
         handoff.event_type,
         handoff.event_version,
         handoff.occurred_at,
+        handoff.producer,
+        handoff.correlation_id,
+        handoff.causation_id,
         handoff.aggregate_key,
         handoff.ordering_key,
         handoff.payload,
+        handoff.metadata,
         handoff.recorded_at
     FROM platform.realtime_handoff_events_v0 handoff
     WHERE handoff.handoff_id > after_handoff_id
@@ -196,7 +221,10 @@ $$;
 CREATE OR REPLACE FUNCTION platform.request_probe_v0(
     probe_id uuid,
     event_id uuid,
-    occurred_at timestamptz DEFAULT clock_timestamp()
+    occurred_at timestamptz DEFAULT clock_timestamp(),
+    correlation_id uuid DEFAULT NULL,
+    causation_id uuid DEFAULT NULL,
+    metadata jsonb DEFAULT '{}'::jsonb
 )
 RETURNS uuid
 LANGUAGE plpgsql
@@ -221,12 +249,17 @@ BEGIN
 
     PERFORM platform.enqueue_outbox_v0(
         event_id,
+        0,
         'platform.probe.requested.v0',
         0,
         occurred_at,
+        'liqi-api',
+        correlation_id,
+        causation_id,
         'platform-probe:' || probe_id::text,
         'platform-probe:' || probe_id::text,
         jsonb_build_object('probeId', probe_id::text),
+        COALESCE(metadata, '{}'::jsonb),
         8
     );
 

@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use liqi_application::{
     CommittedProbe, CommittedRealtimeReader, DurableOutboxConsumer, OutboxClaimRequest,
     OutboxClaimToken, OutboxDelivery, OutboxRetry, PersistenceError, PersistenceReadiness,
-    PlatformPersistence, ProbeCommit, ProbeEffectAckOutcome, RealtimeEventBatch,
-    RealtimeReadRequest,
+    PlatformPersistence, ProbeCommit, ProbeEffectAckOutcome, RealtimeCursor, RealtimeDelivery,
+    RealtimeEventBatch, RealtimeReadRequest,
 };
 use liqi_configuration::RuntimeConfig;
 use liqi_protocol::{EventEnvelope, EventMetadata};
@@ -128,14 +128,23 @@ impl PlatformPersistence for PostgresAuthorityStore {
     }
 
     async fn commit_probe(&self, commit: ProbeCommit) -> Result<CommittedProbe, PersistenceError> {
-        let row = sqlx::query("SELECT platform.request_probe_v0($1, $2, $3) AS event_id")
-            .bind(commit.probe_id)
-            .bind(commit.event_id)
-            .bind(commit.committed_at)
-            .persistent(false)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(map_sqlx)?;
+        let mut metadata = EventMetadata::new();
+        if let Some(trace_id) = &commit.request_context.trace_id {
+            metadata.insert("trace_id".to_owned(), Value::String(trace_id.clone()));
+        }
+        let metadata = serde_json::to_value(metadata).map_err(|_| PersistenceError::Internal)?;
+        let row =
+            sqlx::query("SELECT platform.request_probe_v0($1, $2, $3, $4, $5, $6) AS event_id")
+                .bind(commit.probe_id)
+                .bind(commit.event_id)
+                .bind(commit.committed_at)
+                .bind(commit.request_context.request_id)
+                .bind(Option::<Uuid>::None)
+                .bind(metadata)
+                .persistent(false)
+                .fetch_one(&self.pool)
+                .await
+                .map_err(map_sqlx)?;
         let committed_event_id = row.try_get::<Uuid, _>("event_id").map_err(map_sqlx)?;
         if committed_event_id != commit.event_id {
             return Err(PersistenceError::Internal);
@@ -187,8 +196,9 @@ impl DurableOutboxConsumer for PostgresAuthorityStore {
         let lease_seconds = i32::try_from(request.lease_for.as_secs())
             .map_err(|_| PersistenceError::InvalidOperation)?;
         let rows = sqlx::query(
-            "SELECT event_id, claim_token, attempt_no, event_type, event_version, \
-                    occurred_at, aggregate_key, ordering_key, payload \
+            "SELECT event_id, claim_token, attempt_no, schema_version, event_type, \
+                    event_version, occurred_at, producer, correlation_id, causation_id, \
+                    aggregate_key, ordering_key, payload, metadata \
              FROM platform.claim_outbox_v0($1, $2, $3)",
         )
         .bind(&request.consumer)
@@ -260,54 +270,117 @@ impl DurableOutboxConsumer for PostgresAuthorityStore {
 impl CommittedRealtimeReader for PostgresAuthorityStore {
     async fn read_committed(
         &self,
-        _request: RealtimeReadRequest,
+        request: RealtimeReadRequest,
     ) -> Result<RealtimeEventBatch, PersistenceError> {
-        // Senior 2 V0 intentionally grants the realtime role no outbox claim or
-        // table access and has not yet published a committed handoff function.
-        // Fail closed rather than bypassing the provider boundary.
-        Err(PersistenceError::NotReady)
+        request.validate()?;
+        if request.topics.len() != 1 || request.topics[0] != PLATFORM_PROBE_EVENT {
+            return Err(PersistenceError::InvalidOperation);
+        }
+        let after_handoff_id = request
+            .after
+            .as_ref()
+            .map(|cursor| {
+                cursor
+                    .as_opaque()
+                    .parse::<i64>()
+                    .map_err(|_| PersistenceError::InvalidOperation)
+            })
+            .transpose()?
+            .unwrap_or(0);
+        if after_handoff_id < 0 {
+            return Err(PersistenceError::InvalidOperation);
+        }
+        let batch_size =
+            i32::try_from(request.batch_size).map_err(|_| PersistenceError::InvalidOperation)?;
+        let rows = sqlx::query(
+            "SELECT handoff_id, event_id, schema_version, event_type, event_version, \
+                    occurred_at, producer, correlation_id, causation_id, aggregate_key, \
+                    ordering_key, payload, metadata \
+             FROM platform.read_realtime_handoff_v0($1, $2)",
+        )
+        .bind(after_handoff_id)
+        .bind(batch_size)
+        .persistent(false)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_sqlx)?;
+        let deliveries = rows
+            .into_iter()
+            .map(map_realtime_row)
+            .collect::<Result<Vec<_>, _>>()?;
+        let next_cursor = deliveries.last().map(|delivery| delivery.cursor.clone());
+        Ok(RealtimeEventBatch {
+            deliveries,
+            next_cursor,
+        })
     }
 }
 
 fn map_claimed_row(row: PgRow) -> Result<OutboxDelivery, PersistenceError> {
-    let event_id = row.try_get::<Uuid, _>("event_id").map_err(map_sqlx)?;
     let claim_token = row.try_get::<Uuid, _>("claim_token").map_err(map_sqlx)?;
     let attempt = row.try_get::<i16, _>("attempt_no").map_err(map_sqlx)?;
+    let event = map_event_row(&row)?;
+    Ok(OutboxDelivery {
+        claim_token: OutboxClaimToken::from_opaque(claim_token.to_string())?,
+        attempt: u32::try_from(attempt).map_err(|_| PersistenceError::InvalidOperation)?,
+        event,
+    })
+}
+
+fn map_realtime_row(row: PgRow) -> Result<RealtimeDelivery, PersistenceError> {
+    let handoff_id = row.try_get::<i64, _>("handoff_id").map_err(map_sqlx)?;
+    if handoff_id <= 0 {
+        return Err(PersistenceError::InvalidOperation);
+    }
+    Ok(RealtimeDelivery {
+        cursor: RealtimeCursor::from_opaque(handoff_id.to_string())?,
+        event: map_event_row(&row)?,
+    })
+}
+
+fn map_event_row(row: &PgRow) -> Result<EventEnvelope<Value>, PersistenceError> {
+    let schema_version = row.try_get::<i16, _>("schema_version").map_err(map_sqlx)?;
+    if schema_version != 0 {
+        return Err(PersistenceError::InvalidOperation);
+    }
     let event_type = row.try_get::<String, _>("event_type").map_err(map_sqlx)?;
     if event_type != PLATFORM_PROBE_EVENT {
         return Err(PersistenceError::InvalidOperation);
     }
+    let producer = row.try_get::<String, _>("producer").map_err(map_sqlx)?;
+    if producer != PLATFORM_PROBE_PRODUCER {
+        return Err(PersistenceError::InvalidOperation);
+    }
+    let metadata_value = row.try_get::<Value, _>("metadata").map_err(map_sqlx)?;
+    let metadata = serde_json::from_value::<EventMetadata>(metadata_value)
+        .map_err(|_| PersistenceError::InvalidOperation)?;
     let event_version = row.try_get::<i32, _>("event_version").map_err(map_sqlx)?;
-    let occurred_at = row
-        .try_get::<OffsetDateTime, _>("occurred_at")
-        .map_err(map_sqlx)?;
-    let aggregate_key = row
-        .try_get::<String, _>("aggregate_key")
-        .map_err(map_sqlx)?;
-    let ordering_key = row.try_get::<String, _>("ordering_key").map_err(map_sqlx)?;
-    let payload = row.try_get::<Value, _>("payload").map_err(map_sqlx)?;
     let envelope = EventEnvelope {
-        event_id,
+        event_id: row.try_get::<Uuid, _>("event_id").map_err(map_sqlx)?,
         event_type,
         event_version: u32::try_from(event_version)
             .map_err(|_| PersistenceError::InvalidOperation)?,
-        occurred_at,
-        producer: PLATFORM_PROBE_PRODUCER.to_owned(),
-        correlation_id: None,
-        causation_id: None,
-        aggregate_key,
-        ordering_key: Some(ordering_key),
-        payload,
-        metadata: EventMetadata::new(),
+        occurred_at: row
+            .try_get::<OffsetDateTime, _>("occurred_at")
+            .map_err(map_sqlx)?,
+        producer,
+        correlation_id: row
+            .try_get::<Option<Uuid>, _>("correlation_id")
+            .map_err(map_sqlx)?,
+        causation_id: row
+            .try_get::<Option<Uuid>, _>("causation_id")
+            .map_err(map_sqlx)?,
+        aggregate_key: row
+            .try_get::<String, _>("aggregate_key")
+            .map_err(map_sqlx)?,
+        ordering_key: Some(row.try_get::<String, _>("ordering_key").map_err(map_sqlx)?),
+        payload: row.try_get::<Value, _>("payload").map_err(map_sqlx)?,
+        metadata,
     };
     envelope
         .validate(4096)
         .map_err(|_| PersistenceError::InvalidOperation)?;
-    Ok(OutboxDelivery {
-        claim_token: OutboxClaimToken::from_opaque(claim_token.to_string())?,
-        attempt: u32::try_from(attempt).map_err(|_| PersistenceError::InvalidOperation)?,
-        event: envelope,
-    })
+    Ok(envelope)
 }
 
 fn map_sqlx(error: sqlx::Error) -> PersistenceError {

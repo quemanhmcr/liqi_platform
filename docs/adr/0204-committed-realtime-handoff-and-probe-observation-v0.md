@@ -32,12 +32,17 @@ platform.read_realtime_handoff_v0(
 RETURNS TABLE (
   handoff_id bigint,
   event_id uuid,
+  schema_version smallint,
   event_type text,
   event_version integer,
   occurred_at timestamptz,
+  producer text,
+  correlation_id uuid,
+  causation_id uuid,
   aggregate_key text,
   ordering_key text,
   payload jsonb,
+  metadata jsonb,
   recorded_at timestamptz
 )
 ```

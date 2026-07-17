@@ -1,12 +1,15 @@
 BEGIN;
-SELECT plan(22);
+SELECT plan(27);
 
 SET ROLE liqi_api;
 SELECT lives_ok(
     $$SELECT platform.request_probe_v0(
         '00000000-0000-4000-8000-000000000005',
         '00000000-0000-4000-8000-000000000105',
-        '2026-07-17T01:00:00Z'
+        '2026-07-17T01:00:00Z',
+        '00000000-0000-4000-8000-000000000305',
+        '00000000-0000-4000-8000-000000000405',
+        '{"environment":"test"}'::jsonb
     )$$,
     'API producer writes probe, outbox and realtime handoff atomically'
 );
@@ -24,6 +27,11 @@ SELECT is((SELECT count(*) FROM platform.read_realtime_handoff_v0(0, 64)), 1::bi
 SELECT is((SELECT event_id FROM platform.read_realtime_handoff_v0(0, 64)), '00000000-0000-4000-8000-000000000105'::uuid, 'handoff preserves event ID');
 SELECT is((SELECT event_type FROM platform.read_realtime_handoff_v0(0, 64)), 'platform.probe.requested.v0', 'handoff preserves event type');
 SELECT is((SELECT event_version FROM platform.read_realtime_handoff_v0(0, 64)), 0, 'handoff preserves event version');
+SELECT is((SELECT schema_version FROM platform.read_realtime_handoff_v0(0, 64)), 0::smallint, 'handoff preserves schema version');
+SELECT is((SELECT producer FROM platform.read_realtime_handoff_v0(0, 64)), 'liqi-api', 'handoff preserves producer');
+SELECT is((SELECT correlation_id FROM platform.read_realtime_handoff_v0(0, 64)), '00000000-0000-4000-8000-000000000305'::uuid, 'handoff preserves correlation ID');
+SELECT is((SELECT causation_id FROM platform.read_realtime_handoff_v0(0, 64)), '00000000-0000-4000-8000-000000000405'::uuid, 'handoff preserves causation ID');
+SELECT is((SELECT metadata ->> 'environment' FROM platform.read_realtime_handoff_v0(0, 64)), 'test', 'handoff preserves metadata');
 SELECT is((SELECT aggregate_key FROM platform.read_realtime_handoff_v0(0, 64)), 'platform-probe:00000000-0000-4000-8000-000000000005', 'handoff preserves aggregate key');
 SELECT is((SELECT ordering_key FROM platform.read_realtime_handoff_v0(0, 64)), 'platform-probe:00000000-0000-4000-8000-000000000005', 'handoff preserves ordering key');
 SELECT is((SELECT payload ->> 'probeId' FROM platform.read_realtime_handoff_v0(0, 64)), '00000000-0000-4000-8000-000000000005', 'handoff preserves payload');
@@ -89,11 +97,16 @@ RESET ROLE;
 SET ROLE liqi_api;
 SELECT platform.enqueue_outbox_v0(
     '00000000-0000-4000-8000-000000000205',
+    0,
     'platform.unsupported.v0',
     0,
     clock_timestamp(),
+    'liqi-api',
+    NULL,
+    NULL,
     'platform-unsupported',
     'platform-unsupported',
+    '{}'::jsonb,
     '{}'::jsonb,
     8
 );

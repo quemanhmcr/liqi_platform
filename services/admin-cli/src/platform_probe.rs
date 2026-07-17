@@ -442,12 +442,8 @@ async fn observe_terminal_effect(
     let deadline = Instant::now() + timeout;
     let result = loop {
         let query = sqlx::query(
-            "SELECT probe.status AS probe_status, event.state AS outbox_state, \
-                    effect.applied_at IS NOT NULL AS effect_applied \
-             FROM platform.probe_state_v0 probe \
-             JOIN platform.outbox_events event ON event.event_id = probe.requested_event_id \
-             LEFT JOIN platform.probe_effects_v0 effect ON effect.event_id = event.event_id \
-             WHERE probe.probe_id = $1 AND event.event_id = $2",
+            "SELECT probe_id, event_id, probe_status, outbox_state, effect_applied, terminal \
+             FROM platform.observe_probe_v0($1, $2)",
         )
         .bind(probe_id)
         .bind(event_id)
@@ -467,6 +463,18 @@ async fn observe_terminal_effect(
                 )
             })?;
         if let Some(row) = row {
+            let observed_probe_id = row.try_get::<Uuid, _>("probe_id").map_err(|_| {
+                StepFailure::new("database.invalid_state", "Probe identity was invalid.")
+            })?;
+            let observed_event_id = row.try_get::<Uuid, _>("event_id").map_err(|_| {
+                StepFailure::new("database.invalid_state", "Event identity was invalid.")
+            })?;
+            if observed_probe_id != probe_id || observed_event_id != event_id {
+                break Err(StepFailure::new(
+                    "database.identity_mismatch",
+                    "Provider probe observation did not preserve requested identities.",
+                ));
+            }
             let probe_status = row.try_get::<String, _>("probe_status").map_err(|_| {
                 StepFailure::new("database.invalid_state", "Probe status was invalid.")
             })?;
@@ -476,7 +484,21 @@ async fn observe_terminal_effect(
             let effect_applied = row.try_get::<bool, _>("effect_applied").map_err(|_| {
                 StepFailure::new("database.invalid_state", "Probe effect state was invalid.")
             })?;
-            if probe_status == "completed" && outbox_state == "succeeded" && effect_applied {
+            let terminal = row.try_get::<bool, _>("terminal").map_err(|_| {
+                StepFailure::new(
+                    "database.invalid_state",
+                    "Probe terminal state was invalid.",
+                )
+            })?;
+            let expected_terminal =
+                probe_status == "completed" && outbox_state == "succeeded" && effect_applied;
+            if terminal != expected_terminal {
+                break Err(StepFailure::new(
+                    "database.invalid_state",
+                    "Provider probe observation returned inconsistent terminal state.",
+                ));
+            }
+            if terminal {
                 break Ok(format!(
                     "evidence://platform-probe/{probe_id}/outbox-terminal"
                 ));

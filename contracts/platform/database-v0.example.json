@@ -338,9 +338,13 @@
       "eventType",
       "eventVersion",
       "occurredAt",
+      "producer",
+      "correlationId",
+      "causationId",
       "aggregateKey",
       "orderingKey",
-      "payload"
+      "payload",
+      "metadata"
     ]
   },
   "backup": {
@@ -495,7 +499,7 @@
       "outbox producer and worker stored function semantics",
       "required migration version is supplied to readiness",
       "test bootstrap command creates an isolated database",
-      "wire mapping preserves event ID, version, occurred-at, aggregate key, ordering key and payload",
+      "wire mapping preserves event ID, schema/type version, occurred-at, producer, correlation/causation IDs, aggregate key, ordering key, payload and metadata",
       "realtime reads committed events only through platform.read_realtime_handoff_v0(bigint,integer)",
       "promotion observer calls platform.observe_probe_v0(uuid,uuid) with one bounded liqi_readonly connection",
       "API, realtime and worker pass required migration version 4 to platform.database_readiness_v0(bigint)",
@@ -533,12 +537,17 @@
     "fields": [
       "handoff_id",
       "event_id",
+      "schema_version",
       "event_type",
       "event_version",
       "occurred_at",
+      "producer",
+      "correlation_id",
+      "causation_id",
       "aggregate_key",
       "ordering_key",
       "payload",
+      "metadata",
       "recorded_at"
     ],
     "prohibited": [

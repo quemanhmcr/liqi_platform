@@ -25,7 +25,7 @@ The runner is intentionally a thin `psql` orchestration layer over PostgreSQL ad
 
 - A producer inserts business/platform state and its outbox row in the same PostgreSQL transaction.
 - An event becomes observable only after that transaction commits.
-- The durable representation preserves event ID, event type/version, occurrence time, aggregate key, ordering key and payload.
+- The durable representation preserves event ID, schema/type version, occurrence time, producer, correlation/causation IDs, aggregate key, ordering key, payload and metadata.
 - Ordering is scoped to an explicit ordering key. No global event order is promised.
 - Workers claim bounded batches with `FOR UPDATE SKIP LOCKED`, a unique claim token and an expiring lease.
 - Delivery is at-least-once. A consumer must make its terminal effect idempotent.
