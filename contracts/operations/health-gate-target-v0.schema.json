@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/health-gate-target-v0.schema.json",
+  "title": "LIQI Platform health gate target V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "release_id", "environment", "deadline_seconds", "poll_interval_ms", "checks"],
+  "properties": {
+    "schema_version": { "const": "health-gate-target-v0" },
+    "release_id": { "type": "string", "pattern": "^liqi-[a-z0-9][a-z0-9._-]{2,95}$" },
+    "environment": { "type": "string", "enum": ["development", "staging", "production"] },
+    "deadline_seconds": { "type": "integer", "minimum": 1, "maximum": 600 },
+    "poll_interval_ms": { "type": "integer", "minimum": 100, "maximum": 10000 },
+    "checks": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 24,
+      "items": { "$ref": "#/$defs/check" },
+      "allOf": [
+        { "contains": { "properties": { "kind": { "const": "liveness" } }, "required": ["kind"] } },
+        { "contains": { "properties": { "kind": { "const": "readiness" } }, "required": ["kind"] } },
+        { "contains": { "properties": { "kind": { "const": "platform-probe" } }, "required": ["kind"] } }
+      ]
+    }
+  },
+  "$defs": {
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "owner", "kind", "url", "timeout_ms", "expected_status", "expected_json"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+        "owner": { "type": "string", "enum": ["Senior 1", "Senior 2", "Senior 3", "Senior 4"] },
+        "kind": { "type": "string", "enum": ["liveness", "readiness", "platform-probe"] },
+        "url": { "type": "string", "format": "uri", "maxLength": 512 },
+        "timeout_ms": { "type": "integer", "minimum": 50, "maximum": 5000 },
+        "expected_status": { "type": "integer", "minimum": 200, "maximum": 299 },
+        "expected_json": {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 16,
+          "additionalProperties": { "type": ["string", "number", "integer", "boolean", "null"] }
+        }
+      }
+    }
+  }
+}

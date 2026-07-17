@@ -20,6 +20,8 @@ PAIRS = (
     ("telemetry-v0.schema.json", "telemetry.valid.json"),
     ("integration-result-v0.schema.json", "integration-result.valid.json"),
     ("capacity-budget-v0.schema.json", "../capacity/infrastructure.valid.json"),
+    ("health-gate-target-v0.schema.json", "../../../integration/fixtures/health-gate-target.valid.json"),
+    ("recovery-status-v0.schema.json", "../../../integration/fixtures/recovery-status.valid.json"),
 )
 
 

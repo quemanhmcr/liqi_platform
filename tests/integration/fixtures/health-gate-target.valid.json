@@ -1,0 +1,36 @@
+{
+  "schema_version": "health-gate-target-v0",
+  "release_id": "liqi-v0-test",
+  "environment": "development",
+  "deadline_seconds": 1,
+  "poll_interval_ms": 100,
+  "checks": [
+    {
+      "name": "api-live",
+      "owner": "Senior 3",
+      "kind": "liveness",
+      "url": "http://127.0.0.1:1/health/live",
+      "timeout_ms": 500,
+      "expected_status": 200,
+      "expected_json": { "status": "live", "release_id": "liqi-v0-test" }
+    },
+    {
+      "name": "api-ready",
+      "owner": "Senior 3",
+      "kind": "readiness",
+      "url": "http://127.0.0.1:1/health/ready",
+      "timeout_ms": 500,
+      "expected_status": 200,
+      "expected_json": { "status": "ready", "release_id": "liqi-v0-test" }
+    },
+    {
+      "name": "platform-probe",
+      "owner": "Senior 3",
+      "kind": "platform-probe",
+      "url": "http://127.0.0.1:1/health/platform",
+      "timeout_ms": 1000,
+      "expected_status": 200,
+      "expected_json": { "status": "ok", "release_id": "liqi-v0-test", "database_ready": true }
+    }
+  ]
+}

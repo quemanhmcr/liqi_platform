@@ -1,0 +1,11 @@
+{
+  "schema_version": "recovery-policy-v0",
+  "backup_max_age_seconds": 86400,
+  "wal_archive_max_lag_seconds": 300,
+  "restore_verification_max_age_seconds": 2592000,
+  "rpo_target_seconds": 300,
+  "rto_target_seconds": 3600,
+  "missing_data": "failed",
+  "same_host_backup_accepted": false,
+  "restore_required_for_promotion": true
+}
