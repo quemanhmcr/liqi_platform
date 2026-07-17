@@ -1,0 +1,1163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/platform/database-v0.schema.json",
+  "title": "LIQI PostgreSQL Authority V0 Contract",
+  "description": "Provider contract between the PostgreSQL data plane and LIQI runtime/operations consumers.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "status",
+    "compatibility",
+    "databases",
+    "endpoints",
+    "secretReferences",
+    "roles",
+    "connectionBudget",
+    "migration",
+    "health",
+    "transactionPolicy",
+    "timeoutPolicy",
+    "outbox",
+    "backup",
+    "restore",
+    "metrics",
+    "capacity",
+    "consumerInterfaces",
+    "realtimeHandoff",
+    "probeObservation"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "contractVersion": {
+      "const": "database-v0"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "accepted"
+      ]
+    },
+    "compatibility": {
+      "$ref": "#/$defs/compatibility"
+    },
+    "databases": {
+      "$ref": "#/$defs/databases"
+    },
+    "endpoints": {
+      "$ref": "#/$defs/endpoints"
+    },
+    "secretReferences": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/secretReference"
+      }
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 7,
+      "items": {
+        "$ref": "#/$defs/role"
+      }
+    },
+    "connectionBudget": {
+      "$ref": "#/$defs/connectionBudget"
+    },
+    "migration": {
+      "$ref": "#/$defs/migration"
+    },
+    "health": {
+      "$ref": "#/$defs/health"
+    },
+    "transactionPolicy": {
+      "$ref": "#/$defs/transactionPolicy"
+    },
+    "timeoutPolicy": {
+      "$ref": "#/$defs/timeoutPolicy"
+    },
+    "outbox": {
+      "$ref": "#/$defs/outbox"
+    },
+    "backup": {
+      "$ref": "#/$defs/backup"
+    },
+    "restore": {
+      "$ref": "#/$defs/restore"
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/metric"
+      }
+    },
+    "capacity": {
+      "$ref": "#/$defs/capacity"
+    },
+    "consumerInterfaces": {
+      "$ref": "#/$defs/consumerInterfaces"
+    },
+    "realtimeHandoff": {
+      "$ref": "#/$defs/realtimeHandoff"
+    },
+    "probeObservation": {
+      "$ref": "#/$defs/probeObservation"
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^[0-9]+(ms|s|m|h|d)$"
+    },
+    "secretReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "reference",
+        "materialization",
+        "targetPath",
+        "encoding"
+      ],
+      "properties": {
+        "provider": {
+          "const": "oci-vault"
+        },
+        "reference": {
+          "type": "string",
+          "pattern": "^oci-vault://ocid1\\.vaultsecret\\.[A-Za-z0-9._-]+@(?:CURRENT|[1-9][0-9]*)$"
+        },
+        "materialization": {
+          "enum": [
+            "tmpfs-file",
+            "systemd-credential"
+          ]
+        },
+        "targetPath": {
+          "type": "string",
+          "pattern": "^/run/liqi/secrets/"
+        },
+        "encoding": {
+          "enum": [
+            "utf-8-single-line",
+            "pgbouncer-userlist"
+          ]
+        }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "postgresql",
+        "pgbouncer",
+        "pgbackrest",
+        "packaging"
+      ],
+      "properties": {
+        "postgresql": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "major",
+            "minimumMinor",
+            "minorUpdatePolicy",
+            "majorUpgradePolicy"
+          ],
+          "properties": {
+            "major": {
+              "const": 17
+            },
+            "minimumMinor": {
+              "type": "string",
+              "pattern": "^17\\.[0-9]+$"
+            },
+            "minorUpdatePolicy": {
+              "const": "track-current-security-minor"
+            },
+            "majorUpgradePolicy": {
+              "const": "explicit-adaptive-migration-with-restore-drill"
+            }
+          }
+        },
+        "pgbouncer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "minimumVersion",
+            "compatibilityPolicy"
+          ],
+          "properties": {
+            "minimumVersion": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+$"
+            },
+            "compatibilityPolicy": {
+              "const": "transaction-pooling-contract-must-pass"
+            }
+          }
+        },
+        "pgbackrest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "minimumVersion",
+            "repositoryFormatPolicy"
+          ],
+          "properties": {
+            "minimumVersion": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            },
+            "repositoryFormatPolicy": {
+              "const": "retain-reader-for-entire-backup-retention-window"
+            }
+          }
+        },
+        "packaging": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "strategy",
+            "source",
+            "sourceBuildAllowed"
+          ],
+          "properties": {
+            "strategy": {
+              "const": "system-packages-managed-by-systemd"
+            },
+            "source": {
+              "const": "pgdg-and-reviewed-os-repositories"
+            },
+            "sourceBuildAllowed": {
+              "const": false
+            }
+          }
+        }
+      }
+    },
+    "databases": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "application",
+        "maintenance",
+        "restoreTargetPrefix"
+      ],
+      "properties": {
+        "application": {
+          "const": "liqi"
+        },
+        "maintenance": {
+          "const": "postgres"
+        },
+        "restoreTargetPrefix": {
+          "const": "liqi_restore_"
+        }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "hostRef",
+        "port",
+        "networkExposure",
+        "transportSecurity",
+        "allowedConsumers"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "postgresql",
+            "pgbouncer"
+          ]
+        },
+        "hostRef": {
+          "type": "string",
+          "pattern": "^oci-host-v0://ports/(?:postgresql|pgbouncer)$"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "networkExposure": {
+          "enum": [
+            "unix-socket-or-loopback",
+            "private-subnet-only"
+          ]
+        },
+        "transportSecurity": {
+          "enum": [
+            "local-peer-or-scram",
+            "tls-verify-full"
+          ]
+        },
+        "allowedConsumers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        }
+      }
+    },
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtimePool",
+        "directAdministrative",
+        "runtimeRestrictions"
+      ],
+      "properties": {
+        "runtimePool": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "directAdministrative": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "runtimeRestrictions": {
+          "type": "array",
+          "minItems": 4,
+          "items": {
+            "enum": [
+              "no-session-state",
+              "no-temp-tables",
+              "no-listen-notify-through-pool",
+              "no-session-advisory-locks",
+              "no-named-prepared-statements-unless-driver-proves-compatibility",
+              "transactions-must-be-explicit-for-multi-statement-work"
+            ]
+          }
+        }
+      }
+    },
+    "role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "login",
+        "purpose",
+        "privileges",
+        "prohibited"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^liqi_[a-z0-9_]+$"
+        },
+        "login": {
+          "type": "boolean"
+        },
+        "purpose": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "privileges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "prohibited": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        }
+      }
+    },
+    "connectionBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "postgresMaxConnections",
+        "runtimeServerConnections",
+        "directAdministrativeConnections",
+        "reservedHeadroom",
+        "pgbouncerMaxClientConnections",
+        "saturationThresholdPercent",
+        "operationalPoolConnections",
+        "poolRoleCaps",
+        "observerConnection"
+      ],
+      "properties": {
+        "postgresMaxConnections": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 120
+        },
+        "runtimeServerConnections": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "directAdministrativeConnections": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reservedHeadroom": {
+          "type": "integer",
+          "minimum": 5
+        },
+        "pgbouncerMaxClientConnections": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 500
+        },
+        "saturationThresholdPercent": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 95
+        },
+        "operationalPoolConnections": {
+          "type": "integer",
+          "const": 5
+        },
+        "poolRoleCaps": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "liqi_api",
+            "liqi_realtime",
+            "liqi_worker",
+            "liqi_readonly",
+            "liqi_monitor"
+          ],
+          "properties": {
+            "liqi_api": {
+              "const": 20
+            },
+            "liqi_realtime": {
+              "const": 5
+            },
+            "liqi_worker": {
+              "const": 10
+            },
+            "liqi_readonly": {
+              "const": 3
+            },
+            "liqi_monitor": {
+              "const": 2
+            }
+          }
+        },
+        "observerConnection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "maxConcurrent",
+            "lifecycle",
+            "throughPool"
+          ],
+          "properties": {
+            "role": {
+              "const": "liqi_readonly"
+            },
+            "maxConcurrent": {
+              "const": 1
+            },
+            "lifecycle": {
+              "const": "promotion-or-disposable-test-only"
+            },
+            "throughPool": {
+              "const": true
+            }
+          }
+        }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy",
+        "filePattern",
+        "checksum",
+        "lock",
+        "command",
+        "statusCommand",
+        "pendingMigrationReadiness",
+        "requiredVersion",
+        "readinessFunction"
+      ],
+      "properties": {
+        "policy": {
+          "const": "forward-only-expand-migrate-contract"
+        },
+        "filePattern": {
+          "const": "^[0-9]{12}_[a-z0-9_]+\\.sql$"
+        },
+        "checksum": {
+          "const": "sha256-immutable-after-main"
+        },
+        "lock": {
+          "const": "postgres-session-advisory-lock"
+        },
+        "command": {
+          "const": "database/bin/migrate.sh"
+        },
+        "statusCommand": {
+          "const": "database/bin/migration-status.sh"
+        },
+        "pendingMigrationReadiness": {
+          "const": "not-ready"
+        },
+        "requiredVersion": {
+          "const": 4
+        },
+        "readinessFunction": {
+          "const": "platform.database_readiness_v0(bigint)"
+        }
+      }
+    },
+    "health": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "liveness",
+        "readiness",
+        "recoveryReadiness",
+        "requiredMigrationVersion",
+        "runtimeFailureMode"
+      ],
+      "properties": {
+        "liveness": {
+          "const": "direct-select-1-only"
+        },
+        "readiness": {
+          "const": "pool-connectivity-and-required-migration-version"
+        },
+        "recoveryReadiness": {
+          "const": "separate-backup-archive-and-restore-verification-signal"
+        },
+        "requiredMigrationVersion": {
+          "const": 4
+        },
+        "runtimeFailureMode": {
+          "const": "all-runtime-processes-not-ready-on-database-unavailable-or-version-below-required"
+        }
+      }
+    },
+    "transactionPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "defaultIsolation",
+        "strongerIsolation",
+        "exactlyOnceClaim"
+      ],
+      "properties": {
+        "defaultIsolation": {
+          "const": "read-committed"
+        },
+        "strongerIsolation": {
+          "enum": [
+            "explicit-repeatable-read-or-serializable-per-command"
+          ]
+        },
+        "exactlyOnceClaim": {
+          "const": "not-supported-end-to-end"
+        }
+      }
+    },
+    "timeoutSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "statement",
+        "lock",
+        "idleInTransaction"
+      ],
+      "properties": {
+        "statement": {
+          "$ref": "#/$defs/duration"
+        },
+        "lock": {
+          "$ref": "#/$defs/duration"
+        },
+        "idleInTransaction": {
+          "$ref": "#/$defs/duration"
+        }
+      }
+    },
+    "timeoutPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "api",
+        "realtime",
+        "worker",
+        "readonly",
+        "migrator"
+      ],
+      "properties": {
+        "api": {
+          "$ref": "#/$defs/timeoutSet"
+        },
+        "realtime": {
+          "$ref": "#/$defs/timeoutSet"
+        },
+        "worker": {
+          "$ref": "#/$defs/timeoutSet"
+        },
+        "readonly": {
+          "$ref": "#/$defs/timeoutSet"
+        },
+        "migrator": {
+          "$ref": "#/$defs/timeoutSet"
+        }
+      }
+    },
+    "outbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "table",
+        "delivery",
+        "visibility",
+        "eventId",
+        "orderingScope",
+        "claim",
+        "acknowledgement",
+        "retry",
+        "deadLetter",
+        "wireMappingRequiredFields"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 0
+        },
+        "table": {
+          "const": "platform.outbox_events"
+        },
+        "delivery": {
+          "const": "at-least-once"
+        },
+        "visibility": {
+          "const": "after-producer-transaction-commit"
+        },
+        "eventId": {
+          "const": "producer-supplied-uuid-globally-unique"
+        },
+        "orderingScope": {
+          "const": "per-ordering-key-no-global-order"
+        },
+        "claim": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "strategy",
+            "lease",
+            "token",
+            "batchBounded"
+          ],
+          "properties": {
+            "strategy": {
+              "const": "for-update-skip-locked"
+            },
+            "lease": {
+              "$ref": "#/$defs/duration"
+            },
+            "token": {
+              "const": "unique-per-claim-uuid"
+            },
+            "batchBounded": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "acknowledgement": {
+          "const": "idempotent-by-event-id-and-claim-token"
+        },
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "maxAttempts",
+            "backoff",
+            "staleLeaseReclaim"
+          ],
+          "properties": {
+            "maxAttempts": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            },
+            "backoff": {
+              "const": "bounded-exponential-with-jitter-computed-by-worker"
+            },
+            "staleLeaseReclaim": {
+              "const": true
+            }
+          }
+        },
+        "deadLetter": {
+          "const": "terminal-state-retained-for-operator-action"
+        },
+        "wireMappingRequiredFields": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "eventId",
+              "eventType",
+              "eventVersion",
+              "occurredAt",
+              "aggregateKey",
+              "orderingKey",
+              "payload"
+            ]
+          }
+        }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "repository",
+        "clientSideEncryption",
+        "walArchive",
+        "schedule",
+        "retention",
+        "metadataSchema",
+        "costClass",
+        "alwaysFreeObjectBudgetGiB"
+      ],
+      "properties": {
+        "tool": {
+          "const": "pgbackrest"
+        },
+        "repository": {
+          "const": "oci-object-storage-s3-compatible"
+        },
+        "clientSideEncryption": {
+          "const": "aes-256-cbc-secret-ref"
+        },
+        "walArchive": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "archiveTimeout",
+            "maximumWorkingRpo"
+          ],
+          "properties": {
+            "mode": {
+              "const": "continuous-async"
+            },
+            "archiveTimeout": {
+              "const": "5m"
+            },
+            "maximumWorkingRpo": {
+              "const": "5m"
+            }
+          }
+        },
+        "schedule": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "full",
+            "differential",
+            "verification"
+          ],
+          "properties": {
+            "full": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "differential": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "verification": {
+              "$ref": "#/$defs/nonEmptyString"
+            }
+          }
+        },
+        "retention": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "full",
+            "differential"
+          ],
+          "properties": {
+            "full": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8
+            },
+            "differential": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 31
+            }
+          }
+        },
+        "metadataSchema": {
+          "const": "contracts/platform/database-backup-metadata-v0.schema.json"
+        },
+        "costClass": {
+          "enum": [
+            "always-free-safe-with-v0-cap",
+            "paid",
+            "unknown"
+          ]
+        },
+        "alwaysFreeObjectBudgetGiB": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        }
+      }
+    },
+    "restore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command",
+        "verificationCommand",
+        "resultSchema",
+        "target",
+        "workingRto",
+        "verificationInvariants"
+      ],
+      "properties": {
+        "command": {
+          "const": "operations/disaster-recovery/database/restore.sh"
+        },
+        "verificationCommand": {
+          "const": "operations/disaster-recovery/database/verify-restore.sh"
+        },
+        "resultSchema": {
+          "const": "contracts/platform/database-restore-result-v0.schema.json"
+        },
+        "target": {
+          "const": "new-isolated-data-directory-and-database-name"
+        },
+        "workingRto": {
+          "const": "60m"
+        },
+        "verificationInvariants": {
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "backup-metadata-checksum",
+              "postgres-major",
+              "migration-version",
+              "migration-checksums",
+              "probe-state",
+              "probe-terminal-effect",
+              "outbox-terminal-state"
+            ]
+          }
+        }
+      }
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type",
+        "source",
+        "unit"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^liqi_database_[a-z0-9_]+$"
+        },
+        "type": {
+          "enum": [
+            "gauge",
+            "counter",
+            "histogram"
+          ]
+        },
+        "source": {
+          "enum": [
+            "postgresql",
+            "pgbouncer",
+            "pgbackrest",
+            "restore-verifier"
+          ]
+        },
+        "unit": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "capacity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "steadyStateCpu",
+        "steadyStateMemoryMiB",
+        "hardMemoryMiB",
+        "diskBudgetGiB",
+        "v0DatabaseDataCapGiB",
+        "failureBehavior"
+      ],
+      "properties": {
+        "steadyStateCpu": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 3
+        },
+        "steadyStateMemoryMiB": {
+          "type": "integer",
+          "minimum": 128,
+          "maximum": 12288
+        },
+        "hardMemoryMiB": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 16384
+        },
+        "diskBudgetGiB": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 160
+        },
+        "v0DatabaseDataCapGiB": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "failureBehavior": {
+          "const": "reject-or-degrade-with-alert-never-unbounded-growth"
+        }
+      }
+    },
+    "consumerInterfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "senior1",
+        "senior3",
+        "senior4"
+      ],
+      "properties": {
+        "senior1": {
+          "type": "array",
+          "minItems": 4,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "senior3": {
+          "type": "array",
+          "minItems": 5,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "senior4": {
+          "type": "array",
+          "minItems": 5,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        }
+      }
+    },
+    "realtimeHandoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "storage",
+        "publishFunction",
+        "readFunction",
+        "publisherRole",
+        "readerRole",
+        "visibility",
+        "delivery",
+        "ordering",
+        "cursor",
+        "batch",
+        "fields",
+        "prohibited",
+        "eventScope",
+        "growthBound",
+        "failureBehavior"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 0
+        },
+        "storage": {
+          "const": "platform.realtime_handoff_events_v0"
+        },
+        "publishFunction": {
+          "const": "platform.publish_realtime_handoff_v0(uuid)"
+        },
+        "readFunction": {
+          "const": "platform.read_realtime_handoff_v0(bigint,integer)"
+        },
+        "publisherRole": {
+          "const": "liqi_api"
+        },
+        "readerRole": {
+          "const": "liqi_realtime"
+        },
+        "visibility": {
+          "const": "after-producer-transaction-commit"
+        },
+        "delivery": {
+          "const": "at-least-once-poll-by-cursor"
+        },
+        "ordering": {
+          "const": "global-handoff-id-commit-serialized-for-published-events"
+        },
+        "cursor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "field",
+            "initialValue",
+            "comparison",
+            "resumeRule"
+          ],
+          "properties": {
+            "field": {
+              "const": "handoff_id"
+            },
+            "initialValue": {
+              "const": 0
+            },
+            "comparison": {
+              "const": "strictly-greater-than-last-delivered"
+            },
+            "resumeRule": {
+              "const": "consumer-persists-last-delivered-handoff-id"
+            }
+          }
+        },
+        "batch": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "default",
+            "maximum"
+          ],
+          "properties": {
+            "default": {
+              "const": 64
+            },
+            "maximum": {
+              "const": 128
+            }
+          }
+        },
+        "fields": {
+          "const": [
+            "handoff_id",
+            "event_id",
+            "event_type",
+            "event_version",
+            "occurred_at",
+            "aggregate_key",
+            "ordering_key",
+            "payload",
+            "recorded_at"
+          ]
+        },
+        "prohibited": {
+          "const": [
+            "realtime-outbox-claim",
+            "realtime-authority-table-read",
+            "broadcast-before-producer-commit",
+            "exactly-once-delivery-claim"
+          ]
+        },
+        "eventScope": {
+          "const": "platform.probe.requested.v0@0-only"
+        },
+        "growthBound": {
+          "const": "promotion-probe-frequency-and-v0-database-data-cap"
+        },
+        "failureBehavior": {
+          "const": "reject-non-probe-publication-until-versioned-retention-contract"
+        }
+      }
+    },
+    "probeObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "function",
+        "role",
+        "connectionLifecycle",
+        "throughPool",
+        "directTableAccess",
+        "noRowSemantics",
+        "inputs",
+        "outputs",
+        "terminalCondition"
+      ],
+      "properties": {
+        "function": {
+          "const": "platform.observe_probe_v0(uuid,uuid)"
+        },
+        "role": {
+          "const": "liqi_readonly"
+        },
+        "connectionLifecycle": {
+          "const": "promotion-or-disposable-test-only"
+        },
+        "throughPool": {
+          "const": true
+        },
+        "directTableAccess": {
+          "const": false
+        },
+        "noRowSemantics": {
+          "const": "probe-or-event-pair-not-found"
+        },
+        "inputs": {
+          "const": [
+            "requested_probe_id",
+            "requested_event_id"
+          ]
+        },
+        "outputs": {
+          "const": [
+            "probe_id",
+            "event_id",
+            "probe_status",
+            "outbox_state",
+            "effect_applied",
+            "probe_completed_at",
+            "effect_applied_at",
+            "terminal",
+            "observed_at"
+          ]
+        },
+        "terminalCondition": {
+          "const": "probe_status='completed' AND outbox_state='succeeded' AND effect_applied=true"
+        }
+      }
+    }
+  }
+}
