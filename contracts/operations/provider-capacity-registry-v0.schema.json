@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/provider-capacity-registry-v0.schema.json",
+  "title": "LIQI provider capacity registry V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "registry_version", "providers"],
+  "properties": {
+    "schema_version": {"const": "provider-capacity-registry-v0"},
+    "registry_version": {"type": "string", "pattern": "^0\\.[0-9]+\\.[0-9]+$"},
+    "providers": {
+      "type": "array", "minItems": 4, "maxItems": 4,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["provider", "owner", "state", "path", "action_required"],
+        "properties": {
+          "provider": {"enum": ["infrastructure", "database", "runtime", "operations"]},
+          "owner": {"enum": ["Senior 1", "Senior 2", "Senior 3", "Senior 4"]},
+          "state": {"enum": ["available", "pending-provider", "deprecated"]},
+          "path": {"type": "string", "pattern": "^(?!/)(?!.*\\.\\.).+\\.json$"},
+          "action_required": {"type": "string", "minLength": 1, "maxLength": 1000}
+        }
+      }
+    }
+  }
+}

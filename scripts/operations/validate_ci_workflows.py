@@ -92,7 +92,7 @@ def main() -> int:
                 failures.append(f"{relative}: provider integration must be manual-only")
             if "--allow-blocked" in text or "mock:" in text:
                 failures.append(f"{relative}: strict provider integration cannot allow blocked or mock gates")
-            for required in ("oci_plan_run_id", "actions/download-artifact@", "LIQI_OCI_PLAN_JSON"):
+            for required in ("oci_plan_run_id", "actions/download-artifact@", "LIQI_OCI_PLAN_JSON", "collect_provider_capacity.py"):
                 if required not in text:
                     failures.append(f"{relative}: promotion workflow is missing protected OCI plan evidence seam {required}")
     if failures:

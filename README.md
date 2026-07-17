@@ -55,6 +55,7 @@ python scripts/operations/validate_dependency_policy.py
 python scripts/operations/validate_operability_catalog.py
 python scripts/operations/validate_telemetry_runtime.py
 python scripts/operations/validate_provider_compatibility.py --output .artifacts/provider-compatibility.json --allow-missing
+python scripts/operations/collect_provider_capacity.py --output .artifacts/provider-capacity.json --allow-blocked
 python scripts/operations/validate_ci_workflows.py
 python scripts/operations/scan_repository_secrets.py
 python -m unittest discover -s tests -p 'test_*.py' -v
@@ -76,7 +77,7 @@ The promotion form additionally requires `oci_plan_run_id`. That run must expose
 
 Host activation remains an owner-run command. First run `scripts/release/activate_release.py` without `--execute`; execution requires the reviewed deployment-spec SHA-256 and approval reference. Recovery exercises follow the same dry-run-first rule through `scripts/operations/run_recovery_exercise.py`.
 
-Current integration blockers are machine-readable: Senior 3 has not published the runtime seam, Senior 2 has not published recovery freshness commands, Senior 1 journald keep-free differs from the 10 GiB operations policy, and Senior 2 restore command ownership conflicts with `operations/**`. No Senior 4 fallback is provided.
+Current integration blockers are machine-readable: Senior 1 and Senior 3 have not published provider capacity budgets; Senior 3 has not published the runtime seam; Senior 1 journald policy differs from the operations contract; and Senior 2 restore command ownership conflicts with `operations/**`. Senior 2 recovery status is now a published provider seam. No Senior 4 fallback is provided.
 
 ## Build boundary
 
