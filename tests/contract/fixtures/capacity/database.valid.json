@@ -8,16 +8,16 @@
       "class": "database",
       "default_enabled": true,
       "steady_state": {
-        "ocpu": 0.65,
+        "ocpu": 0.5,
         "memory_mib": 4096,
         "disk_gib": 60
       },
       "hard_limit": {
-        "ocpu": 1.0,
+        "ocpu": 0.8,
         "memory_mib": 6144,
         "disk_gib": 118
       },
-      "postgres_connections": 40,
+      "postgres_connections": 8,
       "queue": {
         "bounded": true,
         "capacity": 0,
@@ -69,7 +69,7 @@
         "disk_gib": 2
       },
       "hard_limit": {
-        "ocpu": 0.4,
+        "ocpu": 0.3,
         "memory_mib": 1536,
         "disk_gib": 12
       },

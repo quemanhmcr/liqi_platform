@@ -44,11 +44,20 @@ class OperationsToolTests(unittest.TestCase):
             )
             result = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual("passed", result["status"])
-            self.assertLessEqual(result["steady_state_totals"]["ocpu"], 3)
-            self.assertLessEqual(result["hard_limit_totals"]["ocpu"], 4)
-            self.assertLessEqual(result["hard_limit_totals"]["memory_mib"], 20480)
-            self.assertLessEqual(result["hard_limit_totals"]["disk_gib"], 180)
-            self.assertLessEqual(result["hard_limit_totals"]["postgres_connections"], 100)
+            envelope = result["envelope"]
+            for resource in ("ocpu", "memory_mib", "disk_gib"):
+                self.assertLessEqual(
+                    result["steady_state_totals"][resource],
+                    envelope["steady_state_limit"][resource],
+                )
+                self.assertLessEqual(
+                    result["hard_limit_totals"][resource],
+                    envelope["provider_hard_limit"][resource],
+                )
+            self.assertLessEqual(
+                result["hard_limit_totals"]["postgres_connections"],
+                envelope["provider_hard_limit"]["postgres_connections"],
+            )
             self.assertEqual(result["totals"], result["hard_limit_totals"])
             connections = result["postgres_connection_accounting"]
             self.assertLessEqual(connections["pooled_runtime_demand"], connections["pooled_server_capacity"])
@@ -57,8 +66,8 @@ class OperationsToolTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             runtime = json.loads((CAPACITY_FIXTURES / "runtime.valid.json").read_text(encoding="utf-8"))
             for component in runtime["components"]:
-                component["steady_state"]["ocpu"] = 0.716
-                component["hard_limit"]["ocpu"] = 0.716
+                component["steady_state"]["ocpu"] = 0.8
+                component["hard_limit"]["ocpu"] = 0.8
             path = Path(directory) / "runtime.json"
             path.write_text(json.dumps(runtime), encoding="utf-8")
             result = run(
@@ -68,7 +77,7 @@ class OperationsToolTests(unittest.TestCase):
                 str(CAPACITY_FIXTURES / "operations.valid.json"), expected=1,
             )
             payload = json.loads(result.stdout)
-            self.assertLessEqual(payload["hard_limit_totals"]["ocpu"], 4)
+            self.assertGreater(payload["hard_limit_totals"]["ocpu"], payload["envelope"]["steady_state_limit"]["ocpu"])
             self.assertTrue(any("steady-state capacity exceeded for ocpu" in item for item in payload["failures"]))
 
     def test_capacity_fails_when_hard_cpu_exceeds_physical_host(self) -> None:

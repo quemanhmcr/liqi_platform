@@ -112,7 +112,7 @@
           "ocpu": {
             "type": "number",
             "minimum": 0,
-            "maximum": 4
+            "maximum": 3
           },
           "memory_mib": {
             "type": "integer",
@@ -127,7 +127,7 @@
           "postgres_connections": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 100
+            "maximum": 80
           }
         }
       }
@@ -247,14 +247,14 @@
                 "maximum": 180
               },
               "postgres_connections": {
-                "maximum": 100
+                "maximum": 80
               }
             }
           },
           "hard_limit_totals": {
             "properties": {
               "ocpu": {
-                "maximum": 4
+                "maximum": 3
               },
               "memory_mib": {
                 "maximum": 20480
@@ -263,14 +263,14 @@
                 "maximum": 180
               },
               "postgres_connections": {
-                "maximum": 100
+                "maximum": 80
               }
             }
           },
           "totals": {
             "properties": {
               "ocpu": {
-                "maximum": 4
+                "maximum": 3
               },
               "memory_mib": {
                 "maximum": 20480
@@ -279,23 +279,23 @@
                 "maximum": 180
               },
               "postgres_connections": {
-                "maximum": 100
+                "maximum": 80
               }
             }
           },
           "postgres_connection_accounting": {
             "properties": {
               "server_reservation": {
-                "maximum": 100
+                "maximum": 80
               },
               "pooled_server_capacity": {
-                "maximum": 100
+                "maximum": 80
               },
               "pooled_runtime_demand": {
-                "maximum": 100
+                "maximum": 80
               },
               "direct_reserved_capacity": {
-                "maximum": 100
+                "maximum": 80
               }
             }
           }
