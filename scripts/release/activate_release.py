@@ -232,8 +232,9 @@ def rollback_health_target(source: Path, previous_release_id: str, destination: 
     target = load(source)
     target["release_id"] = previous_release_id
     for check in target["checks"]:
-        if "release_id" in check["expected_json"]:
-            check["expected_json"]["release_id"] = previous_release_id
+        for identity_field in ("release_id", "releaseId", "version"):
+            if identity_field in check["expected_json"]:
+                check["expected_json"][identity_field] = previous_release_id
     errors = schema_failures(HEALTH_SCHEMA, target, "rollback_health_target")
     if errors:
         raise RuntimeError("; ".join(errors))

@@ -14,7 +14,7 @@ class ProviderCompatibilityTests(unittest.TestCase):
     def test_compatible_provider_seams_pass(self):
         result,payload=self.invoke(FIX/'compatible');self.assertEqual(result.returncode,0,result.stderr);self.assertEqual(payload['overall_status'],'passed')
     def test_current_known_provider_mismatches_are_owner_attributed(self):
-        result,payload=self.invoke(FIX/'incompatible');self.assertEqual(result.returncode,1);self.assertEqual(payload['overall_status'],'failed');owners={c['owner'] for c in payload['checks'] if c['status']=='failed'};self.assertEqual(owners,{'Senior 1','Senior 2'})
+        result,payload=self.invoke(FIX/'incompatible');self.assertEqual(result.returncode,1);self.assertEqual(payload['overall_status'],'failed');owners={c['owner'] for c in payload['checks'] if c['status']=='failed'};self.assertEqual(owners,{'Senior 1','Senior 2','Senior 3'})
     def test_missing_provider_is_blocked_not_emulated(self):
         with tempfile.TemporaryDirectory() as tmp:
             result,payload=self.invoke(Path(tmp),allow=True);self.assertEqual(result.returncode,0);self.assertEqual(payload['overall_status'],'blocked')

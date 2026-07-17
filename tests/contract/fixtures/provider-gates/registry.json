@@ -93,13 +93,34 @@
       "action_required": "fixture only"
     },
     {
+      "id": "senior3-stdout-json",
+      "owner": "Senior 3",
+      "seam": "stdout JSON provider fixture",
+      "stages": [
+        "source"
+      ],
+      "provider_state": "available",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "tests/contract/fixtures/provider-gates/print_json_gate.py"
+      ],
+      "argv": [
+        "python",
+        "tests/contract/fixtures/provider-gates/print_json_gate.py"
+      ],
+      "timeout_seconds": 10,
+      "result_mode": "stdout-json",
+      "failure_class": "contract",
+      "action_required": "fixture only"
+    },
+    {
       "id": "fixture-runtime",
       "owner": "Senior 3",
       "seam": "fixture runtime",
       "stages": [
         "source"
       ],
-      "provider_state": "pending-provider",
+      "provider_state": "pending-owner-build",
       "mutation_class": "read-only",
       "required_paths": [
         "Cargo.toml"

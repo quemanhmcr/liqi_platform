@@ -21,7 +21,7 @@
       "owner": "Senior 3",
       "state": "pending-provider",
       "path": "contracts/platform/runtime-capacity-budget-v0.json",
-      "action_required": "Senior 3 must publish API, realtime and worker hard limits, queue bounds and connection budgets."
+      "action_required": "Senior 3 must publish runtime-capacity-budget-v0 with hard OCPU, memory, disk, PostgreSQL connections, queue/retry bounds and failure behavior. ValidationManifest CPU/memory hints alone are insufficient."
     },
     {
       "provider": "operations",

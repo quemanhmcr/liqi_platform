@@ -79,11 +79,11 @@ The promotion form requires both `oci_plan_run_id` and `database_recovery_run_id
 
 Host activation remains an owner-run command. First run `scripts/release/activate_release.py` without `--execute`; execution requires the reviewed deployment-spec SHA-256 and approval reference. Recovery exercises follow the same dry-run-first rule through `scripts/operations/run_recovery_exercise.py`.
 
-Current integration blockers are machine-readable: Senior 1 and Senior 3 have not published provider capacity budgets; Senior 3 has not published the runtime seam; Senior 1 journald policy differs from the operations contract; and Senior 2 restore command ownership conflicts with `operations/**`. Senior 2 recovery status is now a published provider seam. No Senior 4 fallback is provided.
+Current integration blockers are machine-readable: Senior 1 and Senior 3 have not published provider capacity budgets; Senior 3 has published the Rust foundation but still lacks telemetry capability declarations and a provider-owned `platform-probe-result-v0` runner; Senior 1 journald policy differs from the operations contract; and Senior 2 restore command ownership conflicts with `operations/**`. Senior 2 recovery status and the Senior 3 wire envelope are directly consumable. No Senior 4 fallback is provided.
 
 ## Build boundary
 
-Senior 3 owns the Cargo workspace, artifact names and exact runtime build semantics. Senior 4 prepares deterministic release and CI source but does not run build/prebuild or invent missing provider commands. Build commands will be published only after the runtime provider contract is merged and reviewed.
+Senior 3 owns the Cargo workspace, artifact names and exact runtime build semantics. Senior 4 may run only non-building rustfmt/Cargo metadata source checks. `cargo run`, clippy, tests, artifact builds and prebuild remain project-owner actions. Exact owner-run commands and expected evidence are versioned in `operations/integration/provider-integration-v0.md`.
 
 See `CONTRIBUTING.md`, `operations/release/`, `operations/deployment/` and `operations/runbooks/` for governance and procedures.
 

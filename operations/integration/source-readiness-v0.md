@@ -15,3 +15,5 @@ Status semantics:
 Source CI permits `blocked` during the V0 branch integration window. It does not permit `failed`. Evidence-producing steps use `continue-on-error` only so the report and logs can still be uploaded; the readiness assembler becomes the final job result.
 
 Every blocker names an owner, seam, stable code, severity, message and required action. Senior 4 does not add fallback implementation for a blocked or failed provider.
+
+`pending-owner-build` is reported as `blocked`, not `passed`. It means provider source exists but validation would compile/link Rust and must be executed by the project owner under the current build restriction.

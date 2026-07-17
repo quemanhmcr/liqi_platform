@@ -39,7 +39,7 @@ def validate(registry_path: Path, allow_pending: bool) -> list[str]:
     if any(gate.get("mutation_class") in {"host-mutation", "oci-mutation"} for gate in gates if isinstance(gate, dict)):
         errors.append("V0 provider validation registry must not contain host or OCI mutation commands")
     if not allow_pending:
-        pending = [gate.get("id") for gate in gates if gate.get("provider_state") == "pending-provider"]
+        pending = [gate.get("id") for gate in gates if gate.get("provider_state") in {"pending-provider", "pending-owner-build"}]
         if pending:
             errors.append(f"pending provider gates are forbidden in strict mode: {pending}")
     for gate in gates:

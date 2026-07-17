@@ -94,7 +94,7 @@ def main() -> int:
                 "kind": check["kind"],
                 "status": "passed" if ok else "failed",
                 "error": error,
-                "observed_release_id": payload.get("release_id") if payload else None,
+                "observed_release_id": (payload.get("release_id") or payload.get("releaseId") or payload.get("version")) if payload else None,
             }
             all_passed = all_passed and ok
         if all_passed:

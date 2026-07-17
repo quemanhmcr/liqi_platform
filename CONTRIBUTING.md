@@ -27,7 +27,7 @@ python scripts/operations/scan_repository_secrets.py
 python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-Source CI may report a provider gate as `blocked` while its branch is unmerged. The manual provider integration/promotion workflow is strict: blocked, missing or mock seams fail.
+Source CI may report a provider gate as `blocked` while its branch is unmerged or while a build-dependent command is `pending-owner-build`. The manual provider integration/promotion workflow is strict: blocked, missing, unevidenced owner-build or mock seams fail.
 
 ## Integration commit footer
 

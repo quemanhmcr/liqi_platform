@@ -30,15 +30,14 @@ class HealthHandler(BaseHTTPRequestHandler):
     readiness = True
 
     def do_GET(self) -> None:  # noqa: N802
-        payload = {"release_id": "liqi-v0-test"}
         status = 200
         if self.path == "/health/live":
-            payload["status"] = "live"
+            payload = {"status": "live", "version": "liqi-v0-test"}
         elif self.path == "/health/ready":
-            payload["status"] = "ready" if self.readiness else "not-ready"
+            payload = {"status": "ready" if self.readiness else "not-ready", "version": "liqi-v0-test"}
             status = 200 if self.readiness else 503
         elif self.path == "/health/platform":
-            payload.update({"status": "ok", "database_ready": True})
+            payload = {"status": "ok", "release_id": "liqi-v0-test", "database_ready": True}
         else:
             status = 404
             payload = {"status": "missing"}

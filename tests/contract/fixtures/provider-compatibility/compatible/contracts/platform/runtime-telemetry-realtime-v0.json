@@ -1,0 +1,129 @@
+{
+  "schema_version": "telemetry-v0",
+  "service": {
+    "namespace": "liqi-platform",
+    "name": "liqi-realtime",
+    "owner": "Senior 3"
+  },
+  "resource_attributes": [
+    "service.namespace",
+    "service.name",
+    "service.version",
+    "deployment.environment.name",
+    "liqi.release.id"
+  ],
+  "health": {
+    "liveness": {
+      "path": "/health/live",
+      "success_status": 200,
+      "timeout_ms": 500
+    },
+    "readiness": {
+      "path": "/health/ready",
+      "success_status": 200,
+      "timeout_ms": 1000
+    },
+    "platform_probe": {
+      "path": "/health/platform",
+      "success_status": 200,
+      "timeout_ms": 2000
+    },
+    "shutdown_deadline_seconds": 30
+  },
+  "structured_logs": {
+    "format": "json-lines",
+    "required_fields": [
+      "timestamp",
+      "severity",
+      "service.name",
+      "liqi.release.id",
+      "trace_id",
+      "request_id",
+      "operation",
+      "result.class",
+      "error.class"
+    ],
+    "maximum_event_bytes": 16384
+  },
+  "metrics": [
+    {
+      "name": "http.server.request.duration",
+      "instrument": "histogram",
+      "unit": "s",
+      "labels": [
+        "http.request.method",
+        "http.route",
+        "http.response.status_code",
+        "result.class"
+      ],
+      "owner": "Senior 3",
+      "required": true,
+      "explicit_bucket_boundaries": [
+        0.005,
+        0.01,
+        0.025,
+        0.05,
+        0.075,
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        1,
+        2.5,
+        5,
+        7.5,
+        10
+      ]
+    },
+    {
+      "name": "liqi.db.pool.saturation",
+      "instrument": "gauge",
+      "unit": "1",
+      "labels": [
+        "service.name",
+        "deployment.environment.name"
+      ],
+      "owner": "Senior 3",
+      "required": true
+    }
+  ],
+  "traces": {
+    "propagation": "w3c-trace-context",
+    "required_span_attributes": [
+      "service.name",
+      "liqi.release.id",
+      "operation",
+      "result.class"
+    ],
+    "sampling": {
+      "strategy": "parent-based-ratio",
+      "maximum_ratio": 0.1
+    }
+  },
+  "cardinality_policy": {
+    "maximum_route_values": 200,
+    "forbidden_labels": [
+      "user.id",
+      "player.id",
+      "conversation.id",
+      "session.id",
+      "request_id",
+      "trace_id",
+      "email",
+      "ip.address"
+    ]
+  },
+  "redaction_policy": {
+    "deny_fields": [
+      "authorization",
+      "cookie",
+      "password",
+      "token",
+      "secret",
+      "private_key",
+      "message.body",
+      "media.signed_url"
+    ],
+    "replacement": "[REDACTED]"
+  }
+}
