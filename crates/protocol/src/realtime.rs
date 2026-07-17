@@ -160,6 +160,11 @@ pub struct AccessRevokedPayload {
     pub reason_code: String,
 }
 
+/// Selects the supported V0 realtime protocol from the client-offered versions.
+///
+/// # Errors
+///
+/// Returns an error when the client does not offer any protocol version supported by the server.
 pub fn negotiate_protocol(
     supported_versions: &[String],
 ) -> Result<&'static str, ProtocolNegotiationError> {

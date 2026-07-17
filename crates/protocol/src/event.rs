@@ -31,6 +31,12 @@ impl<T> EventEnvelope<T>
 where
     T: Serialize,
 {
+    /// Validates the durable event envelope against the V0 protocol bounds.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when event identity/version fields, producer, aggregate or ordering keys,
+    /// metadata, or payload shape violate the protocol contract or cannot be serialized.
     pub fn validate(&self, metadata_max_bytes: usize) -> Result<(), EventEnvelopeError> {
         let event_type_version =
             event_type_version(&self.event_type).ok_or(EventEnvelopeError::InvalidEventType)?;
