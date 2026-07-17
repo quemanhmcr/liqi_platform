@@ -1,0 +1,10 @@
+{
+  "schema_version": "telemetry-sink-v0",
+  "environment": "development",
+  "protocol": "otlphttp",
+  "endpoint_environment_variable": "LIQI_TELEMETRY_OTLP_ENDPOINT",
+  "authorization_environment_variable": "LIQI_TELEMETRY_AUTHORIZATION",
+  "tls_verify": true,
+  "cost_classification": "always-free-safe",
+  "approval_ref": null
+}

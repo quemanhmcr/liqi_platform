@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/telemetry-sink-v0.schema.json",
+  "title": "LIQI OTLP telemetry sink reference V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "environment", "protocol", "endpoint_environment_variable", "authorization_environment_variable", "tls_verify", "cost_classification", "approval_ref"],
+  "properties": {
+    "schema_version": {"const": "telemetry-sink-v0"},
+    "environment": {"enum": ["development", "staging", "production"]},
+    "protocol": {"const": "otlphttp"},
+    "endpoint_environment_variable": {"const": "LIQI_TELEMETRY_OTLP_ENDPOINT"},
+    "authorization_environment_variable": {"const": "LIQI_TELEMETRY_AUTHORIZATION"},
+    "tls_verify": {"const": true},
+    "cost_classification": {"enum": ["always-free-safe", "free-trial-only", "paid", "unknown"]},
+    "approval_ref": {"type": ["string", "null"], "maxLength": 512}
+  }
+}

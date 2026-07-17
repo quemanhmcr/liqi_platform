@@ -1,0 +1,125 @@
+{
+  "schema_version": "telemetry-runtime-policy-v0",
+  "collector": {
+    "distribution": "opentelemetry-collector-contrib",
+    "minimum_version": "0.153.0",
+    "image_digest_required": true,
+    "hard_memory_mib": 512,
+    "hard_ocpu": 0.15
+  },
+  "receivers": {
+    "otlp_grpc": {
+      "endpoint": "127.0.0.1:4317",
+      "max_receive_message_mib": 4
+    },
+    "otlp_http": {
+      "endpoint": "127.0.0.1:4318",
+      "max_receive_message_mib": 4
+    },
+    "host_metrics": {
+      "collection_interval_seconds": 15,
+      "scrapers": [
+        "cpu",
+        "disk",
+        "filesystem",
+        "load",
+        "memory",
+        "network",
+        "paging",
+        "processes",
+        "system"
+      ]
+    }
+  },
+  "processors": {
+    "memory_limiter": {
+      "check_interval_seconds": 1,
+      "limit_mib": 384,
+      "spike_limit_mib": 64
+    },
+    "batch": {
+      "timeout_ms": 1000,
+      "send_batch_size": 256,
+      "send_batch_max_size": 512
+    }
+  },
+  "exporter": {
+    "timeout_seconds": 10,
+    "queue": {
+      "enabled": true,
+      "num_consumers": 2,
+      "queue_size": 2048,
+      "overflow_behavior": "drop-noncritical-after-bounded-retry"
+    },
+    "retry": {
+      "enabled": true,
+      "initial_interval_seconds": 1,
+      "max_interval_seconds": 30,
+      "max_elapsed_seconds": 300
+    }
+  },
+  "journald": {
+    "storage": "persistent",
+    "system_max_use_mib": 2048,
+    "system_keep_free_mib": 10240,
+    "max_retention_seconds": 604800,
+    "rate_limit_interval_seconds": 30,
+    "rate_limit_burst": 10000,
+    "forward_to_syslog": false
+  },
+  "sampling": {
+    "tail_sampling_enabled": false,
+    "normal_trace_ratio": 0.1,
+    "error_trace_ratio": 1.0,
+    "security_trace_ratio": 1.0,
+    "metrics_sampled": false,
+    "production_debug_logs": false
+  },
+  "cardinality": {
+    "maximum_attribute_count": 32,
+    "maximum_attribute_value_length": 512,
+    "forbidden_labels": [
+      "account_id",
+      "authorization",
+      "conversation.id",
+      "conversation_id",
+      "device_id",
+      "email",
+      "ip.address",
+      "ip_address",
+      "media_url",
+      "message_id",
+      "phone",
+      "player.id",
+      "player_id",
+      "request_id",
+      "session.id",
+      "session_token",
+      "trace_id",
+      "user.id"
+    ]
+  },
+  "redaction": {
+    "delete_attributes": [
+      "authorization",
+      "http.request.header.authorization",
+      "http.response.header.set-cookie",
+      "cookie",
+      "password",
+      "access_token",
+      "refresh_token",
+      "session_token",
+      "email",
+      "phone",
+      "media_url"
+    ],
+    "log_body_max_bytes": 16384,
+    "log_body_private_content_allowed": false
+  },
+  "failure_behavior": {
+    "collector_oom": "refuse-telemetry-before-host-memory-exhaustion",
+    "sink_unavailable": "bounded-retry-then-drop-noncritical",
+    "missing_telemetry": "fail-promotion-for-required-signals",
+    "local_logs_remain_available": true
+  }
+}
