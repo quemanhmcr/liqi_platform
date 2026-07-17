@@ -54,8 +54,8 @@
   ],
   "capacity": {
     "status": "passed",
-    "hard_limit_ocpu": 4,
-    "hard_limit_memory_mib": 24576,
+    "hard_limit_ocpu": 3,
+    "hard_limit_memory_mib": 20480,
     "reserved_ocpu": 1,
     "reserved_memory_mib": 4096,
     "declared_ocpu": 3,

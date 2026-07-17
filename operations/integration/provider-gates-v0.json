@@ -1,6 +1,6 @@
 {
   "schema_version": "provider-gates-v0",
-  "registry_version": "0.5.0",
+  "registry_version": "0.6.0",
   "gates": [
     {
       "id": "oci-infrastructure-source",
@@ -253,6 +253,7 @@
       "owner": "Senior 3",
       "seam": "liqi-platform-tool print-validation-manifest",
       "stages": [
+        "source",
         "integration",
         "promotion"
       ],
@@ -285,6 +286,7 @@
       "owner": "Senior 3",
       "seam": "liqi-platform-tool validate-contracts provider report",
       "stages": [
+        "source",
         "integration",
         "promotion"
       ],
@@ -407,7 +409,7 @@
       "timeout_seconds": 300,
       "result_mode": "json-file",
       "failure_class": "runtime",
-      "action_required": "Senior 3 owns platform-probe-result-v0 generation. The owner-built liqi-platform-tool must be available on PATH; failed realtime readiness/delivery remains required until Senior 2 committed handoff is integrated."
+      "action_required": "Senior 3 owns platform-probe-result-v0 generation. The owner-built liqi-platform-tool must be available on PATH; realtime readiness and committed delivery remain fail-closed during promotion."
     }
   ]
 }

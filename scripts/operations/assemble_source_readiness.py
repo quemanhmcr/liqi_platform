@@ -45,7 +45,7 @@ def main()->int:
   statuses=[provider['overall_status'],compat['overall_status'],capacity['status']]
   blocks=[]
   for item in provider.get('violations',[]):
-   severity='failed' if provider['overall_status']=='failed' or item.get('code') in {'PROVIDER_GATE_FAILED','PROVIDER_GATE_TIMEOUT'} else 'blocked'
+   severity='failed' if item.get('code') in {'PROVIDER_GATE_FAILED','PROVIDER_GATE_TIMEOUT'} else 'blocked'
    blocks.append(blocker(item['owner'],item['seam'],item['code'],severity,item['message'],item['action_required']))
   for item in compat.get('checks',[]):
    if item['status']!='passed':blocks.append(blocker(item['owner'],item['seam'],item['code'],item['status'],item['message'],item['action_required']))
