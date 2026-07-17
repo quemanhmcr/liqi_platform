@@ -39,10 +39,18 @@ def validate(registry_path: Path, allow_pending: bool) -> list[str]:
     if any(gate.get("mutation_class") in {"host-mutation", "oci-mutation"} for gate in gates if isinstance(gate, dict)):
         errors.append("V0 provider validation registry must not contain host or OCI mutation commands")
     if not allow_pending:
-        pending = [gate.get("id") for gate in gates if gate.get("provider_state") in {"pending-provider", "pending-owner-build"}]
+        pending = [gate.get("id") for gate in gates if gate.get("provider_state") == "pending-provider"]
         if pending:
-            errors.append(f"pending provider gates are forbidden in strict mode: {pending}")
+            errors.append(f"unpublished provider gates are forbidden in strict mode: {pending}")
     for gate in gates:
+        if gate.get("provider_state") == "pending-owner-build":
+            argv = gate.get("argv", [])
+            if gate.get("owner") != "Senior 3" or gate.get("mutation_class") != "read-only":
+                errors.append(f"{gate.get('id')}: pending-owner-build is restricted to read-only Senior 3 gates")
+            if not argv or argv[0] != "cargo":
+                errors.append(f"{gate.get('id')}: pending-owner-build must name the exact Cargo command")
+            if "Project owner" not in gate.get("action_required", ""):
+                errors.append(f"{gate.get('id')}: pending-owner-build must identify project-owner action")
         if gate.get("result_mode") == "json-file" and "{output}" not in gate.get("argv", []):
             errors.append(f"{gate.get('id')}: json-file gate must receive an explicit {{output}} argument")
         if gate.get("provider_state") == "deprecated" and "promotion" in gate.get("stages", []):

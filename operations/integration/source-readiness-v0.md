@@ -17,3 +17,5 @@ Source CI permits `blocked` during the V0 branch integration window. It does not
 Every blocker names an owner, seam, stable code, severity, message and required action. Senior 4 does not add fallback implementation for a blocked or failed provider.
 
 `pending-owner-build` is reported as `blocked`, not `passed`. It means provider source exists but validation would compile/link Rust and must be executed by the project owner under the current build restriction.
+
+Owner evidence is generated and consumed as documented in `operations/integration/owner-build-evidence-v0.md`. Source closeout includes all four owner-build gates; no evidence record may be edited by hand.

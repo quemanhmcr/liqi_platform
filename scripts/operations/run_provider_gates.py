@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -20,8 +21,10 @@ from typing import Any
 
 from jsonschema import Draft202012Validator, FormatChecker
 try:
+    from scripts.operations.owner_build_evidence import validate_owner_evidence
     from scripts.operations.redaction import redact
 except ModuleNotFoundError:  # direct script execution
+    from owner_build_evidence import validate_owner_evidence
     from redaction import redact
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -44,6 +47,27 @@ def safe_path(relative: str) -> Path:
 
 def git_sha() -> str:
     return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+
+
+def resolve_executable(argv: list[str]) -> list[str]:
+    if os.name != "nt" or not argv or argv[0] != "bash":
+        return argv
+    candidates: list[Path] = []
+    git = shutil.which("git")
+    if git:
+        git_path = Path(git).resolve()
+        if len(git_path.parents) >= 3:
+            candidates.append(git_path.parents[2] / "usr" / "bin" / "bash.exe")
+    program_files = os.environ.get("ProgramFiles")
+    if program_files:
+        candidates.append(Path(program_files) / "Git" / "usr" / "bin" / "bash.exe")
+    discovered = shutil.which("bash.exe")
+    if discovered:
+        candidates.append(Path(discovered))
+    for candidate in candidates:
+        if candidate.is_file() and "Git" in candidate.parts:
+            return [str(candidate), *argv[1:]]
+    raise RuntimeError("Git Bash is required to run provider shell gates on Windows")
 
 
 def expand_argv(parts: list[str], output_path: Path) -> tuple[list[str], str]:
@@ -83,6 +107,7 @@ def main() -> int:
     parser.add_argument("--environment", choices=("development", "staging", "production"), default="development")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--evidence-dir", type=Path, default=ROOT / ".artifacts" / "provider-gates")
+    parser.add_argument("--owner-evidence-dir", type=Path)
     parser.add_argument("--allow-blocked", action="store_true")
     parser.add_argument("--allow-disposable-database", action="store_true")
     args = parser.parse_args()
@@ -101,10 +126,68 @@ def main() -> int:
             continue
         gate_output = evidence_dir / f"{gate['id']}.json"
         argv, command = expand_argv(gate["argv"], gate_output)
+        try:
+            argv = resolve_executable(argv)
+        except RuntimeError as exc:
+            results.append(check_result(gate, "blocked", command, None, 0, None, gate["failure_class"]))
+            violations.append({
+                "owner": gate["owner"],
+                "seam": gate["seam"],
+                "code": "PROVIDER_GATE_BLOCKED",
+                "message": str(exc),
+                "action_required": gate["action_required"],
+            })
+            continue
         missing_paths = [path for path in gate["required_paths"] if not safe_path(path).exists()]
         missing_env = [name for name in gate.get("required_environment", []) if not os.environ.get(name)]
         blocked_reason: str | None = None
-        if gate["provider_state"] != "available":
+        if gate["provider_state"] == "pending-owner-build" and not missing_paths:
+            record_path = (
+                args.owner_evidence_dir.resolve() / f"{gate['id']}.json"
+                if args.owner_evidence_dir is not None
+                else None
+            )
+            if record_path is None or not record_path.is_file():
+                blocked_reason = "provider state is pending-owner-build; exact-SHA owner evidence is unavailable"
+            else:
+                record, evidence_failures = validate_owner_evidence(record_path, gate, sha, ROOT)
+                record_ref = (
+                    record_path.relative_to(ROOT).as_posix()
+                    if record_path.is_relative_to(ROOT)
+                    else record_path.as_posix()
+                )
+                if evidence_failures or record is None:
+                    message = "; ".join(evidence_failures)[:1000]
+                    results.append(check_result(gate, "failed", command, 65, 0, record_ref, gate["failure_class"]))
+                    violations.append({
+                        "owner": gate["owner"],
+                        "seam": gate["seam"],
+                        "code": "OWNER_BUILD_EVIDENCE_INVALID",
+                        "message": message,
+                        "action_required": gate["action_required"],
+                    })
+                    continue
+                evidence_status = str(record["status"])
+                evidence_exit = int(record["exit_code"])
+                results.append(check_result(
+                    gate,
+                    evidence_status,
+                    command,
+                    evidence_exit,
+                    0,
+                    record_ref,
+                    None if evidence_status == "passed" else gate["failure_class"],
+                ))
+                if evidence_status == "failed":
+                    violations.append({
+                        "owner": gate["owner"],
+                        "seam": gate["seam"],
+                        "code": "PROVIDER_GATE_FAILED",
+                        "message": f"project-owner evidence reports failure; see {record_ref}",
+                        "action_required": gate["action_required"],
+                    })
+                continue
+        elif gate["provider_state"] != "available":
             blocked_reason = f"provider state is {gate['provider_state']}"
         elif missing_paths:
             blocked_reason = f"required provider paths are missing: {missing_paths}"
@@ -212,8 +295,8 @@ def main() -> int:
         }],
         "capacity": {
             "status": "blocked",
-            "hard_limit_ocpu": 4,
-            "hard_limit_memory_mib": 24576,
+            "hard_limit_ocpu": 3,
+            "hard_limit_memory_mib": 20480,
             "reserved_ocpu": 1,
             "reserved_memory_mib": 4096,
             "declared_ocpu": 0,

@@ -24,6 +24,7 @@ PAIRS = (
     ("recovery-status-v0.schema.json", "../../../integration/fixtures/recovery-status.valid.json"),
     ("slo-catalog-v0.schema.json", "../../../../operations/slo/slo-catalog-v0.json"),
     ("provider-gates-v0.schema.json", "../../../../operations/integration/provider-gates-v0.json"),
+    ("owner-build-evidence-v0.schema.json", "owner-build-evidence.valid.json"),
     ("dependency-policy-v0.schema.json", "../../../../operations/release/dependency-policy-v0.json"),
     ("capacity-result-v0.schema.json", "capacity-result.valid.json"),
     ("recovery-freshness-result-v0.schema.json", "recovery-freshness-result.valid.json"),

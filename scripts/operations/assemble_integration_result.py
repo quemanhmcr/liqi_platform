@@ -107,8 +107,8 @@ def main() -> int:
         ],
         "capacity": {
             "status": "passed" if capacity.get("status") == "passed" else "failed",
-            "hard_limit_ocpu": envelope.get("host", {}).get("ocpu", 4),
-            "hard_limit_memory_mib": envelope.get("host", {}).get("memory_mib", 24576),
+            "hard_limit_ocpu": envelope.get("provider_hard_limit", {}).get("ocpu", 3),
+            "hard_limit_memory_mib": envelope.get("provider_hard_limit", {}).get("memory_mib", 20480),
             "reserved_ocpu": envelope.get("reserved", {}).get("ocpu", 1),
             "reserved_memory_mib": envelope.get("reserved", {}).get("memory_mib", 4096),
             "declared_ocpu": hard_totals.get("ocpu", 0),
