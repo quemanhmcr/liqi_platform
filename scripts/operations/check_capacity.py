@@ -14,6 +14,8 @@ from jsonschema import Draft202012Validator, FormatChecker
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SCHEMA = ROOT / "contracts" / "operations" / "capacity-budget-v0.schema.json"
 DEFAULT_ENVELOPE = ROOT / "operations" / "capacity" / "capacity-envelope-v0.json"
+DEFAULT_DATABASE_CONTRACT = ROOT / "contracts" / "platform" / "database-v0.example.json"
+EPSILON = 1e-9
 REQUIRED_PROVIDERS = {"infrastructure", "database", "runtime", "operations"}
 RESOURCE_KEYS = ("ocpu", "memory_mib", "disk_gib")
 
@@ -38,11 +40,13 @@ def main() -> int:
     parser.add_argument("budgets", nargs="+", type=Path)
     parser.add_argument("--schema", type=Path, default=DEFAULT_SCHEMA)
     parser.add_argument("--envelope", type=Path, default=DEFAULT_ENVELOPE)
+    parser.add_argument("--database-contract", type=Path, default=DEFAULT_DATABASE_CONTRACT)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
     schema = load(args.schema)
     envelope = load(args.envelope)
+    database_contract = load(args.database_contract)
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     failures: list[str] = []
     providers: set[str] = set()
@@ -69,7 +73,7 @@ def main() -> int:
             steady = component["steady_state"]
             hard = component["hard_limit"]
             for key in RESOURCE_KEYS:
-                if float(hard[key]) < float(steady[key]):
+                if float(hard[key]) + EPSILON < float(steady[key]):
                     failures.append(f"{provider}/{component['name']}: hard {key} is below steady-state")
                 steady_totals[key] += float(steady[key]) if key != "memory_mib" else int(steady[key])
                 hard_totals[key] += float(hard[key]) if key != "memory_mib" else int(hard[key])
@@ -105,12 +109,28 @@ def main() -> int:
 
     steady_limits = envelope["steady_state_limit"]
     for key in RESOURCE_KEYS:
-        if steady_totals[key] > steady_limits[key]:
+        if float(steady_totals[key]) > float(steady_limits[key]) + EPSILON:
             failures.append(f"steady-state capacity exceeded for {key}: declared={steady_totals[key]} limit={steady_limits[key]}")
 
     hard_limits = envelope["provider_hard_limit"]
+    host = envelope["host"]
+    reserved = envelope["reserved"]
+    available = {
+        "ocpu": float(host["ocpu"]) - float(reserved["ocpu"]),
+        "memory_mib": int(host["memory_mib"]) - int(reserved["memory_mib"]),
+        "disk_gib": float(host["combined_storage_gib"]) - float(reserved["disk_gib"]),
+    }
     for key in RESOURCE_KEYS:
-        if hard_totals[key] > hard_limits[key]:
+        if float(hard_limits[key]) > float(available[key]) + EPSILON:
+            failures.append(
+                f"provider hard limit consumes host reserve for {key}: limit={hard_limits[key]} available={available[key]}"
+            )
+        if float(steady_limits[key]) > float(available[key]) + EPSILON:
+            failures.append(
+                f"steady-state limit consumes host reserve for {key}: limit={steady_limits[key]} available={available[key]}"
+            )
+    for key in RESOURCE_KEYS:
+        if float(hard_totals[key]) > float(hard_limits[key]) + EPSILON:
             failures.append(f"hard ceiling exceeded for {key}: declared={hard_totals[key]} limit={hard_limits[key]}")
     if server_reservation > hard_limits["postgres_connections"]:
         failures.append(
@@ -119,6 +139,37 @@ def main() -> int:
     if pooled_runtime_demand > pooled_server_capacity:
         failures.append(
             f"pooled runtime demand exceeds PgBouncer server capacity: demand={pooled_runtime_demand} capacity={pooled_server_capacity}"
+        )
+
+    connection_budget = database_contract["connectionBudget"]
+    postgres_limit = int(connection_budget["postgresMaxConnections"])
+    expected_pooled_capacity = int(connection_budget["runtimeServerConnections"]) + int(
+        connection_budget["operationalPoolConnections"]
+    )
+    expected_runtime_demand = int(connection_budget["runtimeServerConnections"])
+    expected_direct_capacity = int(connection_budget["directAdministrativeConnections"])
+    reserved_headroom = int(connection_budget["reservedHeadroom"])
+    if expected_pooled_capacity + expected_direct_capacity + reserved_headroom != postgres_limit:
+        failures.append("database connection contract does not partition postgresMaxConnections")
+    if pooled_server_capacity != expected_pooled_capacity:
+        failures.append(
+            f"PgBouncer server reservation mismatch: declared={pooled_server_capacity} expected={expected_pooled_capacity}"
+        )
+    if pooled_runtime_demand != expected_runtime_demand:
+        failures.append(
+            f"runtime pooled demand mismatch: declared={pooled_runtime_demand} expected={expected_runtime_demand}"
+        )
+    if direct_reserved_capacity != expected_direct_capacity:
+        failures.append(
+            f"direct administrative/recovery reservation mismatch: declared={direct_reserved_capacity} expected={expected_direct_capacity}"
+        )
+    if server_reservation + reserved_headroom != postgres_limit:
+        failures.append(
+            f"PostgreSQL reservation plus headroom mismatch: reservation={server_reservation} headroom={reserved_headroom} limit={postgres_limit}"
+        )
+    if server_reservation > postgres_limit:
+        failures.append(
+            f"PostgreSQL server reservation exceeds max_connections: reservation={server_reservation} limit={postgres_limit}"
         )
 
     connection_accounting = {

@@ -1,13 +1,13 @@
 {
   "schema_version": "provider-capacity-registry-v0",
-  "registry_version": "0.2.0",
+  "registry_version": "0.3.0",
   "providers": [
     {
       "provider": "infrastructure",
       "owner": "Senior 1",
-      "state": "pending-provider",
+      "state": "available",
       "path": "contracts/platform/infrastructure-capacity-budget-v0.json",
-      "action_required": "Senior 1 must publish host, edge and infrastructure process budgets using capacity-budget-v0."
+      "action_required": "Senior 1 owns infrastructure capacity contract failures and must preserve the host reserve."
     },
     {
       "provider": "database",

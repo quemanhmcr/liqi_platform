@@ -5,11 +5,11 @@
       "hard_limit": {
         "disk_gib": 12,
         "memory_mib": 1536,
-        "ocpu": 0.4
+        "ocpu": 0.3
       },
       "memory_mib": 1536,
       "name": "database-recovery",
-      "ocpu": 0.4,
+      "ocpu": 0.3,
       "postgres_connections": 2,
       "provider": "database",
       "steady_state": {
@@ -41,17 +41,17 @@
       "hard_limit": {
         "disk_gib": 118,
         "memory_mib": 6144,
-        "ocpu": 1.0
+        "ocpu": 0.8
       },
       "memory_mib": 6144,
       "name": "postgresql-authority",
-      "ocpu": 1.0,
-      "postgres_connections": 40,
+      "ocpu": 0.8,
+      "postgres_connections": 8,
       "provider": "database",
       "steady_state": {
         "disk_gib": 60,
         "memory_mib": 4096,
-        "ocpu": 0.65
+        "ocpu": 0.5
       }
     },
     {
@@ -170,7 +170,7 @@
       "ocpu": 4
     },
     "policy": {
-      "cpu_accounting": "steady-state-admission-and-host-capped-hard-ceilings",
+      "cpu_accounting": "steady-state-and-hard-ceiling-admission-preserve-one-ocpu-host-reserve",
       "missing_budget": "fail",
       "over_budget": "fail",
       "paid_or_unknown_default_enabled": false,
@@ -181,8 +181,8 @@
     "provider_hard_limit": {
       "disk_gib": 180,
       "memory_mib": 20480,
-      "ocpu": 4,
-      "postgres_connections": 100
+      "ocpu": 3,
+      "postgres_connections": 80
     },
     "reserved": {
       "disk_gib": 20,
@@ -202,27 +202,27 @@
   "hard_limit_totals": {
     "disk_gib": 160.2,
     "memory_mib": 16384,
-    "ocpu": 3.3,
-    "postgres_connections": 82
+    "ocpu": 3.0,
+    "postgres_connections": 50
   },
   "postgres_connection_accounting": {
-    "direct_reserved_capacity": 42,
+    "direct_reserved_capacity": 10,
     "pooled_runtime_demand": 35,
     "pooled_server_capacity": 40,
-    "server_reservation": 82
+    "server_reservation": 50
   },
   "schema_version": "capacity-result-v0",
   "status": "passed",
   "steady_state_totals": {
     "disk_gib": 67.6,
     "memory_mib": 6528,
-    "ocpu": 1.66,
+    "ocpu": 1.51,
     "postgres_connections": 35
   },
   "totals": {
     "disk_gib": 160.2,
     "memory_mib": 16384,
-    "ocpu": 3.3,
-    "postgres_connections": 82
+    "ocpu": 3.0,
+    "postgres_connections": 50
   }
 }
