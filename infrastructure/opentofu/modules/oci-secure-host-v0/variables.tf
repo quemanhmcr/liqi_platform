@@ -173,7 +173,7 @@ variable "cloud_init_user_data" {
 variable "bootstrap_version" {
   description = "Version included in readiness and used to force host replacement when bootstrap semantics change."
   type        = string
-  default     = "0.2.0"
+  default     = "0.3.0"
 }
 
 variable "infrastructure_output_version" {

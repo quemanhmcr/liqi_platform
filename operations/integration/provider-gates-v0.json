@@ -18,7 +18,12 @@
         "contracts/platform/oci-host-v0.example.json",
         "infrastructure/validation/validate_infrastructure.py",
         "infrastructure/validation/validate_oci_host_contract.py",
-        "infrastructure/opentofu/environments/development/versions.tf"
+        "infrastructure/opentofu/environments/development/versions.tf",
+        "infrastructure/cloud-init/host-bootstrap.yaml.tftpl",
+        "infrastructure/edge/nginx.conf",
+        "infrastructure/edge/nginx-liqi-hardening.conf",
+        "infrastructure/edge/liqi-site-v0.conf.tftpl",
+        "infrastructure/opentofu/modules/oci-secure-host-v0/compute.tf"
       ],
       "argv": [
         "python",
@@ -235,7 +240,10 @@
         "contracts/platform/runtime-telemetry-api-v0.json",
         "contracts/platform/runtime-telemetry-realtime-v0.json",
         "contracts/platform/runtime-telemetry-worker-v0.json",
-        "scripts/operations/validate_runtime_operability_contracts.py"
+        "scripts/operations/validate_runtime_operability_contracts.py",
+        "services/systemd/liqi-api.service",
+        "services/systemd/liqi-realtime.service",
+        "services/systemd/liqi-worker.service"
       ],
       "argv": [
         "python",

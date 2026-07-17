@@ -26,12 +26,14 @@ def main()->int:
     ap=argparse.ArgumentParser(); ap.add_argument('--provider-root',type=Path,default=ROOT); ap.add_argument('--policy',type=Path,default=POLICY); ap.add_argument('--output',type=Path,required=True); ap.add_argument('--allow-missing',action='store_true'); args=ap.parse_args()
     provider=args.provider_root.resolve(); policy=load(args.policy); checks=[]
     cloud=provider/'infrastructure/cloud-init/host-bootstrap.yaml.tftpl'; host=provider/'contracts/platform/oci-host-v0.example.json'
-    infra_missing=[p.relative_to(provider).as_posix() for p in (cloud,host) if not p.is_file()]
+    edge=provider/'infrastructure/edge/nginx.conf'; edge_hardening=provider/'infrastructure/edge/nginx-liqi-hardening.conf'
+    infra_missing=[p.relative_to(provider).as_posix() for p in (cloud,host,edge,edge_hardening) if not p.is_file()]
     if infra_missing:
         checks.append(check('Senior 1','OCI host output and host logging policy','blocked','INFRASTRUCTURE_SEAM_MISSING',f'missing provider paths: {infra_missing}','Senior 1 must merge the published OCI host output and cloud-init source.'))
     else:
         host_doc=load(host); failures=[]
         if host_doc.get('infrastructure_output_version')!='0.3.0':failures.append('infrastructure output version must be 0.3.0')
+        if host_doc.get('bootstrap_version')!='0.3.0':failures.append('bootstrap version must be 0.3.0')
         release=host_doc.get('release_target',{})
         expected={'staging_path':'/var/tmp/liqi/releases','deployment_path':'/opt/liqi/releases','current_symlink':'/opt/liqi/current','installation_semantics':'upload-to-staging-then-root-owned-atomic-install'}
         for key,value in expected.items():
@@ -48,7 +50,13 @@ def main()->int:
         for key,value in expected_journal.items():
             actual=journal_value(text,key)
             if actual!=value:failures.append(f'journald {key} expected {value}, got {actual}')
-        checks.append(check('Senior 1','OCI host output and host logging policy','failed' if failures else 'passed','HOST_OPERABILITY_INCOMPATIBLE' if failures else 'HOST_OPERABILITY_COMPATIBLE',failure_summary(failures) if failures else 'host output 0.3.0, release target and journald policy are compatible','Senior 1 must align cloud-init journald and host output with contracts/operations and ADR 0408.' if failures else 'none'))
+        edge_text=edge.read_text(encoding='utf-8')
+        for token in ('return 444;','ssl_reject_handshake on;','server 127.0.0.1:8080','server 127.0.0.1:8081','client_max_body_size 1m;'):
+            if token not in edge_text:failures.append(f'fail-closed edge missing {token}')
+        hardening_text=edge_hardening.read_text(encoding='utf-8')
+        for token in ('Slice=liqi-platform-edge.slice','CPUQuota=10%','MemoryMax=256M','MemorySwapMax=0','NoNewPrivileges=yes'):
+            if token not in hardening_text:failures.append(f'edge systemd hardening missing {token}')
+        checks.append(check('Senior 1','OCI host output and host logging policy','failed' if failures else 'passed','HOST_OPERABILITY_INCOMPATIBLE' if failures else 'HOST_OPERABILITY_COMPATIBLE',failure_summary(failures) if failures else 'host output/bootstrap 0.3.0, release target and journald policy are compatible','Senior 1 must align cloud-init journald and host output with contracts/operations and ADR 0408.' if failures else 'none'))
     database=provider/'contracts/platform/database-v0.example.json'
     if not database.is_file():
         checks.append(check('Senior 2','database recovery command ownership','blocked','DATABASE_SEAM_MISSING','database provider contract is not merged','Senior 2 must merge database-v0 and provider-owned recovery commands.'))
@@ -74,6 +82,9 @@ def main()->int:
       'api_config':provider/'contracts/platform/runtime-config-api.local.example.json',
       'realtime_config':provider/'contracts/platform/runtime-config-realtime.local.example.json',
       'worker_config':provider/'contracts/platform/runtime-config-worker.local.example.json',
+      'api_unit':provider/'services/systemd/liqi-api.service',
+      'realtime_unit':provider/'services/systemd/liqi-realtime.service',
+      'worker_unit':provider/'services/systemd/liqi-worker.service',
     }
     runtime_missing=[path.relative_to(provider).as_posix() for path in runtime_paths.values() if not path.is_file()]
     if runtime_missing:
@@ -99,6 +110,16 @@ def main()->int:
             runtime_example=load(runtime_paths[config_key])
             if runtime_example.get('database',{}).get('requiredMigrationVersion')!=4:
                 failures.append(f"{runtime_paths[config_key].name} must require database migration version 4")
+        unit_expectations={
+          'api_unit':('User=liqi-api','ExecStart=/opt/liqi/current/bin/liqi-api --config /etc/liqi/api.json','/run/liqi/secrets/liqi-api/database-password'),
+          'realtime_unit':('User=liqi-realtime','ExecStart=/opt/liqi/current/bin/liqi-realtime --config /etc/liqi/realtime.json','/run/liqi/secrets/liqi-realtime/database-password'),
+          'worker_unit':('User=liqi-worker','ExecStart=/opt/liqi/current/bin/liqi-worker --config /etc/liqi/worker.json','/run/liqi/secrets/liqi-worker/database-password'),
+        }
+        for unit_key,required in unit_expectations.items():
+            unit_text=runtime_paths[unit_key].read_text(encoding='utf-8')
+            for token in (*required,'NoNewPrivileges=yes','ProtectSystem=strict','MemoryDenyWriteExecute=yes'):
+                if token not in unit_text:failures.append(f'{runtime_paths[unit_key].name} missing {token}')
+            if 'User=root' in unit_text:failures.append(f'{runtime_paths[unit_key].name} must remain non-root')
         endpoint=database_props.get('endpoint',{}).get('properties',{})
         if endpoint.get('host',{}).get('const')!='127.0.0.1' or endpoint.get('port',{}).get('const')!=6432 or endpoint.get('poolingMode',{}).get('const')!='transaction':
             failures.append('runtime database endpoint must use loopback PgBouncer transaction pooling')

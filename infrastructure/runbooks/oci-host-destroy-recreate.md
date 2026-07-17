@@ -13,9 +13,10 @@ No command in this runbook is approval to mutate OCI. `tofu apply`, `tofu destro
 3. OCI CLI authentication is valid.
 4. Inputs contain only tenancy/resource identifiers and an SSH **public** key.
 5. The pinned Oracle Linux image supports AArch64 and `VM.Standard.A1.Flex`.
-6. Cost classification and acknowledgement are reviewed.
-7. No second operator is running OpenTofu for the same environment.
-8. Durable state handling has been approved; local validation state is not sufficient for apply.
+6. `oci_host_v0.bootstrap_version` is `0.3.0`, and source validation reports rendered gzip `user_data` at or below 16 KiB.
+7. Cost classification and acknowledgement are reviewed.
+8. No second operator is running OpenTofu for the same environment.
+9. Durable state handling has been approved; local validation state is not sufficient for apply.
 
 ## Read-only plan
 
@@ -71,11 +72,12 @@ After an approved apply:
 1. Wait for cloud-init completion and the volume attachment.
 2. Read `/run/liqi/host-ready.json` through the approved administrative path.
 3. Verify schema `liqi.platform.host-readiness/v0`, status `ready`, and output/bootstrap versions.
-4. Verify `systemctl status liqi-data-volume.service liqi-host-readiness.service`.
+4. Verify `systemctl status liqi-data-volume.service nginx.service liqi-host-readiness.service` and `nginx -t`.
 5. Verify `/var/lib/liqi` is mounted from the expected UUID and not from the boot volume.
-6. Verify no listener exists on database, PgBouncer, Rust, OTLP, metrics, or admin ports until its owning consumer deploys it.
-7. Verify instance-principal bucket access with bounded retries; verify object deletion is denied.
-8. Hand `tofu output -json oci_host_v0` directly to Senior 2, 3, and 4 tooling.
+6. Verify the three runtime base units exist but are not enabled before activation; no listener exists on database, PgBouncer, Rust, OTLP, metrics, or admin ports until its owning consumer deploys it.
+7. Verify the default edge closes HTTP and rejects TLS handshakes, and `/etc/nginx/liqi-enabled` is empty before DNS/TLS approval.
+8. Verify instance-principal bucket access with bounded retries; verify object deletion is denied.
+9. Hand `tofu output -json oci_host_v0` directly to Senior 2, 3, and 4 tooling.
 
 Do not repair a failed bootstrap manually. Capture cloud-init/systemd logs, fix source, validate, and replace the host.
 

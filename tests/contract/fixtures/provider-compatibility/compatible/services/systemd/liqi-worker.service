@@ -1,0 +1,6 @@
+User=liqi-worker
+ExecStart=/opt/liqi/current/bin/liqi-worker --config /etc/liqi/worker.json
+ExecStartPre=/usr/bin/test -r /run/liqi/secrets/liqi-worker/database-password
+NoNewPrivileges=yes
+ProtectSystem=strict
+MemoryDenyWriteExecute=yes

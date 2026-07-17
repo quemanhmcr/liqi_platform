@@ -304,7 +304,9 @@
       "ssh-root-disabled",
       "ssh-password-auth-disabled",
       "legacy-imds-disabled",
-      "capacity-controls"
+      "capacity-controls",
+      "runtime-service-units",
+      "edge-fail-closed"
     ]
   },
   "release_target": {
@@ -436,5 +438,6 @@
     },
     "container_policy": "inner-limit-must-not-exceed-systemd-outer-limit",
     "assignment_semantics": "provider-base-units-must-attach-to-published-slice"
-  }
+  },
+  "bootstrap_version": "0.3.0"
 }

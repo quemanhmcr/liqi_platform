@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import gzip
 import json
 import os
 import re
@@ -150,7 +151,12 @@ def validate_instance_and_storage(module: dict[str, object]) -> str:
     user_data = metadata.get("user_data")
     if not isinstance(user_data, str):
         fail("rendered cloud-init user_data is missing")
-    return base64.b64decode(user_data, validate=True).decode("utf-8")
+    if len(user_data.encode("ascii")) > 16384:
+        fail(f"encoded OCI user_data exceeds 16 KiB: {len(user_data.encode('ascii'))} bytes")
+    compressed = base64.b64decode(user_data, validate=True)
+    if not compressed.startswith(b"\x1f\x8b"):
+        fail("OCI user_data must be gzip-compressed before Base64 encoding")
+    return gzip.decompress(compressed).decode("utf-8")
 
 
 def validate_ingress(module: dict[str, object]) -> None:
@@ -187,6 +193,18 @@ def validate_rendered_cloud_init(rendered: str) -> None:
         fail("rendered cloud-init is not a YAML mapping")
     if document.get("disable_root") is not True or document.get("ssh_pwauth") is not False:
         fail("rendered cloud-init does not disable root and password SSH")
+    packages = document.get("packages") or []
+    if "nginx" not in packages:
+        fail("rendered cloud-init must install the infrastructure-owned NGINX edge")
+    commands = [item for item in document.get("runcmd", []) if isinstance(item, list)]
+    flattened_commands = "\n".join(" ".join(str(part) for part in item) for item in commands)
+    for token in (
+        "install -D -o root -g root -m 0644 /usr/local/share/liqi-bootstrap/nginx.conf /etc/nginx/nginx.conf",
+        "setsebool -P httpd_can_network_connect 1",
+        "nginx -t && systemctl enable --now nginx.service",
+    ):
+        if token not in flattened_commands:
+            fail(f"rendered cloud-init missing edge activation command: {token}")
 
     write_files = document.get("write_files")
     if not isinstance(write_files, list) or not write_files:
@@ -201,6 +219,11 @@ def validate_rendered_cloud_init(rendered: str) -> None:
         "/etc/systemd/system/liqi-disable-swap.service",
         "/etc/systemd/system/liqi-data-volume.service",
         "/etc/systemd/system/liqi-host-readiness.service",
+        "/etc/systemd/system/liqi-api.service",
+        "/etc/systemd/system/liqi-realtime.service",
+        "/etc/systemd/system/liqi-worker.service",
+        "/usr/local/share/liqi-bootstrap/nginx.conf",
+        "/usr/local/share/liqi-bootstrap/nginx-liqi-hardening.conf",
         "/etc/systemd/system/liqi-platform.slice",
         "/etc/systemd/system/liqi-platform-runtime.slice",
         "/etc/systemd/system/liqi-platform-database.slice",
@@ -231,6 +254,50 @@ def validate_rendered_cloud_init(rendered: str) -> None:
         for item in write_files
         if isinstance(item, dict) and isinstance(item.get("content"), str)
     }
+    expected_provider_lines = {
+        "/etc/systemd/system/liqi-api.service": {
+            "User=liqi-api",
+            "ExecStart=/opt/liqi/current/bin/liqi-api --config /etc/liqi/api.json",
+            "NoNewPrivileges=yes",
+            "ProtectSystem=strict",
+            "MemoryDenyWriteExecute=yes",
+        },
+        "/etc/systemd/system/liqi-realtime.service": {
+            "User=liqi-realtime",
+            "ExecStart=/opt/liqi/current/bin/liqi-realtime --config /etc/liqi/realtime.json",
+            "NoNewPrivileges=yes",
+            "ProtectSystem=strict",
+            "MemoryDenyWriteExecute=yes",
+        },
+        "/etc/systemd/system/liqi-worker.service": {
+            "User=liqi-worker",
+            "ExecStart=/opt/liqi/current/bin/liqi-worker --config /etc/liqi/worker.json",
+            "NoNewPrivileges=yes",
+            "ProtectSystem=strict",
+            "MemoryDenyWriteExecute=yes",
+        },
+        "/usr/local/share/liqi-bootstrap/nginx.conf": {
+            "return 444;",
+            "ssl_reject_handshake on;",
+            "client_max_body_size 1m;",
+            "include /etc/nginx/liqi-enabled/*.conf;",
+        },
+        "/usr/local/share/liqi-bootstrap/nginx-liqi-hardening.conf": {
+            "Slice=liqi-platform-edge.slice",
+            "CPUQuota=10%",
+            "MemoryMax=256M",
+            "MemorySwapMax=0",
+        },
+    }
+    for provider_path, expected_lines in expected_provider_lines.items():
+        content = contents_by_path.get(provider_path)
+        if not isinstance(content, str):
+            fail(f"rendered cloud-init missing provider output {provider_path}")
+        actual_lines = {line.strip() for line in content.splitlines() if line.strip()}
+        missing_lines = expected_lines - actual_lines
+        if missing_lines:
+            fail(f"provider output {provider_path} missing {sorted(missing_lines)}")
+
     expected_control_lines = {
         "/etc/systemd/system/liqi-platform.slice": {"CPUQuota=300%", "MemoryMax=20G", "MemorySwapMax=0"},
         "/etc/systemd/system/liqi-platform-runtime.slice": {"CPUQuota=145%", "MemoryMax=7G", "MemorySwapMax=0"},
@@ -260,6 +327,8 @@ def validate_rendered_cloud_init(rendered: str) -> None:
         '"status": "ready"',
         '"data_volume_mounted": "pass"',
         '"capacity_controls": "pass"',
+        '"runtime_service_units": "pass"',
+        '"edge_fail_closed": "pass"',
         'mv -f "$tmp_file" /run/liqi/host-ready.json',
     )
     for fragment in required_readiness:

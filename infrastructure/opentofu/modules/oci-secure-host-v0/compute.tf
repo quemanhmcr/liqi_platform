@@ -27,7 +27,7 @@ resource "oci_core_instance" "host" {
 
   metadata = {
     ssh_authorized_keys = trimspace(var.admin_ssh_public_key)
-    user_data           = base64encode(var.cloud_init_user_data)
+    user_data           = base64gzip(var.cloud_init_user_data)
   }
 
   instance_options {
@@ -46,6 +46,11 @@ resource "oci_core_instance" "host" {
     precondition {
       condition     = var.capacity_profile.architecture == "aarch64"
       error_message = "V0 Oracle Linux image and VM.Standard.A1.Flex host contract require aarch64."
+    }
+
+    precondition {
+      condition     = length(base64gzip(var.cloud_init_user_data)) <= 16384
+      error_message = "OCI user_data must remain at or below the documented 16 KiB encoded limit."
     }
   }
 

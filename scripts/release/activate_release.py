@@ -37,7 +37,8 @@ HEALTH_GATE = ROOT / "scripts" / "release" / "health_gate.py"
 REQUIRED_HOST_CHECKS = {
     "runtime_identities", "runtime_directories", "data_volume_mounted", "swap_disabled",
     "selinux_enforcing", "firewall_policy", "ssh_root_disabled",
-    "ssh_password_auth_disabled", "legacy_imds_disabled",
+    "ssh_password_auth_disabled", "legacy_imds_disabled", "capacity_controls",
+    "runtime_service_units", "edge_fail_closed",
 }
 
 
@@ -76,6 +77,7 @@ def validate_host_readiness(document: Any, spec: dict[str, Any]) -> list[str]:
         "schema_version": "liqi.platform.host-readiness/v0",
         "host_contract_schema_version": spec["target"]["host_schema_version"],
         "infrastructure_output_version": spec["target"]["host_output_version"],
+        "bootstrap_version": spec["target"]["host_bootstrap_version"],
         "status": "ready",
         "architecture": "aarch64",
     }

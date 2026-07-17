@@ -2,6 +2,7 @@ locals {
   host_contract = {
     schema_version                = "liqi.platform.oci-host/v0"
     infrastructure_output_version = var.infrastructure_output_version
+    bootstrap_version             = var.bootstrap_version
     environment                   = var.environment
     region = {
       name                = var.region
@@ -120,7 +121,9 @@ locals {
         "ssh-root-disabled",
         "ssh-password-auth-disabled",
         "legacy-imds-disabled",
-        "capacity-controls"
+        "capacity-controls",
+        "runtime-service-units",
+        "edge-fail-closed"
       ]
     }
     release_target = {

@@ -6,6 +6,7 @@ package_update: true
 package_upgrade: false
 packages:
   - firewalld
+  - nginx
   - policycoreutils-python-utils
   - podman
   - xfsprogs
@@ -77,6 +78,7 @@ write_files:
       d /var/log/liqi 0750 root liqi -
       d /var/tmp/liqi 0750 root liqi -
       d /var/tmp/liqi/releases 0750 opc liqi -
+      d /etc/nginx/liqi-enabled 0750 root nginx -
 
   - path: /usr/local/sbin/liqi-create-runtime-identities
     owner: root:root
@@ -286,6 +288,27 @@ write_files:
       check_control_line /etc/systemd/system/liqi-worker.service.d/10-capacity.conf 'MemoryMax=2G'
       check_control_line /etc/systemd/system/liqi-worker.service.d/10-capacity.conf 'Environment=LIQI_CONFIG_PATH=/etc/liqi/worker.json'
 
+      check_control_line /etc/systemd/system/liqi-api.service 'User=liqi-api'
+      check_control_line /etc/systemd/system/liqi-api.service 'ExecStart=/opt/liqi/current/bin/liqi-api --config /etc/liqi/api.json'
+      check_control_line /etc/systemd/system/liqi-realtime.service 'User=liqi-realtime'
+      check_control_line /etc/systemd/system/liqi-realtime.service 'ExecStart=/opt/liqi/current/bin/liqi-realtime --config /etc/liqi/realtime.json'
+      check_control_line /etc/systemd/system/liqi-worker.service 'User=liqi-worker'
+      check_control_line /etc/systemd/system/liqi-worker.service 'ExecStart=/opt/liqi/current/bin/liqi-worker --config /etc/liqi/worker.json'
+      for unit in liqi-api liqi-realtime liqi-worker; do
+        check_control_line "/etc/systemd/system/$unit.service" 'NoNewPrivileges=yes'
+        check_control_line "/etc/systemd/system/$unit.service" 'ProtectSystem=strict'
+        check_control_line "/etc/systemd/system/$unit.service" 'MemoryDenyWriteExecute=yes'
+      done
+
+      check_directory /etc/nginx/liqi-enabled root nginx 750
+      check_control_line /etc/nginx/nginx.conf '        return 444;'
+      check_control_line /etc/nginx/nginx.conf '        ssl_reject_handshake on;'
+      check_control_line /etc/nginx/nginx.conf '    client_max_body_size 1m;'
+      check_control_line /etc/systemd/system/nginx.service.d/10-liqi-hardening.conf 'Slice=liqi-platform-edge.slice'
+      check_control_line /etc/systemd/system/nginx.service.d/10-liqi-hardening.conf 'MemorySwapMax=0'
+      nginx -t
+      systemctl is-active --quiet nginx.service
+
       systemctl is-active --quiet liqi-platform.slice
       systemctl is-active --quiet liqi-platform-runtime.slice
       systemctl is-active --quiet liqi-platform-database.slice
@@ -347,13 +370,40 @@ write_files:
           "ssh_root_disabled": "pass",
           "ssh_password_auth_disabled": "pass",
           "legacy_imds_disabled": "pass",
-          "capacity_controls": "pass"
+          "capacity_controls": "pass",
+          "runtime_service_units": "pass",
+          "edge_fail_closed": "pass"
         }
       }
       JSON
       chown root:liqi "$tmp_file"
       chmod 0644 "$tmp_file"
       mv -f "$tmp_file" /run/liqi/host-ready.json
+
+  - path: /etc/systemd/system/liqi-api.service
+    owner: root:root
+    permissions: "0644"
+    content: ${jsonencode(liqi_api_unit)}
+
+  - path: /etc/systemd/system/liqi-realtime.service
+    owner: root:root
+    permissions: "0644"
+    content: ${jsonencode(liqi_realtime_unit)}
+
+  - path: /etc/systemd/system/liqi-worker.service
+    owner: root:root
+    permissions: "0644"
+    content: ${jsonencode(liqi_worker_unit)}
+
+  - path: /usr/local/share/liqi-bootstrap/nginx.conf
+    owner: root:root
+    permissions: "0644"
+    content: ${jsonencode(nginx_config)}
+
+  - path: /usr/local/share/liqi-bootstrap/nginx-liqi-hardening.conf
+    owner: root:root
+    permissions: "0644"
+    content: ${jsonencode(nginx_hardening)}
 
   - path: /etc/systemd/system/liqi-platform.slice
     owner: root:root
@@ -517,8 +567,8 @@ write_files:
     content: |
       [Unit]
       Description=Validate LIQI host contract and publish readiness
-      Requires=liqi-data-volume.service liqi-disable-swap.service
-      After=liqi-data-volume.service liqi-disable-swap.service sshd.service firewalld.service
+      Requires=liqi-data-volume.service liqi-disable-swap.service nginx.service
+      After=liqi-data-volume.service liqi-disable-swap.service sshd.service firewalld.service nginx.service
 
       [Service]
       Type=oneshot
@@ -549,7 +599,11 @@ runcmd:
 %{ endif ~}
   - [bash, -lc, "firewall-cmd --reload"]
   - [bash, -lc, "sshd -t && systemctl restart sshd"]
+  - [bash, -lc, "install -D -o root -g root -m 0644 /usr/local/share/liqi-bootstrap/nginx.conf /etc/nginx/nginx.conf"]
+  - [bash, -lc, "install -D -o root -g root -m 0644 /usr/local/share/liqi-bootstrap/nginx-liqi-hardening.conf /etc/systemd/system/nginx.service.d/10-liqi-hardening.conf"]
+  - [bash, -lc, "setsebool -P httpd_can_network_connect 1"]
   - [bash, -lc, "systemctl daemon-reload"]
+  - [bash, -lc, "nginx -t && systemctl enable --now nginx.service"]
   - [bash, -lc, "systemctl start liqi-platform-runtime.slice liqi-platform-database.slice liqi-platform-operations.slice liqi-platform-edge.slice"]
   - [bash, -lc, "systemctl restart systemd-journald"]
   - [bash, -lc, "systemctl enable --now liqi-disable-swap.service"]
