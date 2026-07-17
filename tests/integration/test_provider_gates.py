@@ -53,6 +53,15 @@ class ProviderGateTests(unittest.TestCase):
         self.assertIn("<env:LIQI_TEST_PLAN_PATH>", matching[0]["command"])
         self.assertNotIn("never-render-this-plan", matching[0]["command"])
 
+    def test_json_provider_result_is_addressable_by_gate_id(self) -> None:
+        _, result, _ = self.invoke(True)
+        matching = [item for item in result["provider_results"] if item.get("gate_id") == "senior2-json-output"]
+        self.assertEqual(len(matching), 1)
+        self.assertEqual(matching[0]["status"], "passed")
+        self.assertTrue(matching[0]["output_ref"].endswith("senior2-json-output.json"))
+        output_path = ROOT / matching[0]["output_ref"] if not Path(matching[0]["output_ref"]).is_absolute() else Path(matching[0]["output_ref"])
+        self.assertTrue(output_path.is_file())
+
     def test_provider_logs_are_redacted(self) -> None:
         _, result, _ = self.invoke(True)
         logs = [ROOT / item["output_ref"] if item["output_ref"] and not Path(item["output_ref"]).is_absolute() else Path(item["output_ref"] or "") for item in result["provider_results"] if item["output_ref"]]

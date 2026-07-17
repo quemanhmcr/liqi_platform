@@ -1,6 +1,6 @@
 {
   "schema_version": "provider-gates-v0",
-  "registry_version": "0.2.0",
+  "registry_version": "0.3.0",
   "gates": [
     {
       "id": "oci-infrastructure-source",
@@ -112,21 +112,37 @@
       "stages": [
         "promotion"
       ],
-      "provider_state": "pending-provider",
+      "provider_state": "available",
       "mutation_class": "read-only",
       "required_paths": [
-        "database/bin/recovery-status.sh"
+        "database/bin/recovery-status.sh",
+        "database/tools/recovery_contract.py",
+        "contracts/platform/database-restore-result-v0.schema.json",
+        "contracts/operations/recovery-status-v0.schema.json"
       ],
       "argv": [
         "bash",
         "database/bin/recovery-status.sh",
+        "--environment",
+        "{env:LIQI_ENVIRONMENT}",
         "--output",
         "{output}"
       ],
       "timeout_seconds": 180,
       "result_mode": "json-file",
       "failure_class": "recovery",
-      "action_required": "Senior 2 must expose recovery freshness evidence from provider-owned database tooling; backup-created alone is insufficient."
+      "action_required": "Senior 2 owns recovery-status-v0 generation and evidence checksum failures. Senior 4 consumes the JSON directly and applies freshness policy.",
+      "required_environment": [
+        "LIQI_ENVIRONMENT",
+        "LIQI_BACKUP_METADATA_FILE",
+        "LIQI_BACKUP_METADATA_CHECKSUM_FILE",
+        "LIQI_RESTORE_RESULT_FILE",
+        "LIQI_RESTORE_RESULT_CHECKSUM_FILE",
+        "LIQI_BACKUP_STATUS_FILE",
+        "LIQI_BACKUP_STATUS_CHECKSUM_FILE",
+        "LIQI_RESTORE_SOURCE_METADATA_FILE",
+        "LIQI_RESTORE_SOURCE_METADATA_CHECKSUM_FILE"
+      ]
     },
     {
       "id": "runtime-format-source",
@@ -238,12 +254,14 @@
         "{output}"
       ],
       "required_environment": [
-        "LIQI_TEST_DATABASE"
+        "LIQI_TEST_DATABASE",
+        "LIQI_RELEASE_ID",
+        "LIQI_ENVIRONMENT"
       ],
       "timeout_seconds": 300,
       "result_mode": "json-file",
       "failure_class": "runtime",
-      "action_required": "Senior 3 must expose the platform probe and preserve the Senior 2 outbox/wire semantics; Senior 4 will only invoke and evaluate the result."
+      "action_required": "Senior 3 must expose platform probe JSON matching platform-probe-result-v0 and observe LIQI_RELEASE_ID/LIQI_ENVIRONMENT while preserving Senior 2 outbox semantics."
     }
   ]
 }

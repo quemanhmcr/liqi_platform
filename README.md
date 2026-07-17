@@ -73,7 +73,7 @@ python scripts/operations/run_provider_gates.py \
 
 The manual GitHub provider integration workflow performs no OCI apply, host activation or production deployment. Paid/unknown resources, OCI mutations and build/release execution require explicit project-owner approval.
 
-The promotion form additionally requires `oci_plan_run_id`. That run must expose an artifact containing exactly one `oci-plan.json` produced by `tofu show -json`; Senior 4 downloads and validates it but never creates or applies the plan.
+The promotion form requires both `oci_plan_run_id` and `database_recovery_run_id`. The OCI artifact contains exactly one `oci-plan.json` produced by `tofu show -json`. The database artifact follows `operations/integration/database-recovery-evidence-v0.md`. Senior 4 downloads and validates both but never creates/applies the plan or performs backup/restore.
 
 Host activation remains an owner-run command. First run `scripts/release/activate_release.py` without `--execute`; execution requires the reviewed deployment-spec SHA-256 and approval reference. Recovery exercises follow the same dry-run-first rule through `scripts/operations/run_recovery_exercise.py`.
 

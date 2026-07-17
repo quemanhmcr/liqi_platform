@@ -49,3 +49,5 @@ Breaking changes additionally require old/new provider tests during the migratio
 Promotion consumes a reviewed `oci-plan.json` artifact by workflow run ID. Do not commit saved plans, state, OCI credentials or PEM files. A plan artifact is evidence, not approval to apply.
 
 Cross-provider compatibility failures must be fixed by the owning provider. Senior 4 does not add wrappers for mismatched host retention, database recovery ownership or runtime signal contracts.
+
+Promotion also requires `database_recovery_run_id`. Its artifact must use the checksummed layout in `operations/integration/database-recovery-evidence-v0.md`; never commit backup metadata, restore outputs or repository credentials.
