@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import subprocess
 import sys
 import time
@@ -19,29 +18,20 @@ from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator, FormatChecker
+try:
+    from scripts.operations.redaction import redact
+except ModuleNotFoundError:  # direct script execution
+    from redaction import redact
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_REGISTRY = ROOT / "operations" / "integration" / "provider-gates-v0.json"
 RESULT_SCHEMA = ROOT / "contracts" / "operations" / "integration-result-v0.schema.json"
-PRIVATE_KEY_BLOCK = re.compile(r"-----BEGIN [^-]*PRIVATE KEY-----.*?-----END [^-]*PRIVATE KEY-----", re.DOTALL)
-SECRET_ASSIGNMENT = re.compile(
-    r"(?i)(password|passwd|secret|token|authorization|private[_-]?key)\s*[:=]\s*([^\s,;]+)"
-)
-BEARER = re.compile(r"(?i)Bearer\s+[A-Za-z0-9._~+/-]+=*")
-
-
 def now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
-
-
-def redact(text: str) -> str:
-    text = PRIVATE_KEY_BLOCK.sub("[REDACTED_PRIVATE_KEY]", text)
-    text = BEARER.sub("Bearer [REDACTED]", text)
-    return SECRET_ASSIGNMENT.sub(lambda match: f"{match.group(1)}=[REDACTED]", text)
 
 
 def safe_path(relative: str) -> Path:
