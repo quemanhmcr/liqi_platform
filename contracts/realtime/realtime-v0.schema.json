@@ -1,0 +1,683 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.app/realtime/realtime-v0.schema.json",
+  "title": "LIQI Realtime Protocol V0",
+  "description": "Bounded WebSocket protocol for authenticated subscriptions to committed events. PostgreSQL remains the durable authority.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/clientFrame"
+    },
+    {
+      "$ref": "#/$defs/serverFrame"
+    }
+  ],
+  "$defs": {
+    "baseFrame": {
+      "type": "object",
+      "required": [
+        "protocolVersion",
+        "messageId",
+        "sentAt",
+        "kind",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "0"
+        },
+        "messageId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sentAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "payload": {
+          "type": "object"
+        }
+      }
+    },
+    "serverBase": {
+      "type": "object",
+      "required": [
+        "connectionId"
+      ],
+      "properties": {
+        "connectionId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "clientFrame": {
+      "oneOf": [
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "hello"
+                },
+                "payload": {
+                  "$ref": "#/$defs/helloPayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "authenticate"
+                },
+                "payload": {
+                  "$ref": "#/$defs/authenticatePayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "subscribe"
+                },
+                "payload": {
+                  "$ref": "#/$defs/subscribePayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unsubscribe"
+                },
+                "payload": {
+                  "$ref": "#/$defs/unsubscribePayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "resume"
+                },
+                "payload": {
+                  "$ref": "#/$defs/resumePayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "heartbeat_ack"
+                },
+                "payload": {
+                  "$ref": "#/$defs/heartbeatAckPayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+    "serverFrame": {
+      "oneOf": [
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "$ref": "#/$defs/serverBase"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "welcome"
+                },
+                "payload": {
+                  "$ref": "#/$defs/welcomePayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "$ref": "#/$defs/serverBase"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "authenticated"
+                },
+                "payload": {
+                  "$ref": "#/$defs/authenticatedPayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "$ref": "#/$defs/serverBase"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "subscribed"
+                },
+                "payload": {
+                  "$ref": "#/$defs/subscribedPayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "$ref": "#/$defs/serverBase"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unsubscribed"
+                },
+                "payload": {
+                  "$ref": "#/$defs/unsubscribedPayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "$ref": "#/$defs/serverBase"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "server_event"
+                },
+                "payload": {
+                  "$ref": "#/$defs/serverEventPayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "$ref": "#/$defs/serverBase"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "error"
+                },
+                "payload": {
+                  "$ref": "#/$defs/errorPayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "$ref": "#/$defs/serverBase"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "heartbeat"
+                },
+                "payload": {
+                  "$ref": "#/$defs/heartbeatPayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "$ref": "#/$defs/serverBase"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "slow_consumer"
+                },
+                "payload": {
+                  "$ref": "#/$defs/slowConsumerPayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/baseFrame"
+            },
+            {
+              "$ref": "#/$defs/serverBase"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "access_revoked"
+                },
+                "payload": {
+                  "$ref": "#/$defs/accessRevokedPayload"
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+    "helloPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supportedVersions"
+      ],
+      "properties": {
+        "supportedVersions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          }
+        }
+      }
+    },
+    "authenticatePayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scheme",
+        "credential"
+      ],
+      "properties": {
+        "scheme": {
+          "const": "bearer"
+        },
+        "credential": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "writeOnly": true
+        }
+      }
+    },
+    "subscribePayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscriptionId",
+        "topic"
+      ],
+      "properties": {
+        "subscriptionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "topic": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(\\.[a-z0-9-]+)+$",
+          "maxLength": 160
+        },
+        "resumeCursor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
+    },
+    "unsubscribePayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscriptionId"
+      ],
+      "properties": {
+        "subscriptionId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "resumePayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscriptions"
+      ],
+      "properties": {
+        "subscriptions": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "subscriptionId",
+              "topic",
+              "cursor"
+            ],
+            "properties": {
+              "subscriptionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "topic": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9]*(\\.[a-z0-9-]+)+$",
+                "maxLength": 160
+              },
+              "cursor": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              }
+            }
+          }
+        }
+      }
+    },
+    "heartbeatAckPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nonce"
+      ],
+      "properties": {
+        "nonce": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "welcomePayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selectedVersion",
+        "heartbeatIntervalMs",
+        "heartbeatTimeoutMs",
+        "maxMessageBytes",
+        "outboundQueueCapacity"
+      ],
+      "properties": {
+        "selectedVersion": {
+          "const": "0"
+        },
+        "heartbeatIntervalMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 120000
+        },
+        "heartbeatTimeoutMs": {
+          "type": "integer",
+          "minimum": 2000,
+          "maximum": 300000
+        },
+        "maxMessageBytes": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 1048576
+        },
+        "outboundQueueCapacity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        }
+      }
+    },
+    "authenticatedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authenticated"
+      ],
+      "properties": {
+        "authenticated": {
+          "const": true
+        }
+      }
+    },
+    "subscribedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscriptionId",
+        "topic"
+      ],
+      "properties": {
+        "subscriptionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "topic": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "acceptedCursor": {
+          "type": "string",
+          "maxLength": 512
+        }
+      }
+    },
+    "unsubscribedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscriptionId"
+      ],
+      "properties": {
+        "subscriptionId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "serverEventPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscriptionId",
+        "cursor",
+        "event"
+      ],
+      "properties": {
+        "subscriptionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "cursor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "event": {
+          "$ref": "https://contracts.liqi.app/events/event-envelope-v0.schema.json"
+        }
+      }
+    },
+    "errorPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "error"
+      ],
+      "properties": {
+        "error": {
+          "$ref": "https://contracts.liqi.app/errors/error-model-v0.schema.json"
+        }
+      }
+    },
+    "heartbeatPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nonce"
+      ],
+      "properties": {
+        "nonce": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "slowConsumerPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "queuedMessages",
+        "queueCapacity",
+        "disconnectAfterMs"
+      ],
+      "properties": {
+        "queuedMessages": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "queueCapacity": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "disconnectAfterMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        }
+      }
+    },
+    "accessRevokedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscriptionId",
+        "reasonCode"
+      ],
+      "properties": {
+        "subscriptionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reasonCode": {
+          "const": "PLATFORM_ACCESS_REVOKED"
+        }
+      }
+    }
+  },
+  "x-liqi-behavior": {
+    "authentication": "required-before-subscribe",
+    "publishCondition": "durable-event-committed",
+    "slowConsumer": "bounded-queue-then-disconnect",
+    "heartbeat": "disconnect-on-timeout",
+    "resume": "best-effort-from-durable-cursor; gap-is-explicit",
+    "accessRevocation": "unsubscribe-and-stop-delivery-fail-closed"
+  }
+}
