@@ -1,0 +1,80 @@
+{
+  "schema_version": "recovery-exercise-plan-v0",
+  "exercise_id": "rx-mock-v0001",
+  "mode": "mock",
+  "source_environment": "development",
+  "target": {
+    "environment": "isolated-recovery",
+    "root": "/var/lib/liqi/recovery-exercises/rx-mock-v0001",
+    "database": "liqi_restore_mock_v0001",
+    "production_traffic": false,
+    "isolated": true
+  },
+  "backup_ref": "oci://mock/backup",
+  "required_database_migration": "2",
+  "approval_ref": "approval://test/recovery",
+  "steps": [
+    {
+      "name": "prepare",
+      "owner": "Senior 2",
+      "argv": [
+        "{python}",
+        "tests/contract/fixtures/recovery-exercise/mock_provider.py",
+        "prepare",
+        "{target_root}",
+        "{target_database}"
+      ],
+      "timeout_seconds": 30,
+      "mutation": "isolated-target"
+    },
+    {
+      "name": "restore",
+      "owner": "Senior 2",
+      "argv": [
+        "{python}",
+        "tests/contract/fixtures/recovery-exercise/mock_provider.py",
+        "restore",
+        "{target_root}",
+        "{target_database}",
+        "{backup_ref}"
+      ],
+      "timeout_seconds": 30,
+      "mutation": "isolated-target"
+    },
+    {
+      "name": "verify",
+      "owner": "Senior 2",
+      "argv": [
+        "{python}",
+        "tests/contract/fixtures/recovery-exercise/mock_provider.py",
+        "verify",
+        "{target_root}",
+        "{target_database}",
+        "{required_database_migration}",
+        "{verification_output}"
+      ],
+      "timeout_seconds": 30,
+      "mutation": "none"
+    },
+    {
+      "name": "cleanup",
+      "owner": "Senior 2",
+      "argv": [
+        "{python}",
+        "tests/contract/fixtures/recovery-exercise/mock_provider.py",
+        "cleanup",
+        "{target_root}",
+        "{target_database}"
+      ],
+      "timeout_seconds": 30,
+      "mutation": "isolated-target"
+    }
+  ],
+  "cleanup_policy": "always",
+  "mutation_policy": {
+    "source_database_write": false,
+    "production_traffic": false,
+    "oci_mutation": false,
+    "target_only": true
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": "recovery-exercise-result-v0",
+  "exercise_id": "rx-mock-v0001",
+  "mode": "mock",
+  "source_environment": "development",
+  "target_database": "liqi_restore_mock_v0001",
+  "started_at": "2026-07-17T00:00:00Z",
+  "completed_at": "2026-07-17T00:00:01Z",
+  "status": "planned",
+  "approval_ref": null,
+  "steps": [
+    {"name": "prepare", "owner": "Senior 2", "command": "mock prepare", "status": "planned", "exit_code": null, "duration_ms": 0, "log_ref": null, "error": null},
+    {"name": "restore", "owner": "Senior 2", "command": "mock restore", "status": "planned", "exit_code": null, "duration_ms": 0, "log_ref": null, "error": null},
+    {"name": "verify", "owner": "Senior 2", "command": "mock verify", "status": "planned", "exit_code": null, "duration_ms": 0, "log_ref": null, "error": null},
+    {"name": "cleanup", "owner": "Senior 2", "command": "mock cleanup", "status": "planned", "exit_code": null, "duration_ms": 0, "log_ref": null, "error": null}
+  ],
+  "verification": {"status": "not-run", "provider_result_ref": null, "freshness_result_ref": null},
+  "cleanup": {"required": true, "status": "not-run"},
+  "mutation": {"isolated_target_mutated": false, "source_database_mutated": false, "production_traffic_changed": false, "oci_mutated": false},
+  "failures": []
+}

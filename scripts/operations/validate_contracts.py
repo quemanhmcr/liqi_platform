@@ -32,6 +32,8 @@ PAIRS = (
     ("activation-result-v0.schema.json", "activation-result.valid.json"),
     ("telemetry-runtime-policy-v0.schema.json", "../../../../operations/telemetry/telemetry-runtime-policy-v0.json"),
     ("telemetry-sink-v0.schema.json", "../../../../operations/telemetry/telemetry-sink-v0.example.json"),
+    ("recovery-exercise-plan-v0.schema.json", "../../../../operations/disaster-recovery/recovery-exercise-plan-v0.example.json"),
+    ("recovery-exercise-result-v0.schema.json", "recovery-exercise-result.valid.json"),
 )
 
 
