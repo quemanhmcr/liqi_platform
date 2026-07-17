@@ -1,0 +1,78 @@
+{
+  "schema_version": "integration-result-v0",
+  "integration_id": "int-checkpoint1",
+  "release_id": "liqi-v0.0.0-test",
+  "git_sha": "2d72ce4176993324d36d6f4ea115ff2b43fd5355",
+  "environment": "development",
+  "mode": "mock",
+  "started_at": "2026-07-17T00:00:00Z",
+  "completed_at": "2026-07-17T00:00:01Z",
+  "overall_status": "passed",
+  "provider_results": [
+    {
+      "owner": "Senior 1",
+      "seam": "infrastructure validation",
+      "command": "mock:senior1",
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 1,
+      "output_ref": "fixtures/provider/senior1.json",
+      "failure_class": null
+    },
+    {
+      "owner": "Senior 2",
+      "seam": "database authority validation",
+      "command": "mock:senior2",
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 1,
+      "output_ref": "fixtures/provider/senior2.json",
+      "failure_class": null
+    },
+    {
+      "owner": "Senior 3",
+      "seam": "runtime contract validation",
+      "command": "mock:senior3",
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 1,
+      "output_ref": "fixtures/provider/senior3.json",
+      "failure_class": null
+    }
+  ],
+  "gates": [
+    {
+      "owner": "Senior 4",
+      "seam": "operations contract schemas",
+      "command": "python scripts/operations/validate_contracts.py",
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 1,
+      "output_ref": null,
+      "failure_class": null
+    }
+  ],
+  "capacity": {
+    "status": "passed",
+    "hard_limit_ocpu": 4,
+    "hard_limit_memory_mib": 24576,
+    "reserved_ocpu": 1,
+    "reserved_memory_mib": 4096,
+    "declared_ocpu": 3,
+    "declared_memory_mib": 20480,
+    "disk_budget_gib": 180
+  },
+  "recovery": {
+    "status": "not-applicable",
+    "backup_age_seconds": null,
+    "wal_archive_lag_seconds": null,
+    "restore_verified_at": null,
+    "evidence_ref": null
+  },
+  "platform_probe": {
+    "status": "not-run",
+    "result_ref": null,
+    "release_id_observed": null
+  },
+  "violations": []
+}
