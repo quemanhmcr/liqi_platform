@@ -15,7 +15,7 @@ use serde::Serialize;
 use std::{
     io::{self, Write as _},
     sync::Arc,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tokio::time;
 use tokio_util::sync::CancellationToken;
@@ -63,6 +63,7 @@ pub fn operational_router(state: Arc<OperationalState>) -> Router {
     Router::new()
         .route("/health/live", get(liveness))
         .route("/health/ready", get(readiness))
+        .route("/health/platform", get(platform_health))
         .route("/metrics", get(metrics))
         .route("/platform/v0/metadata", get(metadata))
         .layer(Extension(state))
@@ -80,6 +81,10 @@ async fn readiness(Extension(state): Extension<Arc<OperationalState>>) -> Respon
         StatusCode::SERVICE_UNAVAILABLE
     };
     (status, Json(body)).into_response()
+}
+
+async fn platform_health(Extension(state): Extension<Arc<OperationalState>>) -> Response {
+    readiness(Extension(state)).await
 }
 
 async fn metrics(Extension(state): Extension<Arc<OperationalState>>) -> Response {
@@ -118,31 +123,41 @@ pub async fn platform_request_middleware(
         }
     };
     let cancellation = state.control.request_token();
+    let method = request.method().clone();
+    let route = normalized_route(request.uri().path());
+    let operation = format!("{} {}", method.as_str(), route);
     request.extensions_mut().insert(context.clone());
     request
         .extensions_mut()
         .insert(RequestCancellation(cancellation.clone()));
     let span = info_span!(
         "http.request",
-        http.request.method = %request.method(),
-        http.route = tracing::field::Empty,
-        url.path = %request.uri().path(),
-        liqi.request_id = %context.request_id,
-        trace_id = context.trace_id.as_deref().unwrap_or("")
+        service.name = state.config.service.name.artifact_name(),
+        liqi.release.id = %state.config.service.version,
+        deployment.environment.name = state.config.environment.as_str(),
+        http.request.method = %method,
+        http.route = route,
+        request_id = %context.request_id,
+        trace_id = context.trace_id.as_deref().unwrap_or(""),
+        operation = %operation,
+        result.class = tracing::field::Empty,
+        error.class = tracing::field::Empty
     );
     attach_remote_parent(&span, request.headers());
     state.metrics.request_accepted();
+    let started = Instant::now();
     let _guard = RequestGuard {
         cancellation: cancellation.clone(),
         metrics: Arc::clone(&state.metrics),
         _permit: permit,
     };
     let timeout = Duration::from_millis(state.config.runtime.request_timeout_ms);
+    let instrument_span = span.clone();
     let response = tokio::select! {
         () = cancellation.cancelled() => {
             safe_error_response(ApplicationError::Cancelled, &context)
         }
-        result = time::timeout(timeout, next.run(request).instrument(span)) => {
+        result = time::timeout(timeout, next.run(request).instrument(instrument_span)) => {
             match result {
                 Ok(response) => response,
                 Err(_) => {
@@ -153,6 +168,10 @@ pub async fn platform_request_middleware(
             }
         }
     };
+    state.metrics.record_request_duration(started.elapsed());
+    let (result_class, error_class) = response_classification(response.status());
+    span.record("result.class", result_class);
+    span.record("error.class", error_class);
     with_request_id(response, &context)
 }
 
@@ -177,6 +196,33 @@ fn wire_response(error: ApiError) -> Response {
 fn with_request_id(mut response: Response, context: &RequestContext) -> Response {
     context.apply_response_headers(response.headers_mut());
     response
+}
+
+fn normalized_route(path: &str) -> &'static str {
+    match path {
+        "/health/live" => "/health/live",
+        "/health/ready" => "/health/ready",
+        "/health/platform" => "/health/platform",
+        "/metrics" => "/metrics",
+        "/platform/v0/metadata" => "/platform/v0/metadata",
+        "/platform/v0/probes" => "/platform/v0/probes",
+        "/platform/v0/realtime" => "/platform/v0/realtime",
+        _ => "/unmatched",
+    }
+}
+
+fn response_classification(status: StatusCode) -> (&'static str, &'static str) {
+    if status.is_success() {
+        ("success", "none")
+    } else if status == StatusCode::TOO_MANY_REQUESTS {
+        ("rejected", "PLATFORM_CONCURRENCY_LIMITED")
+    } else if status == StatusCode::GATEWAY_TIMEOUT {
+        ("timeout", "PLATFORM_DEADLINE_EXCEEDED")
+    } else if status.is_client_error() {
+        ("client_error", "http.client_error")
+    } else {
+        ("server_error", "http.server_error")
+    }
 }
 
 struct RequestGuard {

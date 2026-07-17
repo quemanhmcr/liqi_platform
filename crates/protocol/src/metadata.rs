@@ -32,6 +32,8 @@ impl Default for ContractVersions {
 pub struct ArtifactMetadata {
     pub artifact: String,
     pub version: String,
+    pub release_id: String,
+    pub environment: String,
     pub source_revision: Option<String>,
     pub built_at: Option<String>,
     pub rust_toolchain: String,
@@ -40,10 +42,12 @@ pub struct ArtifactMetadata {
 
 impl ArtifactMetadata {
     #[must_use]
-    pub fn current(artifact: &str, version: &str) -> Self {
+    pub fn current(artifact: &str, version: &str, environment: &str) -> Self {
         Self {
             artifact: artifact.to_owned(),
             version: version.to_owned(),
+            release_id: version.to_owned(),
+            environment: environment.to_owned(),
             source_revision: option_env!("LIQI_SOURCE_REVISION").map(str::to_owned),
             built_at: option_env!("LIQI_BUILT_AT").map(str::to_owned),
             rust_toolchain: RUST_TOOLCHAIN_VERSION.to_owned(),

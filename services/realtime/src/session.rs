@@ -285,6 +285,7 @@ pub async fn run_session(
                         let subscription_id = payload.subscription_id;
                         let topic = payload.topic.clone();
                         if let Err(error) = subscriptions.subscribe(payload, state.max_subscriptions) {
+                            state.metrics.realtime_subscription_rejected();
                             break_protocol(&outbound, connection_id, &context, error, state.max_message_bytes);
                             break;
                         }
@@ -356,6 +357,9 @@ pub async fn run_session(
                 }).await {
                     Ok(batch) => {
                         for delivery in batch.deliveries {
+                            state.metrics.record_realtime_delivery_duration(
+                                committed_delivery_age(delivery.event.occurred_at),
+                            );
                             let cursor = delivery.cursor.clone();
                             let frame = server_frame(
                                 connection_id,
@@ -388,6 +392,14 @@ pub async fn run_session(
     )
     .await;
     state.metrics.realtime_disconnected();
+}
+
+fn committed_delivery_age(occurred_at: OffsetDateTime) -> Duration {
+    let elapsed_nanos = OffsetDateTime::now_utc()
+        .unix_timestamp_nanos()
+        .saturating_sub(occurred_at.unix_timestamp_nanos())
+        .max(0);
+    Duration::from_nanos(u64::try_from(elapsed_nanos).unwrap_or(u64::MAX))
 }
 
 fn decode_client_frame(text: &str, maximum_bytes: usize) -> Result<ClientFrame, ApplicationError> {

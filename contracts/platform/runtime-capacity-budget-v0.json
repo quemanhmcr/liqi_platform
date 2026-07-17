@@ -1,0 +1,92 @@
+{
+  "schema_version": "capacity-budget-v0",
+  "provider": "runtime",
+  "owner": "Senior 3",
+  "components": [
+    {
+      "name": "liqi-api",
+      "class": "api",
+      "default_enabled": true,
+      "steady_state": {
+        "ocpu": 0.25,
+        "memory_mib": 512,
+        "disk_gib": 0.5
+      },
+      "hard_limit": {
+        "ocpu": 0.45,
+        "memory_mib": 2048,
+        "disk_gib": 4
+      },
+      "postgres_connections": 20,
+      "queue": {
+        "bounded": true,
+        "capacity": 256,
+        "overflow_behavior": "reject"
+      },
+      "retry": {
+        "maximum_attempts": 0,
+        "maximum_elapsed_seconds": 0,
+        "backoff": "none",
+        "jitter": false
+      },
+      "failure_behavior": "fail-closed"
+    },
+    {
+      "name": "liqi-realtime",
+      "class": "realtime",
+      "default_enabled": true,
+      "steady_state": {
+        "ocpu": 0.35,
+        "memory_mib": 768,
+        "disk_gib": 0.5
+      },
+      "hard_limit": {
+        "ocpu": 0.65,
+        "memory_mib": 3072,
+        "disk_gib": 4
+      },
+      "postgres_connections": 5,
+      "per_connection_memory_kib": 64,
+      "queue": {
+        "bounded": true,
+        "capacity": 128,
+        "overflow_behavior": "reject"
+      },
+      "retry": {
+        "maximum_attempts": 0,
+        "maximum_elapsed_seconds": 0,
+        "backoff": "none",
+        "jitter": false
+      },
+      "failure_behavior": "reject-new-work"
+    },
+    {
+      "name": "liqi-worker",
+      "class": "worker",
+      "default_enabled": true,
+      "steady_state": {
+        "ocpu": 0.2,
+        "memory_mib": 512,
+        "disk_gib": 0.5
+      },
+      "hard_limit": {
+        "ocpu": 0.35,
+        "memory_mib": 2048,
+        "disk_gib": 4
+      },
+      "postgres_connections": 10,
+      "queue": {
+        "bounded": true,
+        "capacity": 32,
+        "overflow_behavior": "persist-authoritatively"
+      },
+      "retry": {
+        "maximum_attempts": 8,
+        "maximum_elapsed_seconds": 180,
+        "backoff": "exponential",
+        "jitter": true
+      },
+      "failure_behavior": "fail-closed"
+    }
+  ]
+}

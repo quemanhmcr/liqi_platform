@@ -13,6 +13,7 @@ use liqi_runtime::{
 };
 use liqi_telemetry::{RuntimeMetrics, initialize};
 use secrecy::SecretString;
+use std::time::Instant;
 use std::{error::Error, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, task::JoinHandle, time};
 use tower_http::catch_panic::CatchPanicLayer;
@@ -31,7 +32,11 @@ async fn main() -> Result<(), MainError> {
         &args.config_path,
         ServiceName::LiqiWorker,
     )?);
-    let metadata = ArtifactMetadata::current(ARTIFACT, &config.service.version);
+    let metadata = ArtifactMetadata::current(
+        ARTIFACT,
+        &config.service.version,
+        config.environment.as_str(),
+    );
     if args.print_artifact_metadata {
         write_json_stdout(&metadata)?;
         return Ok(());
@@ -71,7 +76,16 @@ async fn main() -> Result<(), MainError> {
     let router = operational_router(operational).layer(CatchPanicLayer::new());
     let listen = config.service.listen.socket_addr()?;
     let listener = TcpListener::bind(listen).await?;
-    info!(address = %listen, "LIQI worker administration runtime listening");
+    info!(
+        service.name = ARTIFACT,
+        liqi.release.id = %config.service.version,
+        deployment.environment.name = config.environment.as_str(),
+        operation = "runtime.listen",
+        result.class = "success",
+        error.class = "none",
+        address = %listen,
+        "LIQI worker administration runtime listening"
+    );
     let result = serve_with_shutdown(listener, router, health, control.clone()).await;
     control.begin_shutdown();
     drain_background("readiness", readiness_task, control.shutdown_deadline()).await;
@@ -123,10 +137,13 @@ fn spawn_worker_loop(
             if cancellation.is_cancelled() {
                 break;
             }
+            let started = Instant::now();
             match worker.run_once().await {
                 Ok(outcome) => {
+                    metrics.record_worker_processing_duration(started.elapsed());
                     metrics.worker_claimed(outcome.claimed);
                     metrics.worker_retried(outcome.retried);
+                    metrics.worker_terminal_failed(outcome.terminal_without_effect);
                     if outcome.claimed == 0
                         && sleep_or_cancel(EMPTY_POLL_INTERVAL, &cancellation).await
                     {
@@ -134,7 +151,15 @@ fn spawn_worker_loop(
                     }
                 }
                 Err(error) => {
-                    warn!(error = %error, "platform probe worker iteration failed");
+                    metrics.record_worker_processing_duration(started.elapsed());
+                    metrics.worker_terminal_failed(1);
+                    warn!(
+                        operation = "worker.platform_probe",
+                        result.class = "server_error",
+                        error.class = "worker.iteration_failed",
+                        error = %error,
+                        "platform probe worker iteration failed"
+                    );
                     if sleep_or_cancel(FAILURE_POLL_INTERVAL, &cancellation).await {
                         break;
                     }

@@ -40,7 +40,11 @@ async fn main() -> Result<(), MainError> {
         &args.config_path,
         ServiceName::LiqiRealtime,
     )?);
-    let metadata = ArtifactMetadata::current(ARTIFACT, &config.service.version);
+    let metadata = ArtifactMetadata::current(
+        ARTIFACT,
+        &config.service.version,
+        config.environment.as_str(),
+    );
     if args.print_artifact_metadata {
         write_json_stdout(&metadata)?;
         return Ok(());
@@ -127,7 +131,16 @@ async fn main() -> Result<(), MainError> {
         .layer(CatchPanicLayer::new());
     let listen = config.service.listen.socket_addr()?;
     let listener = TcpListener::bind(listen).await?;
-    info!(address = %listen, "LIQI realtime runtime listening");
+    info!(
+        service.name = ARTIFACT,
+        liqi.release.id = %config.service.version,
+        deployment.environment.name = config.environment.as_str(),
+        operation = "runtime.listen",
+        result.class = "success",
+        error.class = "none",
+        address = %listen,
+        "LIQI realtime runtime listening"
+    );
     let result = serve_with_shutdown(listener, router, health, control.clone()).await;
     control.begin_shutdown();
     drain_background(readiness_task, control.shutdown_deadline()).await;
