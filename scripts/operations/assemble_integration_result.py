@@ -94,7 +94,8 @@ def main() -> int:
         })
 
     envelope = capacity.get("envelope", {})
-    totals = capacity.get("totals", {})
+    hard_totals = capacity.get("hard_limit_totals", capacity.get("totals", {}))
+    steady_totals = capacity.get("steady_state_totals", {})
     result = {
         **provider,
         "overall_status": status,
@@ -110,9 +111,11 @@ def main() -> int:
             "hard_limit_memory_mib": envelope.get("host", {}).get("memory_mib", 24576),
             "reserved_ocpu": envelope.get("reserved", {}).get("ocpu", 1),
             "reserved_memory_mib": envelope.get("reserved", {}).get("memory_mib", 4096),
-            "declared_ocpu": totals.get("ocpu", 0),
-            "declared_memory_mib": totals.get("memory_mib", 0),
-            "disk_budget_gib": totals.get("disk_gib", 0),
+            "declared_ocpu": hard_totals.get("ocpu", 0),
+            "declared_memory_mib": hard_totals.get("memory_mib", 0),
+            "steady_state_ocpu": steady_totals.get("ocpu", 0),
+            "steady_state_memory_mib": steady_totals.get("memory_mib", 0),
+            "disk_budget_gib": hard_totals.get("disk_gib", 0),
         },
         "recovery": {
             "status": "passed" if recovery.get("status") == "passed" else "failed",

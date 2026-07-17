@@ -39,17 +39,17 @@ Do not add a Senior 4 wrapper around the old `operations/**` paths.
 
 ## 4. Rebase and merge Senior 3
 
-Senior 3 commit `7ed9cc9` already publishes the root Cargo workspace, locked toolchain, runtime config/OpenAPI/realtime/error/event contracts, API/realtime/worker skeletons, health endpoints, artifact metadata and PostgreSQL probe adapters. Senior 2's wire-mapping validator accepts the published event example without semantic loss.
+Senior 3 commits `7ed9cc9`, `dd8d643` and `c8d9b96` publish the root Cargo workspace, locked toolchain, runtime contracts, capacity budget, three telemetry declarations, health/metadata endpoints and provider-owned `platform-probe-result-v0` runner. Senior 2's wire-mapping validator accepts the event example without semantic loss, and Senior 4's runtime compatibility check reports `RUNTIME_OPERABILITY_COMPATIBLE`.
 
-Before merge, Senior 3 must still:
+Before final promotion, Senior 3 must still:
 
-- publish `contracts/platform/runtime-capacity-budget-v0.json` covering API, realtime and worker hard limits, disk, connections, queues, retries and failure behavior;
-- publish API/realtime/worker telemetry capability declarations satisfying `telemetry-v0`;
-- publish a provider-owned runner emitting `platform-probe-result-v0`; the existing POST probe only proves durable acceptance;
-- integrate the Senior 2 committed realtime handoff when that provider seam exists, keeping production realtime fail-closed until then;
-- preserve `service.version` as the release identity consumed by live/ready health checks and artifact metadata.
+- integrate the Senior 2 committed realtime handoff and provider-owned probe observation seam when published;
+- remove the temporary disposable-test direct query described in ADR 0305;
+- keep realtime readiness and delivery failed until that handoff is real;
+- preserve `service.version`/`releaseId` as deployment identity;
+- obtain project-owner evidence for validation manifest, contract validation, clippy and workspace tests.
 
-Source CI may run rustfmt and locked Cargo metadata only. The project owner runs `cargo run`, clippy and tests using the commands in `operations/integration/provider-integration-v0.md`; Senior 4 does not infer or execute build-dependent validation.
+Source CI may run rustfmt, locked Cargo metadata and source-only capacity/telemetry schema validation. It does not compile. The owner-run commands remain versioned in `operations/integration/provider-integration-v0.md`.
 
 ## 5. Run strict integration and promotion evidence
 

@@ -35,7 +35,7 @@ def main()->int:
   if completed.stdout:print(completed.stdout,end='')
   if completed.stderr:print(completed.stderr,end='',file=sys.stderr)
   return completed.returncode
- result={'schema_version':'capacity-result-v0','status':status,'envelope':load(ENVELOPE),'totals':{'ocpu':0.0,'memory_mib':0,'disk_gib':0.0,'postgres_connections':0},'components':[],'failures':messages}
+ result={'schema_version':'capacity-result-v0','status':status,'envelope':load(ENVELOPE),'totals':{'ocpu':0.0,'memory_mib':0,'disk_gib':0.0,'postgres_connections':0},'steady_state_totals':{'ocpu':0.0,'memory_mib':0,'disk_gib':0.0,'postgres_connections':0},'hard_limit_totals':{'ocpu':0.0,'memory_mib':0,'disk_gib':0.0,'postgres_connections':0},'postgres_connection_accounting':{'server_reservation':0,'pooled_server_capacity':0,'pooled_runtime_demand':0,'direct_reserved_capacity':0},'components':[],'failures':messages}
  schema_errors=validate(RESULT_SCHEMA,result)
  if schema_errors:
   for message in schema_errors:print(f'ERROR capacity-result: {message}',file=sys.stderr)

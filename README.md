@@ -22,7 +22,7 @@ OCI VM.Standard.A1.Flex â€” 4 OCPU / 24 GiB RAM
 â””â”€â”€ host observability
 ```
 
-PostgreSQL is the only durable authority. V0 is a health-gated single-node replacement/restart design, not HA or zero-downtime canary. At least 1 OCPU and 4 GiB remain reserved; declared hard limits cannot exceed 3 OCPU, 20 GiB RAM or the 200 GiB combined disk envelope.
+PostgreSQL is the only durable authority. V0 is a health-gated single-node replacement/restart design, not HA or zero-downtime canary. Default-enabled steady-state CPU admission cannot exceed 3 OCPU, preserving 1 OCPU for the host/recovery path. Process hard CPU ceilings may total at most the physical 4 OCPU for bounded bursts; hard memory remains capped at 20 GiB and hard local disk at 180 GiB, preserving 4 GiB RAM and 20 GiB disk.
 
 ## Operational golden path
 
@@ -79,7 +79,7 @@ The promotion form requires both `oci_plan_run_id` and `database_recovery_run_id
 
 Host activation remains an owner-run command. First run `scripts/release/activate_release.py` without `--execute`; execution requires the reviewed deployment-spec SHA-256 and approval reference. Recovery exercises follow the same dry-run-first rule through `scripts/operations/run_recovery_exercise.py`.
 
-Current integration blockers are machine-readable: Senior 1 and Senior 3 have not published provider capacity budgets; Senior 3 has published the Rust foundation but still lacks telemetry capability declarations and a provider-owned `platform-probe-result-v0` runner; Senior 1 journald policy differs from the operations contract; and Senior 2 restore command ownership conflicts with `operations/**`. Senior 2 recovery status and the Senior 3 wire envelope are directly consumable. No Senior 4 fallback is provided.
+Current integration blockers are machine-readable: Senior 1 still needs a provider capacity contract and journald alignment; Senior 2 still needs committed realtime handoff/probe observation plus recovery ownership alignment; and project-owner build evidence remains required for the Rust build-dependent gates. Senior 3 capacity, telemetry declarations and provider-owned platform probe are now published and directly consumable, but realtime readiness/delivery intentionally remain failed until the Senior 2 handoff is integrated. No Senior 4 fallback is provided.
 
 ## Build boundary
 

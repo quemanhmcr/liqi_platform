@@ -1,6 +1,6 @@
 {
   "schema_version": "provider-gates-v0",
-  "registry_version": "0.4.0",
+  "registry_version": "0.5.0",
   "gates": [
     {
       "id": "oci-infrastructure-source",
@@ -204,6 +204,35 @@
       "action_required": "Senior 3 owns workspace metadata, lockfile and pinned toolchain failures. This command does not compile artifacts."
     },
     {
+      "id": "runtime-operability-contracts-source",
+      "owner": "Senior 3",
+      "seam": "runtime capacity and API/realtime/worker telemetry capability declarations",
+      "stages": [
+        "source",
+        "integration",
+        "promotion"
+      ],
+      "provider_state": "available",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "contracts/platform/runtime-capacity-budget-v0.json",
+        "contracts/platform/runtime-telemetry-api-v0.json",
+        "contracts/platform/runtime-telemetry-realtime-v0.json",
+        "contracts/platform/runtime-telemetry-worker-v0.json",
+        "scripts/operations/validate_runtime_operability_contracts.py"
+      ],
+      "argv": [
+        "python",
+        "scripts/operations/validate_runtime_operability_contracts.py",
+        "--provider-root",
+        "."
+      ],
+      "timeout_seconds": 60,
+      "result_mode": "exit-code",
+      "failure_class": "capacity",
+      "action_required": "Senior 3 owns runtime capacity/telemetry declaration failures. Senior 4 validates only the shared operations schemas and does not reproduce runtime implementation logic."
+    },
+    {
       "id": "runtime-validation-manifest",
       "owner": "Senior 3",
       "seam": "liqi-platform-tool print-validation-manifest",
@@ -339,11 +368,13 @@
         "integration",
         "promotion"
       ],
-      "provider_state": "pending-provider",
+      "provider_state": "available",
       "mutation_class": "disposable-database",
       "required_paths": [
         "Cargo.toml",
         "services/admin-cli/Cargo.toml",
+        "services/admin-cli/src/main.rs",
+        "services/admin-cli/src/platform_probe.rs",
         "contracts/operations/platform-probe-result-v0.schema.json"
       ],
       "argv": [
@@ -360,7 +391,7 @@
       "timeout_seconds": 300,
       "result_mode": "json-file",
       "failure_class": "runtime",
-      "action_required": "Senior 3 must publish a provider-owned runner that emits platform-probe-result-v0 and proves API/worker/outbox/realtime checks. POST /platform/v0/probes alone is insufficient."
+      "action_required": "Senior 3 owns platform-probe-result-v0 generation. The owner-built liqi-platform-tool must be available on PATH; failed realtime readiness/delivery remains required until Senior 2 committed handoff is integrated."
     }
   ]
 }

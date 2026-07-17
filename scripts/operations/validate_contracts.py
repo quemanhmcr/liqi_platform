@@ -76,6 +76,13 @@ def validate_semantics(fixture_name: str, fixture: Any) -> list[str]:
         providers = {item.get("provider") for item in fixture.get("components", [])}
         if providers != {"infrastructure", "database", "runtime", "operations"}:
             errors.append("capacity result must aggregate all four provider budgets")
+        if fixture.get("totals") != fixture.get("hard_limit_totals"):
+            errors.append("capacity totals must remain the backward-compatible hard_limit_totals alias")
+        connections = fixture.get("postgres_connection_accounting", {})
+        if connections.get("pooled_runtime_demand", 0) > connections.get("pooled_server_capacity", 0):
+            errors.append("pooled runtime demand cannot exceed PgBouncer server capacity")
+        if connections.get("server_reservation", 0) > fixture.get("envelope", {}).get("provider_hard_limit", {}).get("postgres_connections", 0):
+            errors.append("PostgreSQL server reservation exceeds the host connection envelope")
     elif fixture_name == "recovery-freshness-result.valid.json":
         if fixture.get("status") == "passed" and fixture.get("failures"):
             errors.append("passed recovery freshness result cannot contain failures")

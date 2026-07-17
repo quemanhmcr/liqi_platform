@@ -53,6 +53,8 @@
         "reserved_memory_mib",
         "declared_ocpu",
         "declared_memory_mib",
+        "steady_state_ocpu",
+        "steady_state_memory_mib",
         "disk_budget_gib"
       ],
       "properties": {
@@ -61,8 +63,10 @@
         "hard_limit_memory_mib": { "const": 24576 },
         "reserved_ocpu": { "type": "number", "minimum": 1 },
         "reserved_memory_mib": { "type": "integer", "minimum": 4096 },
-        "declared_ocpu": { "type": "number", "minimum": 0, "maximum": 3 },
+        "declared_ocpu": { "type": "number", "minimum": 0, "maximum": 4 },
         "declared_memory_mib": { "type": "integer", "minimum": 0, "maximum": 20480 },
+        "steady_state_ocpu": { "type": "number", "minimum": 0, "maximum": 3 },
+        "steady_state_memory_mib": { "type": "integer", "minimum": 0, "maximum": 20480 },
         "disk_budget_gib": { "type": "number", "minimum": 0, "maximum": 200 }
       }
     },

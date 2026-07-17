@@ -7,7 +7,7 @@ class ProviderCapacityTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as tmp:
    out=Path(tmp)/'capacity.json';cmd=[sys.executable,str(SCRIPT),'--registry',str(registry),'--output',str(out)]+(['--allow-blocked'] if allow else []);r=subprocess.run(cmd,cwd=ROOT,text=True,capture_output=True,check=False);return r,json.loads(out.read_text())
  def test_all_provider_budgets_aggregate(self):
-  r,p=self.invoke(FIX/'available.json');self.assertEqual(r.returncode,0,r.stderr);self.assertEqual(p['status'],'passed');self.assertLessEqual(p['totals']['ocpu'],3);self.assertLessEqual(p['totals']['memory_mib'],20480)
+  r,p=self.invoke(FIX/'available.json');self.assertEqual(r.returncode,0,r.stderr);self.assertEqual(p['status'],'passed');self.assertLessEqual(p['steady_state_totals']['ocpu'],3);self.assertLessEqual(p['hard_limit_totals']['ocpu'],4);self.assertLessEqual(p['hard_limit_totals']['memory_mib'],20480);self.assertLessEqual(p['postgres_connection_accounting']['pooled_runtime_demand'],p['postgres_connection_accounting']['pooled_server_capacity'])
  def test_pending_provider_is_blocked(self):
   r,p=self.invoke(FIX/'blocked.json',True);self.assertEqual(r.returncode,0);self.assertEqual(p['status'],'blocked');self.assertTrue(any('Senior 1' in f for f in p['failures']))
  def test_strict_pending_provider_fails(self):

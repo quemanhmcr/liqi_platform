@@ -1,68 +1,166 @@
 {
   "components": [
     {
-      "disk_gib": 0.2,
-      "memory_mib": 256,
-      "name": "pgbouncer",
-      "ocpu": 0.1,
-      "postgres_connections": 8,
-      "provider": "database"
+      "disk_gib": 12,
+      "hard_limit": {
+        "disk_gib": 12,
+        "memory_mib": 1536,
+        "ocpu": 0.4
+      },
+      "memory_mib": 1536,
+      "name": "database-recovery",
+      "ocpu": 0.4,
+      "postgres_connections": 2,
+      "provider": "database",
+      "steady_state": {
+        "disk_gib": 2,
+        "memory_mib": 256,
+        "ocpu": 0.05
+      }
     },
     {
-      "disk_gib": 120,
-      "memory_mib": 8192,
-      "name": "postgresql",
-      "ocpu": 1.3,
-      "postgres_connections": 70,
-      "provider": "database"
+      "disk_gib": 0.2,
+      "hard_limit": {
+        "disk_gib": 0.2,
+        "memory_mib": 256,
+        "ocpu": 0.1
+      },
+      "memory_mib": 256,
+      "name": "pgbouncer-boundary",
+      "ocpu": 0.1,
+      "postgres_connections": 40,
+      "provider": "database",
+      "steady_state": {
+        "disk_gib": 0.1,
+        "memory_mib": 64,
+        "ocpu": 0.03
+      }
+    },
+    {
+      "disk_gib": 118,
+      "hard_limit": {
+        "disk_gib": 118,
+        "memory_mib": 6144,
+        "ocpu": 1.0
+      },
+      "memory_mib": 6144,
+      "name": "postgresql-authority",
+      "ocpu": 1.0,
+      "postgres_connections": 40,
+      "provider": "database",
+      "steady_state": {
+        "disk_gib": 60,
+        "memory_mib": 4096,
+        "ocpu": 0.65
+      }
     },
     {
       "disk_gib": 2,
+      "hard_limit": {
+        "disk_gib": 2,
+        "memory_mib": 256,
+        "ocpu": 0.1
+      },
       "memory_mib": 256,
       "name": "reverse-proxy",
       "ocpu": 0.1,
       "postgres_connections": 0,
-      "provider": "infrastructure"
+      "provider": "infrastructure",
+      "steady_state": {
+        "disk_gib": 1,
+        "memory_mib": 96,
+        "ocpu": 0.05
+      }
     },
     {
       "disk_gib": 8,
+      "hard_limit": {
+        "disk_gib": 8,
+        "memory_mib": 512,
+        "ocpu": 0.1
+      },
       "memory_mib": 512,
       "name": "host-observability",
       "ocpu": 0.1,
       "postgres_connections": 0,
-      "provider": "operations"
+      "provider": "operations",
+      "steady_state": {
+        "disk_gib": 1,
+        "memory_mib": 96,
+        "ocpu": 0.03
+      }
     },
     {
       "disk_gib": 8,
+      "hard_limit": {
+        "disk_gib": 8,
+        "memory_mib": 512,
+        "ocpu": 0.15
+      },
       "memory_mib": 512,
       "name": "otel-collector",
       "ocpu": 0.15,
       "postgres_connections": 0,
-      "provider": "operations"
+      "provider": "operations",
+      "steady_state": {
+        "disk_gib": 2,
+        "memory_mib": 128,
+        "ocpu": 0.05
+      }
     },
     {
-      "disk_gib": 1,
-      "memory_mib": 1536,
-      "name": "liqi-api",
-      "ocpu": 0.4,
-      "postgres_connections": 6,
-      "provider": "runtime"
-    },
-    {
-      "disk_gib": 1,
+      "disk_gib": 4,
+      "hard_limit": {
+        "disk_gib": 4,
+        "memory_mib": 2048,
+        "ocpu": 0.45
+      },
       "memory_mib": 2048,
-      "name": "liqi-realtime",
+      "name": "liqi-api",
       "ocpu": 0.45,
-      "postgres_connections": 2,
-      "provider": "runtime"
+      "postgres_connections": 20,
+      "provider": "runtime",
+      "steady_state": {
+        "disk_gib": 0.5,
+        "memory_mib": 512,
+        "ocpu": 0.25
+      }
     },
     {
-      "disk_gib": 1,
-      "memory_mib": 1024,
+      "disk_gib": 4,
+      "hard_limit": {
+        "disk_gib": 4,
+        "memory_mib": 3072,
+        "ocpu": 0.65
+      },
+      "memory_mib": 3072,
+      "name": "liqi-realtime",
+      "ocpu": 0.65,
+      "postgres_connections": 5,
+      "provider": "runtime",
+      "steady_state": {
+        "disk_gib": 0.5,
+        "memory_mib": 768,
+        "ocpu": 0.35
+      }
+    },
+    {
+      "disk_gib": 4,
+      "hard_limit": {
+        "disk_gib": 4,
+        "memory_mib": 2048,
+        "ocpu": 0.35
+      },
+      "memory_mib": 2048,
       "name": "liqi-worker",
-      "ocpu": 0.3,
-      "postgres_connections": 6,
-      "provider": "runtime"
+      "ocpu": 0.35,
+      "postgres_connections": 10,
+      "provider": "runtime",
+      "steady_state": {
+        "disk_gib": 0.5,
+        "memory_mib": 512,
+        "ocpu": 0.2
+      }
     }
   ],
   "envelope": {
@@ -72,16 +170,18 @@
       "ocpu": 4
     },
     "policy": {
+      "cpu_accounting": "steady-state-admission-and-host-capped-hard-ceilings",
       "missing_budget": "fail",
       "over_budget": "fail",
       "paid_or_unknown_default_enabled": false,
+      "postgres_connection_accounting": "database-server-reservation-with-pooled-runtime-demand-check",
       "same_volume_backup_is_backup": false,
       "swap_is_capacity": false
     },
     "provider_hard_limit": {
       "disk_gib": 180,
       "memory_mib": 20480,
-      "ocpu": 3,
+      "ocpu": 4,
       "postgres_connections": 100
     },
     "reserved": {
@@ -90,15 +190,39 @@
       "ocpu": 1,
       "purpose": "OS, recovery, incident spikes and emergency disk operations"
     },
-    "schema_version": "capacity-envelope-v0"
+    "schema_version": "capacity-envelope-v0",
+    "steady_state_limit": {
+      "disk_gib": 180,
+      "memory_mib": 20480,
+      "ocpu": 3,
+      "purpose": "Default-enabled steady-state admission while preserving host and recovery reserve"
+    }
   },
   "failures": [],
+  "hard_limit_totals": {
+    "disk_gib": 160.2,
+    "memory_mib": 16384,
+    "ocpu": 3.3,
+    "postgres_connections": 82
+  },
+  "postgres_connection_accounting": {
+    "direct_reserved_capacity": 42,
+    "pooled_runtime_demand": 35,
+    "pooled_server_capacity": 40,
+    "server_reservation": 82
+  },
   "schema_version": "capacity-result-v0",
   "status": "passed",
+  "steady_state_totals": {
+    "disk_gib": 67.6,
+    "memory_mib": 6528,
+    "ocpu": 1.66,
+    "postgres_connections": 35
+  },
   "totals": {
-    "disk_gib": 141.2,
-    "memory_mib": 14336,
-    "ocpu": 2.9,
-    "postgres_connections": 92
+    "disk_gib": 160.2,
+    "memory_mib": 16384,
+    "ocpu": 3.3,
+    "postgres_connections": 82
   }
 }
