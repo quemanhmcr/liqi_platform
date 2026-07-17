@@ -47,7 +47,7 @@ class ProviderGateTests(unittest.TestCase):
         _, result, _ = self.invoke(True)
         logs = [ROOT / item["output_ref"] if item["output_ref"] and not Path(item["output_ref"]).is_absolute() else Path(item["output_ref"] or "") for item in result["provider_results"] if item["output_ref"]]
         contents = "\n".join(path.read_text(encoding="utf-8") for path in logs)
-        self.assertNotIn("fixture-secret", contents)
+        self.assertNotIn("TEST_ONLY_REDACTION_VALUE", contents)
         self.assertIn("password=[REDACTED]", contents)
 
 
