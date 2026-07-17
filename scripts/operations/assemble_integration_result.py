@@ -99,7 +99,7 @@ def main() -> int:
         **provider,
         "overall_status": status,
         "gates": list(provider.get("gates", [])) + [
-            gate("capacity aggregation", "scripts/operations/check_capacity.py", "passed" if capacity.get("status") == "passed" else "failed", args.capacity_result.as_posix(), None if capacity.get("status") == "passed" else "capacity"),
+            gate("capacity aggregation", "scripts/operations/collect_provider_capacity.py", "passed" if capacity.get("status") == "passed" else "failed", args.capacity_result.as_posix(), None if capacity.get("status") == "passed" else "capacity"),
             gate("recovery freshness", "scripts/operations/check_recovery_freshness.py", "passed" if recovery.get("status") == "passed" else "failed", args.recovery_result.as_posix(), None if recovery.get("status") == "passed" else "recovery"),
             gate("platform probe evaluation", "provider-owned platform probe", "passed" if probe.get("status") == "passed" else "failed", args.platform_probe.as_posix(), None if probe.get("status") == "passed" else "runtime"),
             gate("promotion evidence compatibility", "scripts/operations/assemble_integration_result.py", "failed" if failures else "passed", args.output.as_posix(), "contract" if failures else None),

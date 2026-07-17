@@ -68,6 +68,12 @@ jobs:
           --output .artifacts/provider-compatibility-result.json
           --allow-missing
 
+      - name: Collect provider capacity budgets
+        run: >-
+          python scripts/operations/collect_provider_capacity.py
+          --output .artifacts/provider-capacity-result.json
+          --allow-blocked
+
       - name: Validate workflow safety
         run: python scripts/operations/validate_ci_workflows.py
 
@@ -90,6 +96,7 @@ jobs:
           path: |
             .artifacts/provider-source-result.json
             .artifacts/provider-compatibility-result.json
+            .artifacts/provider-capacity-result.json
           if-no-files-found: error
           retention-days: 14
 

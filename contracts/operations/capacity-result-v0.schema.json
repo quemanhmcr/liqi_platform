@@ -7,7 +7,7 @@
   "required": ["schema_version", "status", "envelope", "totals", "components", "failures"],
   "properties": {
     "schema_version": {"const": "capacity-result-v0"},
-    "status": {"enum": ["passed", "failed"]},
+    "status": {"enum": ["passed", "failed", "blocked"]},
     "envelope": {
       "type": "object",
       "required": ["schema_version", "host", "reserved", "provider_hard_limit", "policy"]

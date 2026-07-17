@@ -109,6 +109,11 @@ jobs:
           python scripts/operations/validate_provider_compatibility.py
           --output .artifacts/provider-compatibility-result.json
 
+      - name: Aggregate provider capacity strictly
+        run: >-
+          python scripts/operations/collect_provider_capacity.py
+          --output .artifacts/provider-capacity-result.json
+
       - name: Run strict provider gates without mock fallback
         env:
           LIQI_TEST_DATABASE: liqi_v0_ci
@@ -132,5 +137,6 @@ jobs:
           path: |
             .artifacts/provider-integration-result.json
             .artifacts/provider-compatibility-result.json
+            .artifacts/provider-capacity-result.json
           if-no-files-found: error
           retention-days: 30
