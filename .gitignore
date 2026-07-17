@@ -1,0 +1,32 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.oci/
+
+# Infrastructure state and generated plans
+**/.terraform/
+**/.tofu/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
+# Editors / OS
+.vscode/settings.local.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs and local runtime data
+*.log
+/tmp/
+/data/
