@@ -1,0 +1,553 @@
+#cloud-config
+# LIQI host bootstrap V0. Rendered by OpenTofu; no secret material is permitted.
+disable_root: true
+ssh_pwauth: false
+package_update: true
+package_upgrade: false
+packages:
+  - firewalld
+  - policycoreutils-python-utils
+  - podman
+  - xfsprogs
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/60-liqi-hardening.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitEmptyPasswords no
+      X11Forwarding no
+      AllowAgentForwarding no
+      AllowTcpForwarding no
+      MaxAuthTries 3
+      LoginGraceTime 30
+
+  - path: /etc/sysctl.d/60-liqi-hardening.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      fs.suid_dumpable = 0
+      kernel.dmesg_restrict = 1
+      kernel.kptr_restrict = 2
+      kernel.randomize_va_space = 2
+      net.ipv4.conf.all.accept_redirects = 0
+      net.ipv4.conf.default.accept_redirects = 0
+      net.ipv4.conf.all.send_redirects = 0
+      net.ipv4.conf.default.send_redirects = 0
+      net.ipv4.conf.all.rp_filter = 1
+      net.ipv4.conf.default.rp_filter = 1
+      net.ipv4.tcp_syncookies = 1
+      net.ipv6.conf.all.accept_redirects = 0
+      net.ipv6.conf.default.accept_redirects = 0
+      vm.swappiness = 1
+
+  - path: /etc/systemd/journald.conf.d/60-liqi-limits.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Journal]
+      Compress=yes
+      Seal=yes
+      SystemMaxUse=2G
+      SystemKeepFree=7G
+      RuntimeMaxUse=512M
+      MaxRetentionSec=7day
+
+  - path: /etc/tmpfiles.d/liqi.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      d /run/liqi 0750 root liqi -
+      d /run/liqi/secrets 0710 root liqi -
+      d /run/liqi/secrets/liqi-api 0700 liqi-api liqi -
+      d /run/liqi/secrets/liqi-realtime 0700 liqi-realtime liqi -
+      d /run/liqi/secrets/liqi-worker 0700 liqi-worker liqi -
+      d /opt/liqi 0750 root liqi -
+      d /opt/liqi/releases 0750 root liqi -
+      d /etc/liqi 0750 root liqi -
+      d /var/log/liqi 0750 root liqi -
+      d /var/tmp/liqi 0750 root liqi -
+      d /var/tmp/liqi/releases 0750 opc liqi -
+
+  - path: /usr/local/sbin/liqi-create-runtime-identities
+    owner: root:root
+    permissions: "0750"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      umask 027
+
+      ensure_group() {
+        local name="$1"
+        local gid="$2"
+        if getent group "$name" >/dev/null; then
+          [[ "$(getent group "$name" | cut -d: -f3)" == "$gid" ]] || {
+            echo "group $name exists with unexpected gid" >&2
+            exit 1
+          }
+          return
+        fi
+        getent group "$gid" >/dev/null && {
+          echo "gid $gid already belongs to another group" >&2
+          exit 1
+        }
+        groupadd --system --gid "$gid" "$name"
+      }
+
+      ensure_service_user() {
+        local name="$1"
+        local uid="$2"
+        if getent passwd "$name" >/dev/null; then
+          [[ "$(getent passwd "$name" | cut -d: -f3)" == "$uid" ]] || {
+            echo "user $name exists with unexpected uid" >&2
+            exit 1
+          }
+          [[ "$(id -gn "$name")" == "liqi" ]] || {
+            echo "user $name is not in primary group liqi" >&2
+            exit 1
+          }
+          return
+        fi
+        getent passwd "$uid" >/dev/null && {
+          echo "uid $uid already belongs to another user" >&2
+          exit 1
+        }
+        useradd \
+          --system \
+          --uid "$uid" \
+          --gid liqi \
+          --home-dir /nonexistent \
+          --no-create-home \
+          --shell /sbin/nologin \
+          "$name"
+        passwd --lock "$name" >/dev/null 2>&1 || true
+      }
+
+      ensure_group liqi 2200
+      usermod -a -G liqi opc
+      ensure_service_user liqi-api 2210
+      ensure_service_user liqi-realtime 2211
+      ensure_service_user liqi-worker 2212
+
+      if ! getent group postgres >/dev/null; then
+        groupadd --system postgres
+      fi
+      if ! getent passwd postgres >/dev/null; then
+        useradd \
+          --system \
+          --gid postgres \
+          --home-dir /var/lib/pgsql \
+          --create-home \
+          --shell /sbin/nologin \
+          postgres
+      fi
+      passwd --lock postgres >/dev/null 2>&1 || true
+
+  - path: /usr/local/sbin/liqi-prepare-data-volume
+    owner: root:root
+    permissions: "0750"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      umask 027
+
+      readonly device_path="${data_device_path}"
+      readonly mount_path="${data_mount_path}"
+      readonly max_attempts=180
+      readonly sleep_seconds=5
+
+      for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+        [[ -b "$device_path" ]] && break
+        sleep "$sleep_seconds"
+      done
+
+      [[ -b "$device_path" ]] || {
+        echo "data volume did not appear at $device_path" >&2
+        exit 1
+      }
+
+      readonly resolved_device="$(readlink -f "$device_path")"
+      readonly root_source="$(findmnt -n -o SOURCE / | xargs readlink -f)"
+      [[ "$resolved_device" != "$root_source" ]] || {
+        echo "refusing to treat root filesystem as LIQI data volume" >&2
+        exit 1
+      }
+
+      filesystem_type="$(blkid -o value -s TYPE "$resolved_device" 2>/dev/null || true)"
+      if [[ -z "$filesystem_type" ]]; then
+        wipefs --no-act "$resolved_device" | grep -q . && {
+          echo "unrecognized signatures found on unformatted data volume" >&2
+          exit 1
+        }
+        mkfs.xfs -f -L LIQI_DATA "$resolved_device"
+        filesystem_type="xfs"
+      fi
+
+      [[ "$filesystem_type" == "xfs" ]] || {
+        echo "expected xfs data volume, found $filesystem_type" >&2
+        exit 1
+      }
+
+      volume_uuid="$(blkid -o value -s UUID "$resolved_device")"
+      [[ -n "$volume_uuid" ]] || {
+        echo "unable to resolve data volume UUID" >&2
+        exit 1
+      }
+
+      install -d -o root -g liqi -m 0750 "$mount_path"
+      fstab_entry="UUID=$volume_uuid $mount_path xfs defaults,noatime,nofail,x-systemd.device-timeout=10min 0 2"
+      if ! grep -Fq "UUID=$volume_uuid $mount_path " /etc/fstab; then
+        printf '%s\n' "$fstab_entry" >> /etc/fstab
+      fi
+
+      mountpoint -q "$mount_path" || mount "$mount_path"
+      [[ "$(findmnt -n -o UUID "$mount_path")" == "$volume_uuid" ]] || {
+        echo "mounted data volume UUID does not match expected volume" >&2
+        exit 1
+      }
+
+      install -d -o root -g liqi -m 0750 "$mount_path/postgresql"
+      install -d -o postgres -g postgres -m 0700 "$mount_path/postgresql/data"
+      install -d -o postgres -g postgres -m 0700 "$mount_path/postgresql/backup-staging"
+
+  - path: /usr/local/sbin/liqi-write-host-readiness
+    owner: root:root
+    permissions: "0750"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      umask 027
+
+      check_control_line() {
+        local path="$1"
+        local expected="$2"
+        [[ -f "$path" ]] && grep -Fqx "$expected" "$path"
+      }
+
+      check_identity() {
+        local name="$1"
+        local uid="$2"
+        [[ "$(id -u "$name")" == "$uid" ]] && [[ "$(id -gn "$name")" == "liqi" ]]
+      }
+
+      check_directory() {
+        local path="$1"
+        local owner="$2"
+        local group="$3"
+        local mode="$4"
+        [[ -d "$path" ]] &&
+          [[ "$(stat -c '%U' "$path")" == "$owner" ]] &&
+          [[ "$(stat -c '%G' "$path")" == "$group" ]] &&
+          [[ "$(stat -c '%a' "$path")" == "$mode" ]]
+      }
+
+      check_identity liqi-api 2210
+      check_identity liqi-realtime 2211
+      check_identity liqi-worker 2212
+      check_directory /opt/liqi/releases root liqi 750
+      check_directory /etc/liqi root liqi 750
+      check_directory /run/liqi/secrets root liqi 710
+      check_directory /run/liqi/secrets/liqi-api liqi-api liqi 700
+      check_directory /run/liqi/secrets/liqi-realtime liqi-realtime liqi 700
+      check_directory /run/liqi/secrets/liqi-worker liqi-worker liqi 700
+      check_directory /var/tmp/liqi/releases opc liqi 750
+      check_directory /var/lib/liqi/postgresql/data postgres postgres 700
+      check_directory /var/lib/liqi/postgresql/backup-staging postgres postgres 700
+      check_directory /var/log/liqi root liqi 750
+      check_directory /var/tmp/liqi root liqi 750
+
+      check_control_line /etc/systemd/system/liqi-platform.slice 'CPUQuota=300%'
+      check_control_line /etc/systemd/system/liqi-platform.slice 'MemoryMax=20G'
+      check_control_line /etc/systemd/system/liqi-platform.slice 'MemorySwapMax=0'
+      check_control_line /etc/systemd/system/liqi-platform-runtime.slice 'CPUQuota=145%'
+      check_control_line /etc/systemd/system/liqi-platform-runtime.slice 'MemoryMax=7G'
+      check_control_line /etc/systemd/system/liqi-platform-database.slice 'CPUQuota=120%'
+      check_control_line /etc/systemd/system/liqi-platform-database.slice 'MemoryMax=7936M'
+      check_control_line /etc/systemd/system/liqi-platform-operations.slice 'CPUQuota=25%'
+      check_control_line /etc/systemd/system/liqi-platform-operations.slice 'MemoryMax=1G'
+      check_control_line /etc/systemd/system/liqi-platform-edge.slice 'CPUQuota=10%'
+      check_control_line /etc/systemd/system/liqi-platform-edge.slice 'MemoryMax=256M'
+      check_control_line /etc/systemd/system/liqi-api.service.d/10-capacity.conf 'CPUQuota=45%'
+      check_control_line /etc/systemd/system/liqi-api.service.d/10-capacity.conf 'MemoryMax=2G'
+      check_control_line /etc/systemd/system/liqi-api.service.d/10-capacity.conf 'Environment=LIQI_CONFIG_PATH=/etc/liqi/api.json'
+      check_control_line /etc/systemd/system/liqi-realtime.service.d/10-capacity.conf 'CPUQuota=65%'
+      check_control_line /etc/systemd/system/liqi-realtime.service.d/10-capacity.conf 'MemoryMax=3G'
+      check_control_line /etc/systemd/system/liqi-realtime.service.d/10-capacity.conf 'Environment=LIQI_CONFIG_PATH=/etc/liqi/realtime.json'
+      check_control_line /etc/systemd/system/liqi-worker.service.d/10-capacity.conf 'CPUQuota=35%'
+      check_control_line /etc/systemd/system/liqi-worker.service.d/10-capacity.conf 'MemoryMax=2G'
+      check_control_line /etc/systemd/system/liqi-worker.service.d/10-capacity.conf 'Environment=LIQI_CONFIG_PATH=/etc/liqi/worker.json'
+
+      systemctl is-active --quiet liqi-platform.slice
+      systemctl is-active --quiet liqi-platform-runtime.slice
+      systemctl is-active --quiet liqi-platform-database.slice
+      systemctl is-active --quiet liqi-platform-operations.slice
+      systemctl is-active --quiet liqi-platform-edge.slice
+      mountpoint -q /var/lib/liqi
+      [[ -z "$(swapon --show --noheadings)" ]]
+      [[ "$(getenforce)" == "Enforcing" ]]
+      systemctl is-active --quiet firewalld
+%{ if enable_http_redirect ~}
+      firewall-cmd --quiet --zone=public --query-service=http
+%{ endif ~}
+%{ if enable_https_edge ~}
+      firewall-cmd --quiet --zone=public --query-service=https
+%{ endif ~}
+%{ if enable_admin_ssh ~}
+      firewall-cmd --quiet --zone=public --query-service=ssh
+%{ else ~}
+      ! firewall-cmd --quiet --zone=public --query-service=ssh
+%{ endif ~}
+
+      sshd_effective="$(sshd -T)"
+      grep -qx 'permitrootlogin no' <<<"$sshd_effective"
+      grep -qx 'passwordauthentication no' <<<"$sshd_effective"
+      grep -qx 'kbdinteractiveauthentication no' <<<"$sshd_effective"
+
+      v2_code="$(curl -sS -o /dev/null -w '%%{http_code}' --max-time 5 \
+        -H 'Authorization: Bearer Oracle' \
+        http://169.254.169.254/opc/v2/instance/ || true)"
+      legacy_code="$(curl -sS -o /dev/null -w '%%{http_code}' --max-time 5 \
+        http://169.254.169.254/opc/v1/instance/ || true)"
+      [[ "$v2_code" == "200" ]]
+      [[ "$legacy_code" != "200" ]]
+
+      install -d -o root -g liqi -m 0750 /run/liqi
+      tmp_file="$(mktemp /run/liqi/.host-ready.json.XXXXXX)"
+      timestamp="$(date --utc +'%Y-%m-%dT%H:%M:%SZ')"
+      cat > "$tmp_file" <<JSON
+      {
+        "schema_version": "liqi.platform.host-readiness/v0",
+        "host_contract_schema_version": "${host_contract_schema_version}",
+        "infrastructure_output_version": "${infrastructure_output_version}",
+        "bootstrap_version": "${bootstrap_version}",
+        "status": "ready",
+        "checked_at": "$timestamp",
+        "architecture": "$(uname -m)",
+        "data_volume": {
+          "mount_path": "/var/lib/liqi",
+          "filesystem": "$(findmnt -n -o FSTYPE /var/lib/liqi)",
+          "source_uuid": "$(findmnt -n -o UUID /var/lib/liqi)"
+        },
+        "checks": {
+          "runtime_identities": "pass",
+          "runtime_directories": "pass",
+          "data_volume_mounted": "pass",
+          "swap_disabled": "pass",
+          "selinux_enforcing": "pass",
+          "firewall_policy": "pass",
+          "ssh_root_disabled": "pass",
+          "ssh_password_auth_disabled": "pass",
+          "legacy_imds_disabled": "pass",
+          "capacity_controls": "pass"
+        }
+      }
+      JSON
+      chown root:liqi "$tmp_file"
+      chmod 0644 "$tmp_file"
+      mv -f "$tmp_file" /run/liqi/host-ready.json
+
+  - path: /etc/systemd/system/liqi-platform.slice
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=LIQI V0 provider capacity envelope
+
+      [Slice]
+      CPUAccounting=yes
+      CPUQuota=300%
+      MemoryAccounting=yes
+      MemoryMax=20G
+      MemorySwapMax=0
+      TasksAccounting=yes
+      TasksMax=4096
+
+  - path: /etc/systemd/system/liqi-platform-runtime.slice
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=LIQI Rust runtime capacity envelope
+
+      [Slice]
+      CPUAccounting=yes
+      CPUQuota=145%
+      MemoryAccounting=yes
+      MemoryMax=7G
+      MemorySwapMax=0
+      TasksAccounting=yes
+      TasksMax=2048
+
+  - path: /etc/systemd/system/liqi-platform-database.slice
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=LIQI database provider capacity envelope
+
+      [Slice]
+      CPUAccounting=yes
+      CPUQuota=120%
+      MemoryAccounting=yes
+      MemoryMax=7936M
+      MemorySwapMax=0
+      TasksAccounting=yes
+      TasksMax=1024
+
+  - path: /etc/systemd/system/liqi-platform-operations.slice
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=LIQI operations provider capacity envelope
+
+      [Slice]
+      CPUAccounting=yes
+      CPUQuota=25%
+      MemoryAccounting=yes
+      MemoryMax=1G
+      MemorySwapMax=0
+      TasksAccounting=yes
+      TasksMax=512
+
+  - path: /etc/systemd/system/liqi-platform-edge.slice
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=LIQI edge provider capacity envelope
+
+      [Slice]
+      CPUAccounting=yes
+      CPUQuota=10%
+      MemoryAccounting=yes
+      MemoryMax=256M
+      MemorySwapMax=0
+      TasksAccounting=yes
+      TasksMax=512
+
+  - path: /etc/systemd/system/liqi-api.service.d/10-capacity.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Service]
+      Slice=liqi-platform-runtime.slice
+      CPUAccounting=yes
+      CPUQuota=45%
+      MemoryAccounting=yes
+      MemoryMax=2G
+      MemorySwapMax=0
+      Environment=LIQI_CONFIG_PATH=/etc/liqi/api.json
+
+  - path: /etc/systemd/system/liqi-realtime.service.d/10-capacity.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Service]
+      Slice=liqi-platform-runtime.slice
+      CPUAccounting=yes
+      CPUQuota=65%
+      MemoryAccounting=yes
+      MemoryMax=3G
+      MemorySwapMax=0
+      Environment=LIQI_CONFIG_PATH=/etc/liqi/realtime.json
+
+  - path: /etc/systemd/system/liqi-worker.service.d/10-capacity.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Service]
+      Slice=liqi-platform-runtime.slice
+      CPUAccounting=yes
+      CPUQuota=35%
+      MemoryAccounting=yes
+      MemoryMax=2G
+      MemorySwapMax=0
+      Environment=LIQI_CONFIG_PATH=/etc/liqi/worker.json
+
+  - path: /etc/systemd/system/liqi-disable-swap.service
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Keep swap disabled for the LIQI capacity envelope
+      DefaultDependencies=no
+      After=local-fs.target
+      Before=liqi-host-readiness.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/sbin/swapoff -a
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/liqi-data-volume.service
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Prepare and mount the LIQI durable data volume
+      Wants=network-online.target
+      After=network-online.target
+      Before=liqi-host-readiness.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/liqi-prepare-data-volume
+      RemainAfterExit=yes
+      TimeoutStartSec=20min
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/liqi-host-readiness.service
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Validate LIQI host contract and publish readiness
+      Requires=liqi-data-volume.service liqi-disable-swap.service
+      After=liqi-data-volume.service liqi-disable-swap.service sshd.service firewalld.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/liqi-write-host-readiness
+      RemainAfterExit=yes
+      TimeoutStartSec=2min
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - [bash, -lc, "/usr/local/sbin/liqi-create-runtime-identities"]
+  - [bash, -lc, "systemd-tmpfiles --create /etc/tmpfiles.d/liqi.conf"]
+  - [bash, -lc, "swapoff -a"]
+  - [bash, -lc, "sed -ri '/^[^#].*[[:space:]]swap[[:space:]]/s/^/# LIQI V0 swap disabled: /' /etc/fstab"]
+  - [bash, -lc, "sysctl --system"]
+  - [bash, -lc, "if command -v getenforce >/dev/null 2>&1; then setenforce 1 || exit 1; sed -ri 's/^SELINUX=.*/SELINUX=enforcing/' /etc/selinux/config; fi"]
+  - [bash, -lc, "systemctl enable --now firewalld"]
+  - [bash, -lc, "firewall-cmd --permanent --zone=public --remove-service=ssh || true"]
+%{ if enable_admin_ssh ~}
+  - [bash, -lc, "firewall-cmd --permanent --zone=public --add-service=ssh"]
+%{ endif ~}
+%{ if enable_http_redirect ~}
+  - [bash, -lc, "firewall-cmd --permanent --zone=public --add-service=http"]
+%{ endif ~}
+%{ if enable_https_edge ~}
+  - [bash, -lc, "firewall-cmd --permanent --zone=public --add-service=https"]
+%{ endif ~}
+  - [bash, -lc, "firewall-cmd --reload"]
+  - [bash, -lc, "sshd -t && systemctl restart sshd"]
+  - [bash, -lc, "systemctl daemon-reload"]
+  - [bash, -lc, "systemctl start liqi-platform-runtime.slice liqi-platform-database.slice liqi-platform-operations.slice liqi-platform-edge.slice"]
+  - [bash, -lc, "systemctl restart systemd-journald"]
+  - [bash, -lc, "systemctl enable --now liqi-disable-swap.service"]
+  - [bash, -lc, "systemctl enable --now liqi-data-volume.service"]
+  - [bash, -lc, "systemctl enable --now liqi-host-readiness.service"]
+
+final_message: "LIQI host bootstrap ${bootstrap_version} completed; readiness is at /run/liqi/host-ready.json"

@@ -1,0 +1,15 @@
+# Copy to a local, uncommitted terraform.tfvars and replace placeholders.
+# Never place OCI CLI credentials, PEM content, private keys, passwords, or tokens here.
+tenancy_ocid            = "ocid1.tenancy.oc1..replace-me"
+availability_domain     = "juva:AP-SINGAPORE-2-AD-1"
+oracle_linux_image_ocid = "ocid1.image.oc1.ap-singapore-2.replace-me"
+admin_ssh_public_key    = "ssh-ed25519 REPLACE_WITH_PUBLIC_KEY_ONLY liqi-owner"
+
+# Current Oracle documentation does not verify 4 OCPU/24 GB as Always Free.
+# This acknowledgement is required for plan and apply and must remain false
+# until the owner explicitly reviews billing impact.
+acknowledge_non_always_free_profile = false
+
+enable_admin_ssh       = false
+admin_ssh_source_cidrs = []
+vault_secret_ocids     = []

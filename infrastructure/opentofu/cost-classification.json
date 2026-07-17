@@ -1,0 +1,117 @@
+{
+  "schema_version": "liqi.platform.infrastructure-cost/v0",
+  "environment": "development",
+  "default_policy": "paid-and-unknown-disabled-unless-explicitly-acknowledged",
+  "resources": {
+    "oci_identity_compartment.environment": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "IAM compartment has no direct metered runtime charge."
+    },
+    "oci_core_vcn.main": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "One VCN remains within the documented Free Tier VCN allowance."
+    },
+    "oci_core_internet_gateway.main": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "Internet Gateway creation has no direct hourly charge; outbound transfer remains usage-metered separately."
+    },
+    "oci_core_service_gateway.object_storage": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "Service Gateway provides private access to Oracle Services without a paid NAT appliance."
+    },
+    "oci_core_route_table.edge": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "VCN route-table primitive has no direct metered runtime charge."
+    },
+    "oci_core_security_list.empty_baseline": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "Empty security list is a no-cost fail-closed subnet baseline."
+    },
+    "oci_core_subnet.edge": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "Subnet primitive has no direct metered runtime charge."
+    },
+    "oci_core_network_security_group.host": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "NSG is the primary no-cost network security boundary."
+    },
+    "oci_core_network_security_group_security_rule.edge_ingress": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "Embedded NSG edge rules have no standalone metered charge."
+    },
+    "oci_core_network_security_group_security_rule.ssh_ingress": {
+      "classification": "always-free-safe",
+      "default_enabled": false,
+      "rationale": "Allowlisted SSH rule has no charge and is disabled by default for security."
+    },
+    "oci_core_network_security_group_security_rule.path_mtu_ingress": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "ICMP path-MTU rule has no standalone charge."
+    },
+    "oci_core_network_security_group_security_rule.web_egress": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "Embedded bounded egress rule has no standalone charge."
+    },
+    "oci_core_network_security_group_security_rule.dns_udp_egress": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "Embedded DNS egress rule has no standalone charge."
+    },
+    "oci_core_network_security_group_security_rule.dns_tcp_egress": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "Embedded DNS fallback rule has no standalone charge."
+    },
+    "oci_core_network_security_group_security_rule.ntp_egress": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "Embedded NTP egress rule has no standalone charge."
+    },
+    "oci_core_network_security_group_security_rule.object_storage_egress": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "Embedded Service Gateway egress rule has no standalone charge."
+    },
+    "oci_objectstorage_bucket.backups": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "Private bucket is free-safe only while aggregate Object Storage usage remains within the documented Always Free allowance; retention and usage alerts are consumer obligations."
+    },
+    "oci_core_volume.data": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "100 GB data volume plus 50 GB boot volume remains inside the 200 GB combined storage envelope."
+    },
+    "oci_core_instance.host": {
+      "classification": "free-trial-only",
+      "default_enabled": false,
+      "rationale": "Mandated 4 OCPU/24 GB profile is not verified by current Oracle Always Free documentation and requires explicit owner acknowledgement."
+    },
+    "oci_core_volume_attachment.data": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "Paravirtualized attachment has no separate metered charge from the classified volume."
+    },
+    "oci_identity_dynamic_group.host": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "Dynamic group has no direct metered runtime charge."
+    },
+    "oci_identity_policy.host": {
+      "classification": "always-free-safe",
+      "default_enabled": true,
+      "rationale": "IAM policy has no direct metered runtime charge."
+    }
+  }
+}

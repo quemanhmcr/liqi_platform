@@ -1,0 +1,440 @@
+{
+  "schema_version": "liqi.platform.oci-host/v0",
+  "infrastructure_output_version": "0.3.0",
+  "environment": "development",
+  "region": {
+    "name": "ap-singapore-2",
+    "availability_domain": "juva:AP-SINGAPORE-2-AD-1"
+  },
+  "capacity_profile": {
+    "name": "free-tier-a1-4x24",
+    "shape": "VM.Standard.A1.Flex",
+    "architecture": "aarch64",
+    "ocpus": 4,
+    "memory_gb": 24,
+    "boot_volume_gb": 50,
+    "data_volume_gb": 100,
+    "cost_classification": "free-trial-only"
+  },
+  "host": {
+    "instance_id": "ocid1.instance.oc1.ap-singapore-2.example",
+    "display_name": "liqi-development-host-01",
+    "os": {
+      "family": "Oracle Linux",
+      "major_version": "9",
+      "architecture": "aarch64"
+    },
+    "addresses": {
+      "private_ipv4": "10.20.10.10",
+      "public_ipv4": "203.0.113.10",
+      "private_address_semantics": "service-and-approved-administration",
+      "public_address_semantics": "edge-only"
+    },
+    "image_id": "ocid1.image.oc1.ap-singapore-2.example"
+  },
+  "identities": {
+    "runtime_group": {
+      "name": "liqi",
+      "gid": 2200
+    },
+    "services": [
+      {
+        "service": "liqi-api",
+        "user": "liqi-api",
+        "uid": 2210,
+        "group": "liqi",
+        "login_shell": "/sbin/nologin"
+      },
+      {
+        "service": "liqi-realtime",
+        "user": "liqi-realtime",
+        "uid": 2211,
+        "group": "liqi",
+        "login_shell": "/sbin/nologin"
+      },
+      {
+        "service": "liqi-worker",
+        "user": "liqi-worker",
+        "uid": 2212,
+        "group": "liqi",
+        "login_shell": "/sbin/nologin"
+      }
+    ],
+    "transport_user": {
+      "name": "opc",
+      "purpose": "approved-administration-and-release-transport",
+      "runs_services": false
+    }
+  },
+  "directories": [
+    {
+      "purpose": "application-releases",
+      "path": "/opt/liqi/releases",
+      "owner": "root",
+      "group": "liqi",
+      "mode": "0750",
+      "storage": "boot-volume",
+      "consumer": "senior-4"
+    },
+    {
+      "purpose": "current-release-symlink-parent",
+      "path": "/opt/liqi",
+      "owner": "root",
+      "group": "liqi",
+      "mode": "0750",
+      "storage": "boot-volume",
+      "consumer": "shared"
+    },
+    {
+      "purpose": "runtime-configuration",
+      "path": "/etc/liqi",
+      "owner": "root",
+      "group": "liqi",
+      "mode": "0750",
+      "storage": "boot-volume",
+      "consumer": "senior-3"
+    },
+    {
+      "purpose": "secrets-materialization",
+      "path": "/run/liqi/secrets",
+      "owner": "root",
+      "group": "liqi",
+      "mode": "0710",
+      "storage": "tmpfs",
+      "consumer": "shared"
+    },
+    {
+      "purpose": "postgresql-data",
+      "path": "/var/lib/liqi/postgresql/data",
+      "owner": "postgres",
+      "group": "postgres",
+      "mode": "0700",
+      "storage": "data-volume",
+      "consumer": "senior-2"
+    },
+    {
+      "purpose": "postgresql-backup-staging",
+      "path": "/var/lib/liqi/postgresql/backup-staging",
+      "owner": "postgres",
+      "group": "postgres",
+      "mode": "0700",
+      "storage": "data-volume",
+      "consumer": "senior-2"
+    },
+    {
+      "purpose": "platform-logs",
+      "path": "/var/log/liqi",
+      "owner": "root",
+      "group": "liqi",
+      "mode": "0750",
+      "storage": "boot-volume",
+      "consumer": "senior-4"
+    },
+    {
+      "purpose": "temporary-data",
+      "path": "/var/tmp/liqi",
+      "owner": "root",
+      "group": "liqi",
+      "mode": "0750",
+      "storage": "boot-volume",
+      "consumer": "shared"
+    },
+    {
+      "purpose": "liqi-api-secrets",
+      "path": "/run/liqi/secrets/liqi-api",
+      "owner": "liqi-api",
+      "group": "liqi",
+      "mode": "0700",
+      "storage": "tmpfs",
+      "consumer": "senior-3"
+    },
+    {
+      "purpose": "liqi-realtime-secrets",
+      "path": "/run/liqi/secrets/liqi-realtime",
+      "owner": "liqi-realtime",
+      "group": "liqi",
+      "mode": "0700",
+      "storage": "tmpfs",
+      "consumer": "senior-3"
+    },
+    {
+      "purpose": "liqi-worker-secrets",
+      "path": "/run/liqi/secrets/liqi-worker",
+      "owner": "liqi-worker",
+      "group": "liqi",
+      "mode": "0700",
+      "storage": "tmpfs",
+      "consumer": "senior-3"
+    },
+    {
+      "purpose": "release-staging",
+      "path": "/var/tmp/liqi/releases",
+      "owner": "opc",
+      "group": "liqi",
+      "mode": "0750",
+      "storage": "boot-volume",
+      "consumer": "senior-4"
+    }
+  ],
+  "ports": [
+    {
+      "name": "edge-http",
+      "protocol": "tcp",
+      "port": 80,
+      "bind_scope": "public-edge",
+      "exposure": "public-redirect-only",
+      "default_enabled": true
+    },
+    {
+      "name": "edge-https",
+      "protocol": "tcp",
+      "port": 443,
+      "bind_scope": "public-edge",
+      "exposure": "public-edge",
+      "default_enabled": true
+    },
+    {
+      "name": "administration-ssh",
+      "protocol": "tcp",
+      "port": 22,
+      "bind_scope": "private-address",
+      "exposure": "admin-allowlist-only",
+      "default_enabled": false
+    },
+    {
+      "name": "postgresql",
+      "protocol": "tcp",
+      "port": 5432,
+      "bind_scope": "loopback",
+      "exposure": "host-internal-only",
+      "default_enabled": false
+    },
+    {
+      "name": "pgbouncer",
+      "protocol": "tcp",
+      "port": 6432,
+      "bind_scope": "loopback",
+      "exposure": "host-internal-only",
+      "default_enabled": false
+    },
+    {
+      "name": "liqi-api",
+      "protocol": "tcp",
+      "port": 8080,
+      "bind_scope": "loopback",
+      "exposure": "host-internal-only",
+      "default_enabled": false
+    },
+    {
+      "name": "liqi-realtime",
+      "protocol": "tcp",
+      "port": 8081,
+      "bind_scope": "loopback",
+      "exposure": "host-internal-only",
+      "default_enabled": false
+    },
+    {
+      "name": "liqi-worker-admin",
+      "protocol": "tcp",
+      "port": 8082,
+      "bind_scope": "loopback",
+      "exposure": "host-internal-only",
+      "default_enabled": false
+    },
+    {
+      "name": "otel-otlp-grpc",
+      "protocol": "tcp",
+      "port": 4317,
+      "bind_scope": "loopback",
+      "exposure": "host-internal-only",
+      "default_enabled": false
+    },
+    {
+      "name": "otel-otlp-http",
+      "protocol": "tcp",
+      "port": 4318,
+      "bind_scope": "loopback",
+      "exposure": "host-internal-only",
+      "default_enabled": false
+    }
+  ],
+  "object_storage_references": [
+    {
+      "purpose": "postgresql-backups",
+      "region": "ap-singapore-2",
+      "namespace": "example-namespace",
+      "bucket_name": "liqi-development-backups",
+      "prefix": "postgresql/",
+      "uri": "oci://example-namespace/liqi-development-backups/postgresql/",
+      "access_path": "service-gateway",
+      "cost_classification": "always-free-safe"
+    }
+  ],
+  "secret_reference_format": {
+    "provider": "oci-vault",
+    "uri_template": "oci-vault://<secret-ocid>@<version-or-CURRENT>",
+    "materialization_root": "/run/liqi/secrets",
+    "plaintext_in_output": false
+  },
+  "service_gateway": {
+    "enabled": true,
+    "service": "OCI ap-singapore-2 Object Storage",
+    "private_access": true
+  },
+  "instance_principal": {
+    "enabled": true,
+    "capabilities": [
+      "object-storage:read-buckets-in-environment-compartment",
+      "object-storage:list-read-create-objects-in-designated-backup-bucket"
+    ],
+    "user_credentials_present": false
+  },
+  "readiness": {
+    "file": "/run/liqi/host-ready.json",
+    "schema_version": "liqi.platform.host-readiness/v0",
+    "atomic_write": true,
+    "ready_status": "ready",
+    "required_checks": [
+      "runtime-identities",
+      "runtime-directories",
+      "data-volume-mounted",
+      "swap-disabled",
+      "selinux-enforcing",
+      "firewall-policy",
+      "ssh-root-disabled",
+      "ssh-password-auth-disabled",
+      "legacy-imds-disabled",
+      "capacity-controls"
+    ]
+  },
+  "release_target": {
+    "transport_user": "opc",
+    "deployment_path": "/opt/liqi/releases",
+    "current_symlink": "/opt/liqi/current",
+    "transport": "ssh-over-approved-admin-path",
+    "admin_path_default_enabled": false,
+    "staging_path": "/var/tmp/liqi/releases",
+    "installation_semantics": "upload-to-staging-then-root-owned-atomic-install",
+    "privileged_install_required": true
+  },
+  "replacement": {
+    "host_replaceable": true,
+    "data_volume_preserved": true,
+    "destruction_acknowledgement_required": true,
+    "stateful_resource_kinds": [
+      "block-volume",
+      "object-storage-bucket"
+    ]
+  },
+  "runtime_configuration": {
+    "environment_variable": "LIQI_CONFIG_PATH",
+    "cli_argument": "--config",
+    "maximum_file_bytes": 1048576,
+    "files": [
+      {
+        "service": "liqi-api",
+        "path": "/etc/liqi/api.json",
+        "owner": "root",
+        "group": "liqi",
+        "mode": "0640"
+      },
+      {
+        "service": "liqi-realtime",
+        "path": "/etc/liqi/realtime.json",
+        "owner": "root",
+        "group": "liqi",
+        "mode": "0640"
+      },
+      {
+        "service": "liqi-worker",
+        "path": "/etc/liqi/worker.json",
+        "owner": "root",
+        "group": "liqi",
+        "mode": "0640"
+      }
+    ]
+  },
+  "execution_control": {
+    "manager": "systemd",
+    "provider_budget_contract": "contracts/platform/infrastructure-capacity-budget-v0.json",
+    "parent": {
+      "slice": "liqi-platform.slice",
+      "parent": null,
+      "cpu_quota_percent": 300,
+      "memory_max_mib": 20480,
+      "memory_swap_max_mib": 0
+    },
+    "runtime": {
+      "slice": "liqi-platform-runtime.slice",
+      "parent": "liqi-platform.slice",
+      "cpu_quota_percent": 145,
+      "memory_max_mib": 7168,
+      "memory_swap_max_mib": 0
+    },
+    "database": {
+      "slice": "liqi-platform-database.slice",
+      "parent": "liqi-platform.slice",
+      "cpu_quota_percent": 120,
+      "memory_max_mib": 7936,
+      "memory_swap_max_mib": 0
+    },
+    "operations": {
+      "slice": "liqi-platform-operations.slice",
+      "parent": "liqi-platform.slice",
+      "cpu_quota_percent": 25,
+      "memory_max_mib": 1024,
+      "memory_swap_max_mib": 0
+    },
+    "edge": {
+      "slice": "liqi-platform-edge.slice",
+      "parent": "liqi-platform.slice",
+      "cpu_quota_percent": 10,
+      "memory_max_mib": 256,
+      "memory_swap_max_mib": 0
+    },
+    "services": [
+      {
+        "service": "liqi-api",
+        "unit": "liqi-api.service",
+        "slice": "liqi-platform-runtime.slice",
+        "cpu_quota_percent": 45,
+        "memory_max_mib": 2048,
+        "memory_swap_max_mib": 0,
+        "config_path": "/etc/liqi/api.json"
+      },
+      {
+        "service": "liqi-realtime",
+        "unit": "liqi-realtime.service",
+        "slice": "liqi-platform-runtime.slice",
+        "cpu_quota_percent": 65,
+        "memory_max_mib": 3072,
+        "memory_swap_max_mib": 0,
+        "config_path": "/etc/liqi/realtime.json"
+      },
+      {
+        "service": "liqi-worker",
+        "unit": "liqi-worker.service",
+        "slice": "liqi-platform-runtime.slice",
+        "cpu_quota_percent": 35,
+        "memory_max_mib": 2048,
+        "memory_swap_max_mib": 0,
+        "config_path": "/etc/liqi/worker.json"
+      }
+    ],
+    "cpu_aggregation": {
+      "hard_ceiling_semantics": "additive-admission-with-parent-enforcement",
+      "hard_ceiling_limit_ocpu": 3,
+      "steady_state_limit_ocpu": 3,
+      "host_scheduling_reserve_ocpu": 1,
+      "parent_enforcement": "liqi-platform.slice"
+    },
+    "memory_aggregation": {
+      "hard_limits_additive": true,
+      "hard_limit_mib": 20480,
+      "host_reserve_mib": 4096,
+      "swap_is_capacity": false
+    },
+    "container_policy": "inner-limit-must-not-exceed-systemd-outer-limit",
+    "assignment_semantics": "provider-base-units-must-attach-to-published-slice"
+  }
+}
