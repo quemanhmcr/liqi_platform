@@ -35,14 +35,14 @@ PGPASSFILE=/run/liqi/secrets/database/migrator-pgpass \
   database/bin/migrate.sh
 ```
 
-Expected JSON has `ready=true`, `currentVersion=3` and `reason=ready`. A second invocation must report all migrations already applied without changing rows.
+Expected JSON has `ready=true`, `currentVersion=4` and `reason=ready`. A second invocation must report all migrations already applied without changing rows.
 
 ## Readiness
 
 Use PgBouncer, not the direct PostgreSQL endpoint:
 
 ```bash
-LIQI_REQUIRED_MIGRATION_VERSION=3 \
+LIQI_REQUIRED_MIGRATION_VERSION=4 \
 PGHOST=127.0.0.1 PGPORT=6432 PGDATABASE=liqi PGUSER=liqi_monitor \
 PGPASSFILE=/run/liqi/secrets/database/monitor-pgpass \
   database/bin/readiness.sh

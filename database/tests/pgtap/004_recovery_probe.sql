@@ -14,7 +14,7 @@ SELECT is((SELECT state FROM platform.outbox_events WHERE event_id = (SELECT eve
 SELECT is((SELECT count(*) FROM platform.probe_effects_v0 WHERE event_id = (SELECT event_id FROM recovery_probe)), 1::bigint, 'recovery probe terminal effect is unique');
 SELECT is((SELECT count(*) FROM platform.outbox_attempts WHERE event_id = (SELECT event_id FROM recovery_probe)), 1::bigint, 'recovery probe records one durable attempt');
 SELECT is((SELECT outcome FROM platform.outbox_attempts WHERE event_id = (SELECT event_id FROM recovery_probe)), 'succeeded', 'recovery probe attempt succeeds');
-SELECT is((platform.backup_verification_state_v0() ->> 'migrationVersion')::bigint, 3::bigint, 'backup state reports current migration');
+SELECT is((platform.backup_verification_state_v0() ->> 'migrationVersion')::bigint, 4::bigint, 'backup state reports current migration');
 SELECT is(platform.backup_verification_state_v0() #>> '{probe,probeStatus}', 'completed', 'backup state reports terminal probe');
 SELECT is((platform.backup_verification_state_v0() #>> '{probe,effectCount}')::integer, 1, 'backup state reports one terminal effect');
 RESET ROLE;

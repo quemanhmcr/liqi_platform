@@ -11,4 +11,5 @@ PGDATABASE="$TEST_DATABASE" "$PG_PROVE" --ext .sql "$ROOT_DIR"/database/tests/pg
 PGDATABASE="$TEST_DATABASE" "$ROOT_DIR/database/tests/integration/migration_lifecycle.sh"
 PGDATABASE="$TEST_DATABASE" "$ROOT_DIR/database/tests/integration/concurrent_migration_lock.sh"
 PGDATABASE="$TEST_DATABASE" "$ROOT_DIR/database/tests/integration/concurrent_outbox_claim.sh"
+PGDATABASE="$TEST_DATABASE" "$ROOT_DIR/database/tests/integration/committed_realtime_handoff.sh"
 printf '{"validation":"database-integration-v0","database":"%s","passed":true}\n' "$TEST_DATABASE"

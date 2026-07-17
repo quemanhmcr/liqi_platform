@@ -17,7 +17,7 @@
     "lastFailedAt": null,
     "secondsSinceLastArchive": 120
   },
-  "migrationVersion": 3,
+  "migrationVersion": 4,
   "probe": {
     "probeId": "10000000-0000-4000-8000-000000000002",
     "eventId": "10000000-0000-4000-8000-000000000003",

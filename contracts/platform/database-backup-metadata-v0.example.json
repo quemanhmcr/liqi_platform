@@ -28,7 +28,7 @@
     "archiveStop": "000000010000000000000002",
     "annotation": {
       "liqi-run-id": "10000000-0000-4000-8000-000000000001",
-      "liqi-migration-version": "3",
+      "liqi-migration-version": "4",
       "liqi-probe-event-id": "10000000-0000-4000-8000-000000000003",
       "liqi-manifest-sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     },
@@ -39,7 +39,7 @@
     "version": "17.10"
   },
   "migration": {
-    "currentVersion": 3,
+    "currentVersion": 4,
     "manifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   "probe": {

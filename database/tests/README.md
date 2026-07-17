@@ -19,7 +19,7 @@ LIQI_TEST_DATABASE=liqi_v0_test \
   database/tests/integration/run_database_tests.sh
 ```
 
-The gate proves fresh migration, rerun idempotency, advisory migration locking, role/grant boundaries, timeout policy, atomic probe/outbox insertion, concurrent claim exclusion, lease reclaim, idempotent acknowledgement, bounded retry, dead-letter transition and recovery-probe invariants.
+The gate proves fresh migration, rerun idempotency, advisory migration locking, role/grant boundaries, timeout policy, atomic probe/outbox/handoff insertion, invisibility before producer commit, visibility after commit, concurrent claim exclusion, lease reclaim, idempotent acknowledgement, bounded retry, dead-letter transition and recovery-probe invariants.
 
 ## pgBackRest/OCI recovery gate
 
@@ -37,9 +37,9 @@ Expected evidence is a valid `database-backup-metadata-v0` document plus SHA-256
 
 ## Wire mapping gate
 
-Activate after Senior 3 publishes the accepted wire example:
+Senior 3 publishes the accepted V0 example at `contracts/events/examples/platform-probe-requested-v0.json`. After branch integration, run:
 
 ```bash
 python database/tests/contract/validate_wire_mapping.py \
-  contracts/events/<senior-3-wire-example>.json
+  contracts/events/examples/platform-probe-requested-v0.json
 ```
