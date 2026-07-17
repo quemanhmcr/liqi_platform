@@ -41,7 +41,7 @@ impl DurationHistogram {
     fn render(&self, output: &mut String, metric: &str, service: &str) {
         let _ = writeln!(output, "# TYPE {metric} histogram");
         for (index, boundary_ms) in DURATION_BUCKETS_MILLIS.iter().enumerate() {
-            let boundary_seconds = (*boundary_ms as f64) / 1_000.0;
+            let boundary_seconds = Duration::from_millis(*boundary_ms).as_secs_f64();
             let count = self.cumulative_buckets[index].load(Ordering::Relaxed);
             let _ = writeln!(
                 output,
@@ -49,7 +49,8 @@ impl DurationHistogram {
             );
         }
         let count = self.count.load(Ordering::Relaxed);
-        let sum_seconds = (self.sum_micros.load(Ordering::Relaxed) as f64) / 1_000_000.0;
+        let sum_seconds =
+            Duration::from_micros(self.sum_micros.load(Ordering::Relaxed)).as_secs_f64();
         let _ = writeln!(
             output,
             "{metric}_bucket{{service=\"{service}\",le=\"+Inf\"}} {count}"

@@ -5,6 +5,12 @@ use thiserror::Error;
 use tokio::{net::TcpListener, signal, task::JoinError, time};
 use tokio_util::sync::CancellationToken;
 
+/// Serves HTTP until an operating-system shutdown signal completes graceful drain.
+///
+/// # Errors
+///
+/// Returns an error when serving fails, the server task cannot be joined, or graceful drain
+/// exceeds the configured deadline.
 pub async fn serve_with_shutdown(
     listener: TcpListener,
     router: Router,
@@ -46,14 +52,13 @@ where
     control.begin_shutdown();
     graceful.cancel();
 
-    match time::timeout(control.shutdown_deadline(), &mut server_task).await {
-        Ok(result) => flatten_server_result(result),
-        Err(_) => {
-            control.force_cancel();
-            server_task.abort();
-            let _ = server_task.await;
-            Err(HttpServeError::DrainDeadlineExceeded)
-        }
+    if let Ok(result) = time::timeout(control.shutdown_deadline(), &mut server_task).await {
+        flatten_server_result(result)
+    } else {
+        control.force_cancel();
+        server_task.abort();
+        let _ = server_task.await;
+        Err(HttpServeError::DrainDeadlineExceeded)
     }
 }
 

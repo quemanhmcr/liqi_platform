@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use liqi_application::{
     CommittedProbe, CommittedRealtimeReader, DurableOutboxConsumer, OutboxClaimRequest,
     OutboxClaimToken, OutboxDelivery, OutboxRetry, PersistenceError, PersistenceReadiness,
-    PlatformPersistence, ProbeCommit, ProbeEffectAckOutcome, RealtimeCursor, RealtimeEventBatch,
-    RealtimeReadRequest,
+    PlatformPersistence, ProbeCommit, ProbeEffectAckOutcome, RealtimeCursor, RealtimeDelivery,
+    RealtimeEventBatch, RealtimeReadRequest,
 };
 use liqi_protocol::{EventEnvelope, EventMetadata};
 use serde_json::{Value, json};
@@ -277,10 +277,7 @@ impl CommittedRealtimeReader for FakePlatformStore {
         if !state.ready {
             return Err(PersistenceError::NotReady);
         }
-        let start = request
-            .after
-            .as_ref()
-            .map_or(Ok(0), |cursor| parse_cursor(cursor))?;
+        let start = request.after.as_ref().map_or(Ok(0), parse_cursor)?;
         let topics: HashSet<_> = request.topics.into_iter().collect();
         let mut deliveries = Vec::with_capacity(request.batch_size);
         let mut next_cursor = request.after;

@@ -22,8 +22,8 @@ use uuid::Uuid;
 
 const PLATFORM_PROBE_EVENT: &str = "platform.probe.requested.v0";
 const PLATFORM_PROBE_PRODUCER: &str = "liqi-api";
-const POOL_IDLE_TIMEOUT: Duration = Duration::from_secs(300);
-const POOL_MAX_LIFETIME: Duration = Duration::from_secs(1800);
+const POOL_IDLE_TIMEOUT: Duration = Duration::from_mins(5);
+const POOL_MAX_LIFETIME: Duration = Duration::from_mins(30);
 
 #[derive(Clone)]
 pub struct PostgresAuthorityStore {
@@ -44,9 +44,14 @@ impl std::fmt::Debug for PostgresAuthorityStore {
 }
 
 impl PostgresAuthorityStore {
+    /// Builds a bounded lazy `PostgreSQL` authority pool from validated runtime configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the required migration version cannot be represented by `PostgreSQL`.
     pub fn connect_lazy(
         config: &RuntimeConfig,
-        database_secret: SecretString,
+        database_secret: &SecretString,
     ) -> Result<Self, PostgresAdapterError> {
         let database = &config.database;
         let options = PgConnectOptions::new()
@@ -208,7 +213,7 @@ impl DurableOutboxConsumer for PostgresAuthorityStore {
         .fetch_all(&self.pool)
         .await
         .map_err(map_sqlx)?;
-        rows.into_iter().map(map_claimed_row).collect()
+        rows.iter().map(map_claimed_row).collect()
     }
 
     async fn acknowledge(
@@ -305,7 +310,7 @@ impl CommittedRealtimeReader for PostgresAuthorityStore {
         .await
         .map_err(map_sqlx)?;
         let deliveries = rows
-            .into_iter()
+            .iter()
             .map(map_realtime_row)
             .collect::<Result<Vec<_>, _>>()?;
         let next_cursor = deliveries.last().map(|delivery| delivery.cursor.clone());
@@ -316,10 +321,10 @@ impl CommittedRealtimeReader for PostgresAuthorityStore {
     }
 }
 
-fn map_claimed_row(row: PgRow) -> Result<OutboxDelivery, PersistenceError> {
+fn map_claimed_row(row: &PgRow) -> Result<OutboxDelivery, PersistenceError> {
     let claim_token = row.try_get::<Uuid, _>("claim_token").map_err(map_sqlx)?;
     let attempt = row.try_get::<i16, _>("attempt_no").map_err(map_sqlx)?;
-    let event = map_event_row(&row)?;
+    let event = map_event_row(row)?;
     Ok(OutboxDelivery {
         claim_token: OutboxClaimToken::from_opaque(claim_token.to_string())?,
         attempt: u32::try_from(attempt).map_err(|_| PersistenceError::InvalidOperation)?,
@@ -327,14 +332,14 @@ fn map_claimed_row(row: PgRow) -> Result<OutboxDelivery, PersistenceError> {
     })
 }
 
-fn map_realtime_row(row: PgRow) -> Result<RealtimeDelivery, PersistenceError> {
+fn map_realtime_row(row: &PgRow) -> Result<RealtimeDelivery, PersistenceError> {
     let handoff_id = row.try_get::<i64, _>("handoff_id").map_err(map_sqlx)?;
     if handoff_id <= 0 {
         return Err(PersistenceError::InvalidOperation);
     }
     Ok(RealtimeDelivery {
         cursor: RealtimeCursor::from_opaque(handoff_id.to_string())?,
-        event: map_event_row(&row)?,
+        event: map_event_row(row)?,
     })
 }
 

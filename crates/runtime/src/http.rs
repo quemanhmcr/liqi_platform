@@ -7,7 +7,9 @@ use axum::{
     response::{IntoResponse, Response},
     routing::get,
 };
-use liqi_application::{ApplicationError, BoundedExecutor, HealthRegistry, RuntimeControl};
+use liqi_application::{
+    ApplicationError, BoundedBlockingExecutor, BoundedExecutor, HealthRegistry, RuntimeControl,
+};
 use liqi_configuration::RuntimeConfig;
 use liqi_protocol::{ApiError, ArtifactMetadata, ErrorCode, HealthStatus, RequestContext};
 use liqi_telemetry::{RuntimeMetrics, attach_remote_parent};
@@ -58,7 +60,6 @@ impl OperationalState {
     }
 }
 
-#[must_use]
 pub fn operational_router(state: Arc<OperationalState>) -> Router {
     Router::new()
         .route("/health/live", get(liveness))
@@ -115,12 +116,9 @@ pub async fn platform_request_middleware(
     if state.health.is_draining() {
         return safe_code_response(ErrorCode::PlatformNotReady, &context);
     }
-    let permit = match state.request_executor.try_acquire() {
-        Ok(permit) => permit,
-        Err(_) => {
-            state.metrics.request_rejected();
-            return safe_code_response(ErrorCode::PlatformConcurrencyLimited, &context);
-        }
+    let Ok(permit) = state.request_executor.try_acquire() else {
+        state.metrics.request_rejected();
+        return safe_code_response(ErrorCode::PlatformConcurrencyLimited, &context);
     };
     let cancellation = state.control.request_token();
     let method = request.method().clone();
@@ -155,16 +153,15 @@ pub async fn platform_request_middleware(
     let instrument_span = span.clone();
     let response = tokio::select! {
         () = cancellation.cancelled() => {
-            safe_error_response(ApplicationError::Cancelled, &context)
+            safe_error_response(&ApplicationError::Cancelled, &context)
         }
         result = time::timeout(timeout, next.run(request).instrument(instrument_span)) => {
-            match result {
-                Ok(response) => response,
-                Err(_) => {
-                    state.metrics.deadline_exceeded();
-                    cancellation.cancel();
-                    safe_error_response(ApplicationError::DeadlineExceeded, &context)
-                }
+            if let Ok(response) = result {
+                response
+            } else {
+                state.metrics.deadline_exceeded();
+                cancellation.cancel();
+                safe_error_response(&ApplicationError::DeadlineExceeded, &context)
             }
         }
     };
@@ -175,11 +172,13 @@ pub async fn platform_request_middleware(
     with_request_id(response, &context)
 }
 
-pub fn safe_error_response(error: ApplicationError, context: &RequestContext) -> Response {
+#[must_use]
+pub fn safe_error_response(error: &ApplicationError, context: &RequestContext) -> Response {
     let wire = error.to_wire(context);
     wire_response(wire)
 }
 
+#[must_use]
 pub fn safe_code_response(code: ErrorCode, context: &RequestContext) -> Response {
     wire_response(ApiError::new(
         code,
@@ -238,6 +237,11 @@ impl Drop for RequestGuard {
     }
 }
 
+/// Writes one JSON value and a trailing newline to standard output.
+///
+/// # Errors
+///
+/// Returns an error when serialization or writing/flushing standard output fails.
 pub fn write_json_stdout<T: Serialize>(value: &T) -> Result<(), io::Error> {
     let stdout = io::stdout();
     let mut locked = stdout.lock();

@@ -45,6 +45,11 @@ pub struct CommittedProbe {
 pub struct OutboxClaimToken(String);
 
 impl OutboxClaimToken {
+    /// Creates an opaque lease token while enforcing the bounded token contract.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the token is empty or exceeds 512 bytes.
     pub fn from_opaque(value: impl Into<String>) -> Result<Self, PersistenceError> {
         let value = value.into();
         if value.is_empty() || value.len() > 512 {
@@ -74,6 +79,11 @@ pub struct OutboxClaimRequest {
 }
 
 impl OutboxClaimRequest {
+    /// Validates an outbox claim request against the V0 consumer bounds.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the consumer, event types, batch size, or lease is invalid.
     pub fn validate(&self) -> Result<(), PersistenceError> {
         if self.consumer.is_empty()
             || self.consumer.len() > 128
@@ -105,11 +115,16 @@ pub struct OutboxRetry {
 }
 
 impl OutboxRetry {
+    /// Validates a bounded retry decision.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when attempts, delay, or reason code violate the V0 retry contract.
     pub fn validate(&self) -> Result<(), PersistenceError> {
         if self.attempt == 0
             || self.max_attempts != OUTBOX_MAX_ATTEMPTS
             || self.attempt > self.max_attempts
-            || self.delay > Duration::from_secs(60)
+            || self.delay > Duration::from_mins(1)
             || self.reason_code.is_empty()
             || self.reason_code.len() > 64
         {
@@ -131,6 +146,11 @@ pub enum ProbeEffectAckOutcome {
 pub struct RealtimeCursor(String);
 
 impl RealtimeCursor {
+    /// Creates an opaque realtime cursor while enforcing the bounded cursor contract.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the cursor is empty or exceeds 512 bytes.
     pub fn from_opaque(value: impl Into<String>) -> Result<Self, PersistenceError> {
         let value = value.into();
         if value.is_empty() || value.len() > 512 {
@@ -159,6 +179,11 @@ pub struct RealtimeReadRequest {
 }
 
 impl RealtimeReadRequest {
+    /// Validates a realtime read request against the V0 topic and batch bounds.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when topics are empty or excessive, or the batch size is invalid.
     pub fn validate(&self) -> Result<(), PersistenceError> {
         if self.topics.is_empty()
             || self.topics.len() > 64
