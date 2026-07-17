@@ -15,6 +15,13 @@ def check(owner:str,seam:str,status:str,code:str,message:str,action:str)->dict[s
 def journal_value(text:str,key:str)->str|None:
     match=re.search(rf'(?m)^\s*{re.escape(key)}\s*=\s*([^\s#]+)',text); return match.group(1) if match else None
 
+def failure_summary(failures:list[str])->str:
+    full='; '.join(failures)
+    if len(full)<=900:return full
+    prefix=f'{len(failures)} incompatibilities: '
+    selected='; '.join(failures[:5])
+    return prefix+selected+'; additional failures are reported on stderr'
+
 def main()->int:
     ap=argparse.ArgumentParser(); ap.add_argument('--provider-root',type=Path,default=ROOT); ap.add_argument('--policy',type=Path,default=POLICY); ap.add_argument('--output',type=Path,required=True); ap.add_argument('--allow-missing',action='store_true'); args=ap.parse_args()
     provider=args.provider_root.resolve(); policy=load(args.policy); checks=[]
@@ -41,7 +48,7 @@ def main()->int:
         for key,value in expected_journal.items():
             actual=journal_value(text,key)
             if actual!=value:failures.append(f'journald {key} expected {value}, got {actual}')
-        checks.append(check('Senior 1','OCI host output and host logging policy','failed' if failures else 'passed','HOST_OPERABILITY_INCOMPATIBLE' if failures else 'HOST_OPERABILITY_COMPATIBLE','; '.join(failures) if failures else 'host output 0.3.0, release target and journald policy are compatible','Senior 1 must align cloud-init journald and host output with contracts/operations and ADR 0408.' if failures else 'none'))
+        checks.append(check('Senior 1','OCI host output and host logging policy','failed' if failures else 'passed','HOST_OPERABILITY_INCOMPATIBLE' if failures else 'HOST_OPERABILITY_COMPATIBLE',failure_summary(failures) if failures else 'host output 0.3.0, release target and journald policy are compatible','Senior 1 must align cloud-init journald and host output with contracts/operations and ADR 0408.' if failures else 'none'))
     database=provider/'contracts/platform/database-v0.example.json'
     if not database.is_file():
         checks.append(check('Senior 2','database recovery command ownership','blocked','DATABASE_SEAM_MISSING','database provider contract is not merged','Senior 2 must merge database-v0 and provider-owned recovery commands.'))
@@ -54,13 +61,19 @@ def main()->int:
         result_schema=str(restore.get('resultSchema',''))
         if not result_schema.startswith('contracts/platform/database-'):
             failures.append('restore.resultSchema must remain a Senior 2 platform contract')
-        checks.append(check('Senior 2','database recovery command ownership','failed' if failures else 'passed','DATABASE_RECOVERY_OWNERSHIP_INVALID' if failures else 'DATABASE_RECOVERY_OWNERSHIP_VALID','; '.join(failures) if failures else 'database recovery commands remain provider-owned','Senior 2 must move or version restore commands under database/**; Senior 4 will not create an operations wrapper.' if failures else 'none'))
+        checks.append(check('Senior 2','database recovery command ownership','failed' if failures else 'passed','DATABASE_RECOVERY_OWNERSHIP_INVALID' if failures else 'DATABASE_RECOVERY_OWNERSHIP_VALID',failure_summary(failures) if failures else 'database recovery commands remain provider-owned','Senior 2 must move or version restore commands under database/**; Senior 4 will not create an operations wrapper.' if failures else 'none'))
     runtime_paths={
       'workspace':provider/'Cargo.toml',
       'toolchain':provider/'rust-toolchain.toml',
       'config':provider/'contracts/platform/runtime-config-v0.schema.json',
       'openapi':provider/'contracts/openapi/platform-v0.yaml',
       'tool':provider/'services/admin-cli/src/main.rs',
+      'persistence':provider/'crates/persistence-postgres/src/lib.rs',
+      'realtime':provider/'services/realtime/src/main.rs',
+      'probe':provider/'services/admin-cli/src/platform_probe.rs',
+      'api_config':provider/'contracts/platform/runtime-config-api.local.example.json',
+      'realtime_config':provider/'contracts/platform/runtime-config-realtime.local.example.json',
+      'worker_config':provider/'contracts/platform/runtime-config-worker.local.example.json',
     }
     runtime_missing=[path.relative_to(provider).as_posix() for path in runtime_paths.values() if not path.is_file()]
     if runtime_missing:
@@ -80,12 +93,31 @@ def main()->int:
         if listen.get('host',{}).get('const')!='127.0.0.1':
             failures.append('runtime listeners must remain loopback-only')
         database_props=config.get('properties',{}).get('database',{}).get('properties',{})
+        if database_props.get('requiredMigrationVersion',{}).get('minimum')!=4:
+            failures.append('runtime requiredMigrationVersion minimum must be 4')
+        for config_key in ('api_config','realtime_config','worker_config'):
+            runtime_example=load(runtime_paths[config_key])
+            if runtime_example.get('database',{}).get('requiredMigrationVersion')!=4:
+                failures.append(f"{runtime_paths[config_key].name} must require database migration version 4")
         endpoint=database_props.get('endpoint',{}).get('properties',{})
         if endpoint.get('host',{}).get('const')!='127.0.0.1' or endpoint.get('port',{}).get('const')!=6432 or endpoint.get('poolingMode',{}).get('const')!='transaction':
             failures.append('runtime database endpoint must use loopback PgBouncer transaction pooling')
         openapi=runtime_paths['openapi'].read_text(encoding='utf-8')
         for path in ('/health/live:','/health/ready:','/metrics:','/platform/v0/metadata:','/platform/v0/probes:'):
             if path not in openapi: failures.append(f'OpenAPI is missing {path[:-1]}')
+        persistence=runtime_paths['persistence'].read_text(encoding='utf-8')
+        for token in ('platform.read_realtime_handoff_v0($1, $2)','schema_version','producer','correlation_id','causation_id','metadata','map_event_row'):
+            if token not in persistence:
+                failures.append(f'runtime PostgreSQL adapter missing committed handoff mapping token {token}')
+        realtime=runtime_paths['realtime'].read_text(encoding='utf-8')
+        if 'refresh_handoff_readiness' not in realtime or 'committed-handoff-provider-missing' in realtime:
+            failures.append('realtime readiness must prove the committed handoff provider dynamically')
+        probe=runtime_paths['probe'].read_text(encoding='utf-8')
+        if 'platform.observe_probe_v0($1, $2)' not in probe:
+            failures.append('platform probe must consume platform.observe_probe_v0(uuid,uuid)')
+        for forbidden in ('FROM platform.probe_state_v0','JOIN platform.outbox_events','JOIN platform.probe_effects_v0'):
+            if forbidden in probe:
+                failures.append(f'platform probe must not read authority tables directly: {forbidden}')
         tool=runtime_paths['tool'].read_text(encoding='utf-8')
         if 'PrintValidationManifest' not in tool:
             failures.append('liqi-platform-tool must publish PrintValidationManifest')
@@ -107,7 +139,9 @@ def main()->int:
                 failures.append(f'{path.name} does not satisfy telemetry-v0')
             if document.get('service',{}).get('name')!=service_name or document.get('service',{}).get('owner')!='Senior 3':
                 failures.append(f'{path.name} must declare {service_name} owned by Senior 3')
-        checks.append(check('Senior 3','runtime validation, health identity and promotion probe','failed' if failures else 'passed','RUNTIME_OPERABILITY_INCOMPATIBLE' if failures else 'RUNTIME_OPERABILITY_COMPATIBLE','; '.join(failures) if failures else 'runtime toolchain, loopback contracts, telemetry declarations and platform probe result seam are compatible','Senior 3 owns repair of runtime operability contract or platform-probe seam failures; Senior 4 will not synthesize runtime evidence.' if failures else 'none'))
+        if failures:
+            for failure in failures:print(f'ERROR Senior 3 compatibility: {failure}',file=sys.stderr)
+        checks.append(check('Senior 3','runtime validation, health identity and promotion probe','failed' if failures else 'passed','RUNTIME_OPERABILITY_INCOMPATIBLE' if failures else 'RUNTIME_OPERABILITY_COMPATIBLE',failure_summary(failures) if failures else 'runtime toolchain, loopback contracts, telemetry declarations and platform probe result seam are compatible','Senior 3 owns repair of runtime operability contract or platform-probe seam failures; Senior 4 will not synthesize runtime evidence.' if failures else 'none'))
     statuses=[item['status'] for item in checks]; overall='failed' if 'failed' in statuses else 'blocked' if 'blocked' in statuses else 'passed'
     result={'schema_version':'provider-compatibility-result-v0','overall_status':overall,'checks':checks}
     errors=list(Draft202012Validator(load(SCHEMA)).iter_errors(result))

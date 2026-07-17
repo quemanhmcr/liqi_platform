@@ -35,7 +35,7 @@ Approved persistence functions after migration version 4:
 - Promotion observer: `platform.observe_probe_v0(probe_id, event_id)`
 - Readiness: `platform.database_readiness_v0(required_version)` with required version `4`
 
-The wire adapter must preserve event ID, type, version, occurred-at, aggregate key, ordering key and payload. `database/tests/contract/validate_wire_mapping.py` consumes Senior 3's accepted example; the placeholder fixture is not a wire contract and states its removal condition.
+The wire adapter must preserve event ID, schema/type version, occurred-at, producer, correlation/causation IDs, aggregate key, ordering key, payload and metadata. `database/tests/contract/validate_wire_mapping.py` consumes Senior 3's accepted example; the placeholder fixture is not a wire contract and states its removal condition.
 
 ## Cluster lifecycle
 

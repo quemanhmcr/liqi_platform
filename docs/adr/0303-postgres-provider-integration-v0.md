@@ -7,7 +7,7 @@
 
 ## Context
 
-Senior 2 published the durable authority contract and migration version 2 after the initial Senior 3 runtime ports were drafted. The implementation provides transaction-pooled stored functions for readiness, probe insertion, outbox claim, acknowledgement, bounded retry/dead-letter, and atomic probe-effect acknowledgement.
+Senior 2 published the durable authority contract and migration version 4 after the initial Senior 3 runtime ports were drafted. The implementation provides transaction-pooled stored functions for readiness, probe insertion, outbox claim, acknowledgement, bounded retry/dead-letter, and atomic probe-effect acknowledgement.
 
 The original in-memory port draft treated effect insertion and acknowledgement as two calls. That assumption is unsafe because a crash between those calls can commit an effect while leaving the event reclaimable. The provider also restricts `liqi_realtime` from claiming outbox rows or reading authority tables directly.
 
@@ -16,7 +16,7 @@ The original in-memory port draft treated effect insertion and acknowledgement a
 - API and worker connect through PgBouncer at port 6432 in transaction mode.
 - SQLx server-side statement caching is disabled and runtime queries are marked non-persistent. No runtime behavior depends on session affinity, temporary tables, `LISTEN/NOTIFY`, or session advisory locks.
 - Runtime pool caps are enforced per database role: API 20, realtime 5, worker 10; accepted local examples use 16, 5, and 10 respectively.
-- Required migration version is 2.
+- Required migration version is 4.
 - The probe client ID is the durable probe ID. Its event ID is derived deterministically with UUIDv5, making a retried API request compatible with `platform.request_probe_v0` idempotency.
 - The worker uses `platform.apply_probe_effect_and_ack_v0`; effect and acknowledgement are one durable transaction.
 - Claim tokens and realtime cursors remain opaque outside the provider adapter.
@@ -33,7 +33,7 @@ The current outbox row also does not persist producer, correlation ID, causation
 
 - Contract V0 has no merged external consumer at this checkpoint, so `schemaVersion` was renamed to `eventVersion` before first consumption to match the accepted provider vocabulary.
 - Dev/test fake persistence remains behind the compile feature `dev-fakes`, the runtime capability `persistence.fake`, and a local/development/test environment check. Production-like config rejects it.
-- The fake is removed from the integration path when the database adapter platform-probe test passes against migration version 2 through PgBouncer.
+- The fake is removed from the integration path when the database adapter platform-probe test passes against migration version 4 through PgBouncer.
 - Realtime readiness becomes green only after an approved committed-handoff provider and access-revocation provider are integrated.
 
 ## Trade-off

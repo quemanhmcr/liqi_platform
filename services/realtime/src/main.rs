@@ -10,7 +10,8 @@ use axum::{
     routing::any,
 };
 use liqi_application::{
-    BoundedExecutor, CommittedRealtimeReader, HealthRegistry, PlatformPersistence, RuntimeControl,
+    BoundedExecutor, CommittedRealtimeReader, HealthRegistry, PlatformPersistence,
+    RealtimeReadRequest, RuntimeControl,
 };
 use liqi_configuration::{
     LocalSecretResolver, RuntimeArgs, RuntimeConfig, SecretResolver as _, ServiceName,
@@ -30,6 +31,8 @@ use tower_http::catch_panic::CatchPanicLayer;
 use tracing::{error, info};
 
 const ARTIFACT: &str = "liqi-realtime";
+const PLATFORM_PROBE_TOPIC: &str = "platform.probe.requested.v0";
+const HANDOFF_READINESS_INTERVAL: Duration = Duration::from_secs(1);
 
 type MainError = Box<dyn Error + Send + Sync>;
 
@@ -53,8 +56,7 @@ async fn main() -> Result<(), MainError> {
     let telemetry = initialize(&config)?;
     let resolver = LocalSecretResolver;
     let database_secret = resolver.resolve(&config.database.secret_ref).await?;
-    let (persistence, realtime_reader, realtime_handoff_ready) =
-        persistence_provider(&config, database_secret)?;
+    let (persistence, realtime_reader) = persistence_provider(&config, database_secret)?;
     let persistence_for_shutdown = Arc::clone(&persistence);
     let health = Arc::new(HealthRegistry::new(ARTIFACT, &config.service.version));
     let authentication_ready = dev_authentication_enabled(&config);
@@ -76,16 +78,8 @@ async fn main() -> Result<(), MainError> {
     let _ = health
         .set_check(
             "realtime-handoff",
-            if realtime_handoff_ready {
-                DependencyStatus::Up
-            } else {
-                DependencyStatus::Down
-            },
-            Some(if realtime_handoff_ready {
-                "committed-handoff-ready"
-            } else {
-                "committed-handoff-provider-missing"
-            }),
+            DependencyStatus::Down,
+            Some("committed-handoff-unverified"),
         )
         .await;
     let metrics = Arc::new(RuntimeMetrics::default());
@@ -101,6 +95,11 @@ async fn main() -> Result<(), MainError> {
         Arc::clone(&health),
         Arc::clone(&config),
         persistence,
+        control.child_token(),
+    );
+    let handoff_readiness_task = spawn_handoff_readiness(
+        Arc::clone(&health),
+        Arc::clone(&realtime_reader),
         control.child_token(),
     );
     let session_state = Arc::new(RealtimeSessionState {
@@ -144,6 +143,7 @@ async fn main() -> Result<(), MainError> {
     let result = serve_with_shutdown(listener, router, health, control.clone()).await;
     control.begin_shutdown();
     drain_background(readiness_task, control.shutdown_deadline()).await;
+    drain_background(handoff_readiness_task, control.shutdown_deadline()).await;
     close_persistence(persistence_for_shutdown, control.shutdown_deadline()).await;
     if let Err(error) = telemetry.shutdown(control.shutdown_deadline()) {
         error!(error = %error, "telemetry shutdown did not complete cleanly");
@@ -185,7 +185,6 @@ fn persistence_provider(
     (
         Arc<dyn PlatformPersistence>,
         Arc<dyn CommittedRealtimeReader>,
-        bool,
     ),
     PostgresAdapterError,
 > {
@@ -199,10 +198,10 @@ fn persistence_provider(
     {
         drop(password);
         let store = Arc::new(liqi_test_support::FakePlatformStore::ready());
-        return Ok((store.clone(), store, true));
+        return Ok((store.clone(), store));
     }
     let store = Arc::new(PostgresAuthorityStore::connect_lazy(config, password)?);
-    Ok((store.clone(), store, false))
+    Ok((store.clone(), store))
 }
 
 fn dev_authentication_enabled(config: &RuntimeConfig) -> bool {
@@ -229,6 +228,40 @@ fn spawn_readiness(
     cancellation: tokio_util::sync::CancellationToken,
 ) -> JoinHandle<()> {
     tokio::spawn(refresh_readiness(health, config, persistence, cancellation))
+}
+
+fn spawn_handoff_readiness(
+    health: Arc<HealthRegistry>,
+    reader: Arc<dyn CommittedRealtimeReader>,
+    cancellation: tokio_util::sync::CancellationToken,
+) -> JoinHandle<()> {
+    tokio::spawn(refresh_handoff_readiness(health, reader, cancellation))
+}
+
+async fn refresh_handoff_readiness(
+    health: Arc<HealthRegistry>,
+    reader: Arc<dyn CommittedRealtimeReader>,
+    cancellation: tokio_util::sync::CancellationToken,
+) {
+    let mut interval = time::interval(HANDOFF_READINESS_INTERVAL);
+    interval.set_missed_tick_behavior(time::MissedTickBehavior::Skip);
+    loop {
+        tokio::select! {
+            () = cancellation.cancelled() => break,
+            _ = interval.tick() => {
+                let usable = reader.read_committed(RealtimeReadRequest {
+                    topics: vec![PLATFORM_PROBE_TOPIC.to_owned()],
+                    after: None,
+                    batch_size: 1,
+                }).await.is_ok();
+                let _ = health.set_check(
+                    "realtime-handoff",
+                    if usable { DependencyStatus::Up } else { DependencyStatus::Down },
+                    Some(if usable { "committed-handoff-ready" } else { "committed-handoff-unavailable" }),
+                ).await;
+            }
+        }
+    }
 }
 
 async fn close_persistence(persistence: Arc<dyn PlatformPersistence>, deadline: Duration) {

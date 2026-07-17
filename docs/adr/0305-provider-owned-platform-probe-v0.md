@@ -42,7 +42,7 @@ All evidence references are opaque identifiers. Transport, SQL and internal erro
 
 ## Temporary database observation boundary
 
-V0 terminal evidence reads the disposable test database tables introduced by Senior 2 migration `000000000002_platform_outbox_probe.sql`. This is limited to the promotion probe and is not an application/runtime repository contract.
+V0 terminal evidence calls `platform.observe_probe_v0(uuid, uuid)` through one bounded readonly connection. The runner has no direct probe, outbox or effect table access.
 
 Senior 2 should publish a provider-owned probe observation function or approved read view. Senior 3 owns removing the direct disposable-test query when that seam becomes available. Runtime API/realtime/worker binaries do not gain direct-table privileges from this decision.
 

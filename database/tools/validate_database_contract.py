@@ -91,9 +91,18 @@ def main() -> int:
     if example["probeObservation"]["directTableAccess"] is not False:
         failures.append("probe observation must not grant direct table access")
 
+    required_handoff_fields = [
+        "handoff_id", "event_id", "schema_version", "event_type", "event_version",
+        "occurred_at", "producer", "correlation_id", "causation_id", "aggregate_key",
+        "ordering_key", "payload", "metadata", "recorded_at",
+    ]
+    if example["realtimeHandoff"]["fields"] != required_handoff_fields:
+        failures.append("realtime handoff fields must preserve the complete V0 envelope projection")
+
     required_wire = {
-        "eventId", "eventType", "eventVersion", "occurredAt",
-        "aggregateKey", "orderingKey", "payload",
+        "eventId", "eventType", "eventVersion", "occurredAt", "producer",
+        "correlationId", "causationId", "aggregateKey", "orderingKey",
+        "payload", "metadata",
     }
     actual_wire = set(example["outbox"]["wireMappingRequiredFields"])
     if actual_wire != required_wire:

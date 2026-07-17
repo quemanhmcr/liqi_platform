@@ -93,7 +93,9 @@ impl PlatformPersistence for FakePlatformStore {
             "probeId": commit.probe_id,
         });
         let mut metadata = EventMetadata::new();
-        metadata.insert("environment".to_owned(), Value::String("test".to_owned()));
+        if let Some(trace_id) = &commit.request_context.trace_id {
+            metadata.insert("trace_id".to_owned(), Value::String(trace_id.clone()));
+        }
         let aggregate_key = format!("platform-probe:{}", commit.probe_id);
         let event = EventEnvelope {
             event_id: commit.event_id,
@@ -102,7 +104,7 @@ impl PlatformPersistence for FakePlatformStore {
             occurred_at: commit.committed_at,
             producer: "liqi-api".to_owned(),
             correlation_id: Some(commit.request_context.request_id),
-            causation_id: Some(commit.request_context.request_id),
+            causation_id: None,
             aggregate_key: aggregate_key.clone(),
             ordering_key: Some(aggregate_key),
             payload,

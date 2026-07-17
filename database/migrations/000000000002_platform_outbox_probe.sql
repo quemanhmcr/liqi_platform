@@ -4,9 +4,16 @@ CREATE TABLE platform.outbox_events (
     event_type text NOT NULL CHECK (event_type ~ '^[a-z][a-z0-9_.-]{2,127}$'),
     event_version integer NOT NULL CHECK (event_version >= 0),
     occurred_at timestamptz NOT NULL,
-    aggregate_key text NOT NULL CHECK (length(aggregate_key) BETWEEN 1 AND 256),
-    ordering_key text NOT NULL CHECK (length(ordering_key) BETWEEN 1 AND 256),
+    producer text NOT NULL CHECK (producer ~ '^liqi-[a-z0-9-]{2,48}$'),
+    correlation_id uuid,
+    causation_id uuid,
+    aggregate_key text NOT NULL CHECK (length(aggregate_key) BETWEEN 1 AND 160),
+    ordering_key text NOT NULL CHECK (length(ordering_key) BETWEEN 1 AND 128),
     payload jsonb NOT NULL CHECK (jsonb_typeof(payload) = 'object'),
+    metadata jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (
+        jsonb_typeof(metadata) = 'object'
+        AND octet_length(metadata::text) <= 4096
+    ),
     state text NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'processing', 'succeeded', 'dead_letter')),
     available_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     attempt_count smallint NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
@@ -70,12 +77,17 @@ CREATE TABLE platform.probe_effects_v0 (
 
 CREATE FUNCTION platform.enqueue_outbox_v0(
     event_id uuid,
+    schema_version smallint,
     event_type text,
     event_version integer,
     occurred_at timestamptz,
+    producer text,
+    correlation_id uuid,
+    causation_id uuid,
     aggregate_key text,
     ordering_key text,
     payload jsonb,
+    metadata jsonb DEFAULT '{}'::jsonb,
     max_attempts smallint DEFAULT 8
 )
 RETURNS uuid
@@ -85,12 +97,14 @@ SET search_path = pg_catalog, platform
 AS $$
 BEGIN
     INSERT INTO platform.outbox_events (
-        event_id, event_type, event_version, occurred_at,
-        aggregate_key, ordering_key, payload, max_attempts
+        event_id, schema_version, event_type, event_version, occurred_at,
+        producer, correlation_id, causation_id, aggregate_key, ordering_key,
+        payload, metadata, max_attempts
     )
     VALUES (
-        event_id, event_type, event_version, occurred_at,
-        aggregate_key, ordering_key, payload, max_attempts
+        event_id, schema_version, event_type, event_version, occurred_at,
+        producer, correlation_id, causation_id, aggregate_key, ordering_key,
+        payload, COALESCE(metadata, '{}'::jsonb), max_attempts
     );
     RETURN event_id;
 EXCEPTION
@@ -99,12 +113,17 @@ EXCEPTION
             SELECT 1
             FROM platform.outbox_events existing
             WHERE existing.event_id = enqueue_outbox_v0.event_id
+              AND existing.schema_version = enqueue_outbox_v0.schema_version
               AND existing.event_type = enqueue_outbox_v0.event_type
               AND existing.event_version = enqueue_outbox_v0.event_version
               AND existing.occurred_at = enqueue_outbox_v0.occurred_at
+              AND existing.producer = enqueue_outbox_v0.producer
+              AND existing.correlation_id IS NOT DISTINCT FROM enqueue_outbox_v0.correlation_id
+              AND existing.causation_id IS NOT DISTINCT FROM enqueue_outbox_v0.causation_id
               AND existing.aggregate_key = enqueue_outbox_v0.aggregate_key
               AND existing.ordering_key = enqueue_outbox_v0.ordering_key
               AND existing.payload = enqueue_outbox_v0.payload
+              AND existing.metadata = COALESCE(enqueue_outbox_v0.metadata, '{}'::jsonb)
         ) THEN
             RETURN event_id;
         END IF;
@@ -117,7 +136,10 @@ $$;
 CREATE FUNCTION platform.request_probe_v0(
     probe_id uuid,
     event_id uuid,
-    occurred_at timestamptz DEFAULT clock_timestamp()
+    occurred_at timestamptz DEFAULT clock_timestamp(),
+    correlation_id uuid DEFAULT NULL,
+    causation_id uuid DEFAULT NULL,
+    metadata jsonb DEFAULT '{}'::jsonb
 )
 RETURNS uuid
 LANGUAGE plpgsql
@@ -142,12 +164,17 @@ BEGIN
 
     PERFORM platform.enqueue_outbox_v0(
         event_id,
+        0,
         'platform.probe.requested.v0',
         0,
         occurred_at,
+        'liqi-api',
+        correlation_id,
+        causation_id,
         'platform-probe:' || probe_id::text,
         'platform-probe:' || probe_id::text,
         jsonb_build_object('probeId', probe_id::text),
+        COALESCE(metadata, '{}'::jsonb),
         8
     );
 
@@ -164,12 +191,17 @@ RETURNS TABLE (
     event_id uuid,
     claim_token uuid,
     attempt_no smallint,
+    schema_version smallint,
     event_type text,
     event_version integer,
     occurred_at timestamptz,
+    producer text,
+    correlation_id uuid,
+    causation_id uuid,
     aggregate_key text,
     ordering_key text,
     payload jsonb,
+    metadata jsonb,
     lease_expires_at timestamptz
 )
 LANGUAGE plpgsql
@@ -250,12 +282,17 @@ BEGIN
         claimed.event_id,
         claimed.claim_token,
         claimed.attempt_count,
+        claimed.schema_version,
         claimed.event_type,
         claimed.event_version,
         claimed.occurred_at,
+        claimed.producer,
+        claimed.correlation_id,
+        claimed.causation_id,
         claimed.aggregate_key,
         claimed.ordering_key,
         claimed.payload,
+        claimed.metadata,
         claimed.lease_expires_at
     FROM claimed
     JOIN attempts USING (event_id)
@@ -464,8 +501,8 @@ FROM platform.outbox_events;
 REVOKE ALL ON platform.outbox_events, platform.outbox_attempts, platform.probe_state_v0, platform.probe_effects_v0 FROM PUBLIC;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA platform FROM PUBLIC;
 
-GRANT EXECUTE ON FUNCTION platform.enqueue_outbox_v0(uuid, text, integer, timestamptz, text, text, jsonb, smallint) TO liqi_api, liqi_worker;
-GRANT EXECUTE ON FUNCTION platform.request_probe_v0(uuid, uuid, timestamptz) TO liqi_api;
+GRANT EXECUTE ON FUNCTION platform.enqueue_outbox_v0(uuid, smallint, text, integer, timestamptz, text, uuid, uuid, text, text, jsonb, jsonb, smallint) TO liqi_api, liqi_worker;
+GRANT EXECUTE ON FUNCTION platform.request_probe_v0(uuid, uuid, timestamptz, uuid, uuid, jsonb) TO liqi_api;
 GRANT EXECUTE ON FUNCTION platform.claim_outbox_v0(text, integer, integer) TO liqi_worker;
 GRANT EXECUTE ON FUNCTION platform.ack_outbox_v0(uuid, uuid, text) TO liqi_worker;
 GRANT EXECUTE ON FUNCTION platform.fail_outbox_v0(uuid, uuid, text, text, timestamptz) TO liqi_worker;

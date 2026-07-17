@@ -711,7 +711,7 @@
         },
         "wireMappingRequiredFields": {
           "type": "array",
-          "minItems": 5,
+          "minItems": 11,
           "uniqueItems": true,
           "items": {
             "enum": [
@@ -719,9 +719,13 @@
               "eventType",
               "eventVersion",
               "occurredAt",
+              "producer",
+              "correlationId",
+              "causationId",
               "aggregateKey",
               "orderingKey",
-              "payload"
+              "payload",
+              "metadata"
             ]
           }
         }
@@ -1074,12 +1078,17 @@
           "const": [
             "handoff_id",
             "event_id",
+            "schema_version",
             "event_type",
             "event_version",
             "occurred_at",
+            "producer",
+            "correlation_id",
+            "causation_id",
             "aggregate_key",
             "ordering_key",
             "payload",
+            "metadata",
             "recorded_at"
           ]
         },
