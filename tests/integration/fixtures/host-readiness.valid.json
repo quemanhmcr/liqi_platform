@@ -1,7 +1,7 @@
 {
   "schema_version": "liqi.platform.host-readiness/v0",
   "host_contract_schema_version": "liqi.platform.oci-host/v0",
-  "infrastructure_output_version": "0.2.0",
+  "infrastructure_output_version": "0.3.0",
   "bootstrap_version": "0.1.0",
   "status": "ready",
   "checked_at": "2026-07-17T00:00:00Z",

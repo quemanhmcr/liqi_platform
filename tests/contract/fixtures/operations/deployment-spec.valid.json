@@ -99,7 +99,7 @@
     "current_symlink": "/opt/liqi/current",
     "deployment_root": "/opt/liqi/releases",
     "host_instance_ref": "ocid1.instance.oc1.ap-singapore-2.testfixture",
-    "host_output_version": "0.2.0",
+    "host_output_version": "0.3.0",
     "host_schema_version": "liqi.platform.oci-host/v0",
     "installation_semantics": "upload-to-staging-then-root-owned-atomic-install",
     "release_path": "/opt/liqi/releases/liqi-v0.0.0-test",

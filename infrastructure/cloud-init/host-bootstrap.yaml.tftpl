@@ -52,9 +52,15 @@ write_files:
       Compress=yes
       Seal=yes
       SystemMaxUse=2G
-      SystemKeepFree=7G
+      Storage=persistent
+      SystemKeepFree=10G
+      SystemMaxFileSize=256M
       RuntimeMaxUse=512M
+      MaxFileSec=1day
       MaxRetentionSec=7day
+      RateLimitIntervalSec=30s
+      RateLimitBurst=10000
+      ForwardToSyslog=no
 
   - path: /etc/tmpfiles.d/liqi.conf
     owner: root:root
