@@ -1,0 +1,8 @@
+{
+  "schema_version": "provider-compatibility-result-v0",
+  "overall_status": "passed",
+  "checks": [
+    {"owner": "Senior 1", "seam": "OCI host output and host logging policy", "status": "passed", "code": "HOST_OPERABILITY_COMPATIBLE", "message": "compatible", "action_required": "none"},
+    {"owner": "Senior 2", "seam": "database recovery command ownership", "status": "passed", "code": "DATABASE_RECOVERY_OWNERSHIP_VALID", "message": "compatible", "action_required": "none"}
+  ]
+}

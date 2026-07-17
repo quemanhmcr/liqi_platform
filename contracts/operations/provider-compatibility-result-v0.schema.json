@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/provider-compatibility-result-v0.schema.json",
+  "title": "LIQI cross-provider compatibility result V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "overall_status", "checks"],
+  "properties": {
+    "schema_version": {"const": "provider-compatibility-result-v0"},
+    "overall_status": {"enum": ["passed", "failed", "blocked"]},
+    "checks": {
+      "type": "array", "minItems": 2,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["owner", "seam", "status", "code", "message", "action_required"],
+        "properties": {
+          "owner": {"enum": ["Senior 1", "Senior 2", "Senior 3", "Senior 4"]},
+          "seam": {"type": "string", "minLength": 1, "maxLength": 256},
+          "status": {"enum": ["passed", "failed", "blocked"]},
+          "code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,63}$"},
+          "message": {"type": "string", "minLength": 1, "maxLength": 1000},
+          "action_required": {"type": "string", "minLength": 1, "maxLength": 1000}
+        }
+      }
+    }
+  }
+}

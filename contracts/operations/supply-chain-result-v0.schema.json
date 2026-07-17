@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/supply-chain-result-v0.schema.json",
+  "title": "LIQI release supply-chain evidence result V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "release_id", "git_sha", "status", "artifact_subjects", "sbom", "provenance", "failures"],
+  "properties": {
+    "schema_version": {"const": "supply-chain-result-v0"},
+    "release_id": {"type": "string", "pattern": "^liqi-"},
+    "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "status": {"enum": ["passed", "failed"]},
+    "artifact_subjects": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "sha256"],
+        "properties": {
+          "name": {"enum": ["liqi-api", "liqi-realtime", "liqi-worker"]},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "sbom": {
+      "type": "object", "additionalProperties": false,
+      "required": ["spdx_version", "document_namespace", "sha256", "artifact_count"],
+      "properties": {
+        "spdx_version": {"const": "SPDX-2.3"},
+        "document_namespace": {"type": "string", "format": "uri"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "artifact_count": {"const": 3}
+      }
+    },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["statement_type", "predicate_type", "builder_id", "build_type", "sha256", "subject_count", "source_git_sha"],
+      "properties": {
+        "statement_type": {"const": "https://in-toto.io/Statement/v1"},
+        "predicate_type": {"const": "https://slsa.dev/provenance/v1"},
+        "builder_id": {"type": "string", "format": "uri"},
+        "build_type": {"type": "string", "format": "uri"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "subject_count": {"const": 3},
+        "source_git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "failures": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 1000}}
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": "capacity-budget-v0",
+  "provider": "infrastructure",
+  "owner": "Senior 1",
+  "components": [
+    {
+      "name": "reverse-proxy",
+      "class": "edge",
+      "default_enabled": true,
+      "steady_state": { "ocpu": 0.05, "memory_mib": 96, "disk_gib": 1 },
+      "hard_limit": { "ocpu": 0.1, "memory_mib": 256, "disk_gib": 2 },
+      "postgres_connections": 0,
+      "queue": { "bounded": true, "capacity": 1024, "overflow_behavior": "reject" },
+      "retry": { "maximum_attempts": 0, "maximum_elapsed_seconds": 0, "backoff": "none", "jitter": false },
+      "failure_behavior": "fail-closed"
+    }
+  ]
+}

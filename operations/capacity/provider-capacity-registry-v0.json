@@ -1,0 +1,34 @@
+{
+  "schema_version": "provider-capacity-registry-v0",
+  "registry_version": "0.2.0",
+  "providers": [
+    {
+      "provider": "infrastructure",
+      "owner": "Senior 1",
+      "state": "pending-provider",
+      "path": "contracts/platform/infrastructure-capacity-budget-v0.json",
+      "action_required": "Senior 1 must publish host, edge and infrastructure process budgets using capacity-budget-v0."
+    },
+    {
+      "provider": "database",
+      "owner": "Senior 2",
+      "state": "available",
+      "path": "contracts/platform/database-capacity-budget-v0.json",
+      "action_required": "Senior 2 owns database capacity contract failures and must preserve connection and recovery budgets."
+    },
+    {
+      "provider": "runtime",
+      "owner": "Senior 3",
+      "state": "available",
+      "path": "contracts/platform/runtime-capacity-budget-v0.json",
+      "action_required": "Senior 3 owns runtime capacity contract failures; preserve truthful steady-state demand, hard ceilings, bounded queues/retries and PgBouncer pool demand."
+    },
+    {
+      "provider": "operations",
+      "owner": "Senior 4",
+      "state": "available",
+      "path": "operations/capacity/operations-capacity-budget-v0.json",
+      "action_required": "Senior 4 owns telemetry and host-observability capacity contract failures."
+    }
+  ]
+}

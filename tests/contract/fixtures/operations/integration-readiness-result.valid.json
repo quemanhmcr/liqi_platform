@@ -1,0 +1,20 @@
+{
+  "schema_version": "integration-readiness-result-v0",
+  "git_sha": "2d72ce4176993324d36d6f4ea115ff2b43fd5355",
+  "status": "blocked",
+  "checkpoints": [
+    {"name": "provider-source", "status": "blocked", "evidence_ref": ".artifacts/provider-source-result.json"},
+    {"name": "provider-compatibility", "status": "passed", "evidence_ref": ".artifacts/provider-compatibility-result.json"},
+    {"name": "provider-capacity", "status": "blocked", "evidence_ref": ".artifacts/provider-capacity-result.json"}
+  ],
+  "blockers": [
+    {
+      "owner": "Senior 3",
+      "seam": "runtime provider source",
+      "code": "PROVIDER_SEAM_MISSING",
+      "severity": "blocked",
+      "message": "runtime seam is not published",
+      "action_required": "Senior 3 must publish the runtime provider commands."
+    }
+  ]
+}

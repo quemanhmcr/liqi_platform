@@ -30,3 +30,13 @@ Thumbs.db
 *.log
 /tmp/
 /data/
+
+# Python operational tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Generated operational evidence
+/.artifacts/

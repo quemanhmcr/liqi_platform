@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/telemetry-runtime-policy-v0.schema.json",
+  "title": "LIQI telemetry runtime policy V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "collector", "receivers", "processors", "exporter", "journald", "sampling", "cardinality", "redaction", "failure_behavior"],
+  "properties": {
+    "schema_version": {"const": "telemetry-runtime-policy-v0"},
+    "collector": {
+      "type": "object", "additionalProperties": false,
+      "required": ["distribution", "minimum_version", "image_digest_required", "hard_memory_mib", "hard_ocpu"],
+      "properties": {
+        "distribution": {"const": "opentelemetry-collector-contrib"},
+        "minimum_version": {"type": "string", "pattern": "^0\\.[0-9]+\\.[0-9]+$"},
+        "image_digest_required": {"const": true},
+        "hard_memory_mib": {"type": "integer", "minimum": 128, "maximum": 512},
+        "hard_ocpu": {"type": "number", "minimum": 0.05, "maximum": 0.15}
+      }
+    },
+    "receivers": {
+      "type": "object", "additionalProperties": false,
+      "required": ["otlp_grpc", "otlp_http", "host_metrics"],
+      "properties": {
+        "otlp_grpc": {"$ref": "#/$defs/otlpReceiver"},
+        "otlp_http": {"$ref": "#/$defs/otlpReceiver"},
+        "host_metrics": {
+          "type": "object", "additionalProperties": false,
+          "required": ["collection_interval_seconds", "scrapers"],
+          "properties": {
+            "collection_interval_seconds": {"type": "integer", "minimum": 10, "maximum": 60},
+            "scrapers": {
+              "type": "array", "minItems": 6, "uniqueItems": true,
+              "items": {"enum": ["cpu", "disk", "filesystem", "load", "memory", "network", "paging", "processes", "system"]}
+            }
+          }
+        }
+      }
+    },
+    "processors": {
+      "type": "object", "additionalProperties": false,
+      "required": ["memory_limiter", "batch"],
+      "properties": {
+        "memory_limiter": {
+          "type": "object", "additionalProperties": false,
+          "required": ["check_interval_seconds", "limit_mib", "spike_limit_mib"],
+          "properties": {
+            "check_interval_seconds": {"type": "integer", "minimum": 1, "maximum": 5},
+            "limit_mib": {"type": "integer", "minimum": 128, "maximum": 448},
+            "spike_limit_mib": {"type": "integer", "minimum": 16, "maximum": 128}
+          }
+        },
+        "batch": {
+          "type": "object", "additionalProperties": false,
+          "required": ["timeout_ms", "send_batch_size", "send_batch_max_size"],
+          "properties": {
+            "timeout_ms": {"type": "integer", "minimum": 100, "maximum": 5000},
+            "send_batch_size": {"type": "integer", "minimum": 64, "maximum": 1024},
+            "send_batch_max_size": {"type": "integer", "minimum": 64, "maximum": 2048}
+          }
+        }
+      }
+    },
+    "exporter": {
+      "type": "object", "additionalProperties": false,
+      "required": ["timeout_seconds", "queue", "retry"],
+      "properties": {
+        "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 15},
+        "queue": {
+          "type": "object", "additionalProperties": false,
+          "required": ["enabled", "num_consumers", "queue_size", "overflow_behavior"],
+          "properties": {
+            "enabled": {"const": true},
+            "num_consumers": {"type": "integer", "minimum": 1, "maximum": 4},
+            "queue_size": {"type": "integer", "minimum": 128, "maximum": 4096},
+            "overflow_behavior": {"const": "drop-noncritical-after-bounded-retry"}
+          }
+        },
+        "retry": {
+          "type": "object", "additionalProperties": false,
+          "required": ["enabled", "initial_interval_seconds", "max_interval_seconds", "max_elapsed_seconds"],
+          "properties": {
+            "enabled": {"const": true},
+            "initial_interval_seconds": {"type": "integer", "minimum": 1, "maximum": 10},
+            "max_interval_seconds": {"type": "integer", "minimum": 5, "maximum": 60},
+            "max_elapsed_seconds": {"type": "integer", "minimum": 30, "maximum": 300}
+          }
+        }
+      }
+    },
+    "journald": {
+      "type": "object", "additionalProperties": false,
+      "required": ["storage", "system_max_use_mib", "system_keep_free_mib", "max_retention_seconds", "rate_limit_interval_seconds", "rate_limit_burst", "forward_to_syslog"],
+      "properties": {
+        "storage": {"const": "persistent"},
+        "system_max_use_mib": {"type": "integer", "minimum": 256, "maximum": 2048},
+        "system_keep_free_mib": {"type": "integer", "minimum": 10240},
+        "max_retention_seconds": {"type": "integer", "minimum": 86400, "maximum": 604800},
+        "rate_limit_interval_seconds": {"type": "integer", "minimum": 1, "maximum": 60},
+        "rate_limit_burst": {"type": "integer", "minimum": 1000, "maximum": 20000},
+        "forward_to_syslog": {"const": false}
+      }
+    },
+    "sampling": {
+      "type": "object", "additionalProperties": false,
+      "required": ["tail_sampling_enabled", "normal_trace_ratio", "error_trace_ratio", "security_trace_ratio", "metrics_sampled", "production_debug_logs"],
+      "properties": {
+        "tail_sampling_enabled": {"const": false},
+        "normal_trace_ratio": {"type": "number", "minimum": 0.01, "maximum": 0.1},
+        "error_trace_ratio": {"const": 1.0},
+        "security_trace_ratio": {"const": 1.0},
+        "metrics_sampled": {"const": false},
+        "production_debug_logs": {"const": false}
+      }
+    },
+    "cardinality": {
+      "type": "object", "additionalProperties": false,
+      "required": ["maximum_attribute_count", "maximum_attribute_value_length", "forbidden_labels"],
+      "properties": {
+        "maximum_attribute_count": {"type": "integer", "minimum": 16, "maximum": 64},
+        "maximum_attribute_value_length": {"type": "integer", "minimum": 128, "maximum": 1024},
+        "forbidden_labels": {"type": "array", "minItems": 8, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "redaction": {
+      "type": "object", "additionalProperties": false,
+      "required": ["delete_attributes", "log_body_max_bytes", "log_body_private_content_allowed"],
+      "properties": {
+        "delete_attributes": {"type": "array", "minItems": 8, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "log_body_max_bytes": {"type": "integer", "minimum": 1024, "maximum": 65536},
+        "log_body_private_content_allowed": {"const": false}
+      }
+    },
+    "failure_behavior": {
+      "type": "object", "additionalProperties": false,
+      "required": ["collector_oom", "sink_unavailable", "missing_telemetry", "local_logs_remain_available"],
+      "properties": {
+        "collector_oom": {"const": "refuse-telemetry-before-host-memory-exhaustion"},
+        "sink_unavailable": {"const": "bounded-retry-then-drop-noncritical"},
+        "missing_telemetry": {"const": "fail-promotion-for-required-signals"},
+        "local_logs_remain_available": {"const": true}
+      }
+    }
+  },
+  "$defs": {
+    "otlpReceiver": {
+      "type": "object", "additionalProperties": false,
+      "required": ["endpoint", "max_receive_message_mib"],
+      "properties": {
+        "endpoint": {"type": "string", "pattern": "^127\\.0\\.0\\.1:[0-9]{2,5}$"},
+        "max_receive_message_mib": {"type": "integer", "minimum": 1, "maximum": 8}
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/recovery-freshness-result-v0.schema.json",
+  "title": "LIQI recovery freshness result V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "status", "as_of", "backup_completed_at", "backup_age_seconds",
+    "wal_archive_lag_seconds", "restore_verified_at", "restore_verification_age_seconds",
+    "rpo_observed_seconds", "rto_observed_seconds", "evidence_ref", "failures"
+  ],
+  "properties": {
+    "schema_version": {"const": "recovery-freshness-result-v0"},
+    "status": {"enum": ["passed", "failed"]},
+    "as_of": {"type": "string", "format": "date-time"},
+    "backup_completed_at": {"type": "string", "format": "date-time"},
+    "backup_age_seconds": {"type": "integer", "minimum": 0},
+    "wal_archive_lag_seconds": {"type": "integer", "minimum": 0},
+    "restore_verified_at": {"type": "string", "format": "date-time"},
+    "restore_verification_age_seconds": {"type": "integer", "minimum": 0},
+    "rpo_observed_seconds": {"type": "integer", "minimum": 0},
+    "rto_observed_seconds": {"type": "integer", "minimum": 0},
+    "evidence_ref": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "failures": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version": "deployment-state-machine-v0",
+  "strategy": "health-gated-replacement",
+  "claims": {
+    "high_availability": false,
+    "zero_downtime": false,
+    "canary": false
+  },
+  "initial_state": "drafted",
+  "terminal_states": ["active", "rolled-back", "incident"],
+  "transitions": {
+    "drafted": ["validated"],
+    "validated": ["artifacts-ready", "failed"],
+    "artifacts-ready": ["preflight-passed", "failed"],
+    "preflight-passed": ["activating", "failed"],
+    "activating": ["active", "failed"],
+    "failed": ["rolled-back", "incident"],
+    "rolled-back": ["incident"],
+    "active": ["incident"],
+    "incident": []
+  }
+}

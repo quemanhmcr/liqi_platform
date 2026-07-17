@@ -1,0 +1,9 @@
+{
+  "contractVersion": "database-v0",
+  "database": "liqi",
+  "currentVersion": 0,
+  "requiredVersion": 0,
+  "ready": true,
+  "reason": "ready",
+  "observedAt": "2026-07-17T00:00:00Z"
+}

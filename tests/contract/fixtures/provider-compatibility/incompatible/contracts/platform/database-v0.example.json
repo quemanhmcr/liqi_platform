@@ -1,0 +1,1 @@
+{"restore": {"command": "operations/disaster-recovery/database/restore.sh", "verificationCommand": "operations/disaster-recovery/database/verify-restore.sh", "resultSchema": "contracts/platform/database-restore-result-v0.schema.json"}}

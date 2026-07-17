@@ -1,0 +1,105 @@
+exporters:
+  otlphttp/upstream:
+    endpoint: ${env:LIQI_TELEMETRY_OTLP_ENDPOINT}
+    headers:
+      Authorization: ${env:LIQI_TELEMETRY_AUTHORIZATION}
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_elapsed_time: 300s
+      max_interval: 30s
+    sending_queue:
+      enabled: true
+      num_consumers: 2
+      queue_size: 2048
+    timeout: 10s
+    tls:
+      insecure_skip_verify: false
+extensions:
+  health_check:
+    endpoint: 127.0.0.1:13133
+processors:
+  attributes/redact:
+    actions:
+    - action: delete
+      key: access_token
+    - action: delete
+      key: authorization
+    - action: delete
+      key: cookie
+    - action: delete
+      key: email
+    - action: delete
+      key: http.request.header.authorization
+    - action: delete
+      key: http.response.header.set-cookie
+    - action: delete
+      key: media_url
+    - action: delete
+      key: password
+    - action: delete
+      key: phone
+    - action: delete
+      key: refresh_token
+    - action: delete
+      key: session_token
+  batch:
+    send_batch_max_size: 512
+    send_batch_size: 256
+    timeout: 1000ms
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 384
+    spike_limit_mib: 64
+receivers:
+  host_metrics:
+    collection_interval: 15s
+    scrapers:
+      cpu: {}
+      disk: {}
+      filesystem: {}
+      load: {}
+      memory: {}
+      network: {}
+      paging: {}
+      processes: {}
+      system: {}
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:4317
+        max_recv_msg_size_mib: 4
+      http:
+        endpoint: 127.0.0.1:4318
+service:
+  extensions:
+  - health_check
+  pipelines:
+    logs:
+      exporters:
+      - otlphttp/upstream
+      processors:
+      - memory_limiter
+      - attributes/redact
+      - batch
+      receivers:
+      - otlp
+    metrics:
+      exporters:
+      - otlphttp/upstream
+      processors:
+      - memory_limiter
+      - attributes/redact
+      - batch
+      receivers:
+      - otlp
+      - host_metrics
+    traces:
+      exporters:
+      - otlphttp/upstream
+      processors:
+      - memory_limiter
+      - attributes/redact
+      - batch
+      receivers:
+      - otlp

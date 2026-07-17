@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/recovery-status-v0.schema.json",
+  "title": "LIQI Platform recovery status V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "owner", "environment", "database", "backup", "wal_archive", "restore_verification"],
+  "properties": {
+    "schema_version": { "const": "recovery-status-v0" },
+    "owner": { "const": "Senior 2" },
+    "environment": { "type": "string", "enum": ["development", "staging", "production"] },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority_version", "migration_version"],
+      "properties": {
+        "authority_version": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$" },
+        "migration_version": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$" }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["completed_at", "off_host", "encrypted", "evidence_ref"],
+      "properties": {
+        "completed_at": { "type": "string", "format": "date-time" },
+        "off_host": { "const": true },
+        "encrypted": { "const": true },
+        "evidence_ref": { "type": "string", "minLength": 1, "maxLength": 1024 }
+      }
+    },
+    "wal_archive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["last_archived_at", "lag_seconds", "evidence_ref"],
+      "properties": {
+        "last_archived_at": { "type": "string", "format": "date-time" },
+        "lag_seconds": { "type": "integer", "minimum": 0 },
+        "evidence_ref": { "type": "string", "minLength": 1, "maxLength": 1024 }
+      }
+    },
+    "restore_verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "verified_at", "rpo_observed_seconds", "rto_observed_seconds", "source_backup_ref", "evidence_ref"],
+      "properties": {
+        "status": { "const": "passed" },
+        "verified_at": { "type": "string", "format": "date-time" },
+        "rpo_observed_seconds": { "type": "integer", "minimum": 0 },
+        "rto_observed_seconds": { "type": "integer", "minimum": 0 },
+        "source_backup_ref": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "evidence_ref": { "type": "string", "minLength": 1, "maxLength": 1024 }
+      }
+    }
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "schema_version": "provider-gates-v0",
+  "registry_version": "0.0.1",
+  "gates": [
+    {
+      "id": "fixture-infra",
+      "owner": "Senior 1",
+      "seam": "fixture infra",
+      "stages": [
+        "source"
+      ],
+      "provider_state": "available",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "tests/contract/fixtures/provider-gates/pass_gate.py"
+      ],
+      "argv": [
+        "python",
+        "tests/contract/fixtures/provider-gates/pass_gate.py"
+      ],
+      "timeout_seconds": 10,
+      "result_mode": "exit-code",
+      "failure_class": "contract",
+      "action_required": "fix fixture infra"
+    },
+    {
+      "id": "senior1-env-path",
+      "owner": "Senior 1",
+      "seam": "secret-safe plan path fixture",
+      "stages": [
+        "source"
+      ],
+      "provider_state": "available",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "tests/contract/fixtures/provider-gates/pass_gate.py"
+      ],
+      "argv": [
+        "python",
+        "tests/contract/fixtures/provider-gates/pass_gate.py",
+        "{env:LIQI_TEST_PLAN_PATH}"
+      ],
+      "required_environment": [
+        "LIQI_TEST_PLAN_PATH"
+      ],
+      "timeout_seconds": 30,
+      "result_mode": "exit-code",
+      "failure_class": "configuration",
+      "action_required": "fixture only"
+    },
+    {
+      "id": "fixture-database",
+      "owner": "Senior 2",
+      "seam": "fixture database",
+      "stages": [
+        "source"
+      ],
+      "provider_state": "available",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "tests/contract/fixtures/provider-gates/pass_gate.py"
+      ],
+      "argv": [
+        "python",
+        "tests/contract/fixtures/provider-gates/pass_gate.py"
+      ],
+      "timeout_seconds": 10,
+      "result_mode": "exit-code",
+      "failure_class": "contract",
+      "action_required": "fix fixture database"
+    },
+    {
+      "id": "senior2-json-output",
+      "owner": "Senior 2",
+      "seam": "machine-readable provider output fixture",
+      "stages": [
+        "source"
+      ],
+      "provider_state": "available",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "tests/contract/fixtures/provider-gates/write_json_gate.py"
+      ],
+      "argv": [
+        "python",
+        "tests/contract/fixtures/provider-gates/write_json_gate.py",
+        "--output",
+        "{output}"
+      ],
+      "timeout_seconds": 30,
+      "result_mode": "json-file",
+      "failure_class": "recovery",
+      "action_required": "fixture only"
+    },
+    {
+      "id": "senior3-stdout-json",
+      "owner": "Senior 3",
+      "seam": "stdout JSON provider fixture",
+      "stages": [
+        "source"
+      ],
+      "provider_state": "available",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "tests/contract/fixtures/provider-gates/print_json_gate.py"
+      ],
+      "argv": [
+        "python",
+        "tests/contract/fixtures/provider-gates/print_json_gate.py"
+      ],
+      "timeout_seconds": 10,
+      "result_mode": "stdout-json",
+      "failure_class": "contract",
+      "action_required": "fixture only"
+    },
+    {
+      "id": "fixture-runtime",
+      "owner": "Senior 3",
+      "seam": "fixture runtime",
+      "stages": [
+        "source"
+      ],
+      "provider_state": "pending-owner-build",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "Cargo.toml"
+      ],
+      "argv": [
+        "cargo",
+        "test",
+        "--locked"
+      ],
+      "timeout_seconds": 10,
+      "result_mode": "exit-code",
+      "failure_class": "runtime",
+      "action_required": "publish fixture runtime"
+    }
+  ]
+}
