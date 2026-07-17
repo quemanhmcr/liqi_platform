@@ -1,0 +1,41 @@
+{
+  "schema_version": "capacity-budget-v0",
+  "provider": "runtime",
+  "owner": "Senior 3",
+  "components": [
+    {
+      "name": "liqi-api",
+      "class": "api",
+      "default_enabled": true,
+      "steady_state": { "ocpu": 0.15, "memory_mib": 384, "disk_gib": 0.2 },
+      "hard_limit": { "ocpu": 0.4, "memory_mib": 1536, "disk_gib": 1 },
+      "postgres_connections": 6,
+      "queue": { "bounded": true, "capacity": 512, "overflow_behavior": "reject" },
+      "retry": { "maximum_attempts": 2, "maximum_elapsed_seconds": 3, "backoff": "exponential", "jitter": true },
+      "failure_behavior": "reject-new-work"
+    },
+    {
+      "name": "liqi-realtime",
+      "class": "realtime",
+      "default_enabled": true,
+      "steady_state": { "ocpu": 0.15, "memory_mib": 512, "disk_gib": 0.2 },
+      "hard_limit": { "ocpu": 0.45, "memory_mib": 2048, "disk_gib": 1 },
+      "postgres_connections": 2,
+      "per_connection_memory_kib": 32,
+      "queue": { "bounded": true, "capacity": 128, "overflow_behavior": "drop-noncritical" },
+      "retry": { "maximum_attempts": 2, "maximum_elapsed_seconds": 5, "backoff": "exponential", "jitter": true },
+      "failure_behavior": "reject-new-work"
+    },
+    {
+      "name": "liqi-worker",
+      "class": "worker",
+      "default_enabled": true,
+      "steady_state": { "ocpu": 0.1, "memory_mib": 256, "disk_gib": 0.2 },
+      "hard_limit": { "ocpu": 0.3, "memory_mib": 1024, "disk_gib": 1 },
+      "postgres_connections": 6,
+      "queue": { "bounded": true, "capacity": 10000, "overflow_behavior": "persist-authoritatively" },
+      "retry": { "maximum_attempts": 8, "maximum_elapsed_seconds": 900, "backoff": "exponential", "jitter": true },
+      "failure_behavior": "degrade-noncritical"
+    }
+  ]
+}
