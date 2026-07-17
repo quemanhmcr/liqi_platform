@@ -40,3 +40,10 @@ Current runtime promotion blockers are machine-readable:
 - missing API/realtime/worker `telemetry-v0` capability declarations;
 - missing provider-owned `platform-probe-result-v0` runner;
 - realtime committed-handoff dependency not yet published by Senior 2.
+
+## V0 closeout references
+
+- `docs/adr/0500-v0-integration-closeout.md`
+- `operations/integration/v0-security-ci-review.md`
+- `operations/integration/owner-build-evidence-v0.md`
+- `operations/integration/first-reviewed-oci-plan-v0.md`
