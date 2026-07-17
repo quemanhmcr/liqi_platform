@@ -64,6 +64,7 @@ def expand_argv(parts: list[str], output_path: Path) -> tuple[list[str], str]:
 def check_result(gate: dict[str, Any], status: str, command: str, exit_code: int | None,
                  duration_ms: int, output_ref: str | None, failure_class: str | None) -> dict[str, Any]:
     return {
+        "gate_id": gate["id"],
         "owner": gate["owner"],
         "seam": gate["seam"],
         "command": command,
@@ -140,15 +141,23 @@ def main() -> int:
             duration_ms = round((time.monotonic() - gate_started) * 1000)
             redacted = redact(f"STDOUT\n{completed.stdout}\nSTDERR\n{completed.stderr}")
             log_path.write_text(redacted, encoding="utf-8", newline="\n")
-            output_ref = log_path.relative_to(ROOT).as_posix() if log_path.is_relative_to(ROOT) else log_path.as_posix()
+            log_ref = log_path.relative_to(ROOT).as_posix() if log_path.is_relative_to(ROOT) else log_path.as_posix()
+            output_ref = log_ref
             status = "passed" if completed.returncode == 0 else "failed"
             if status == "passed" and gate["result_mode"] == "json-file":
                 result_path = evidence_dir / f"{gate['id']}.json"
                 try:
                     load_json(result_path)
+                    output_ref = result_path.relative_to(ROOT).as_posix() if result_path.is_relative_to(ROOT) else result_path.as_posix()
                 except (OSError, json.JSONDecodeError) as exc:
                     status = "failed"
                     completed = subprocess.CompletedProcess(argv, 65, completed.stdout, f"invalid result JSON: {exc}")
+                    log_path.write_text(
+                        redacted + f"\nRESULT ERROR\n{redact(str(exc))}\n",
+                        encoding="utf-8",
+                        newline="\n",
+                    )
+                    output_ref = log_ref
             results.append(check_result(
                 gate, status, command, completed.returncode, duration_ms, output_ref,
                 None if status == "passed" else gate["failure_class"]

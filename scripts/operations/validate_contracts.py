@@ -94,6 +94,9 @@ def validate_semantics(fixture_name: str, fixture: Any) -> list[str]:
         if set(service_names) != expected or len(service_names) != 3:
             errors.append("deployment spec must control each runtime service exactly once")
     elif fixture_name == "integration-result.valid.json":
+        gate_ids = [item.get("gate_id") for item in fixture.get("provider_results", []) if item.get("gate_id")]
+        if len(gate_ids) != len(set(gate_ids)):
+            errors.append("provider gate_id values must be unique when present")
         statuses = [item.get("status") for item in fixture.get("provider_results", []) + fixture.get("gates", [])]
         expected_overall = "failed" if "failed" in statuses else "blocked" if "blocked" in statuses else "passed"
         if fixture.get("overall_status") != expected_overall:

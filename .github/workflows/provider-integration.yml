@@ -33,6 +33,16 @@ on:
         required: false
         type: string
         default: "oci-plan-json"
+      database_recovery_run_id:
+        description: Required for promotion; workflow run ID containing checksummed Senior 2 recovery evidence.
+        required: false
+        type: string
+        default: ""
+      database_recovery_artifact_name:
+        description: Artifact with metadata, backup status, restore result and checksums.
+        required: false
+        type: string
+        default: "database-recovery-evidence-v0"
 
 concurrency:
   group: v0-provider-${{ inputs.environment }}-${{ inputs.stage }}
@@ -82,6 +92,12 @@ jobs:
           echo "::error title=OCI plan evidence missing::Promotion requires oci_plan_run_id for a reviewed tofu show -json artifact."
           exit 2
 
+      - name: Require database recovery evidence for promotion
+        if: inputs.stage == 'promotion' && inputs.database_recovery_run_id == ''
+        run: |
+          echo "::error title=Database recovery evidence missing::Promotion requires database_recovery_run_id from a completed Senior 2 evidence workflow."
+          exit 2
+
       - name: Download reviewed OCI plan artifact
         if: inputs.stage == 'promotion' && inputs.oci_plan_run_id != ''
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -97,6 +113,33 @@ jobs:
         run: |
           test -f .artifacts/oci-plan/oci-plan.json
           test "$(find .artifacts/oci-plan -type f | wc -l)" -eq 1
+
+      - name: Download checksummed database recovery evidence
+        if: inputs.stage == 'promotion' && inputs.database_recovery_run_id != ''
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ inputs.database_recovery_artifact_name }}
+          path: .artifacts/database-recovery
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.database_recovery_run_id }}
+
+      - name: Validate database recovery evidence package shape
+        if: inputs.stage == 'promotion'
+        run: |
+          required=(
+            metadata/latest.json
+            metadata/latest.json.sha256
+            metadata/restore-source.json
+            metadata/restore-source.json.sha256
+            metadata/backup-status-v0.json
+            metadata/backup-status-v0.json.sha256
+            restore/restore-result.json
+            restore/restore-result.json.sha256
+          )
+          for relative in "${required[@]}"; do
+            test -f ".artifacts/database-recovery/${relative}"
+          done
 
       - name: Validate registry and operations contracts
         run: |
@@ -118,7 +161,17 @@ jobs:
         env:
           LIQI_TEST_DATABASE: liqi_v0_ci
           LIQI_OCI_PLAN_JSON: ${{ github.workspace }}/.artifacts/oci-plan/oci-plan.json
+          LIQI_BACKUP_METADATA_FILE: ${{ github.workspace }}/.artifacts/database-recovery/metadata/latest.json
+          LIQI_BACKUP_METADATA_CHECKSUM_FILE: ${{ github.workspace }}/.artifacts/database-recovery/metadata/latest.json.sha256
+          LIQI_RESTORE_SOURCE_METADATA_FILE: ${{ github.workspace }}/.artifacts/database-recovery/metadata/restore-source.json
+          LIQI_RESTORE_SOURCE_METADATA_CHECKSUM_FILE: ${{ github.workspace }}/.artifacts/database-recovery/metadata/restore-source.json.sha256
+          LIQI_BACKUP_STATUS_FILE: ${{ github.workspace }}/.artifacts/database-recovery/metadata/backup-status-v0.json
+          LIQI_BACKUP_STATUS_CHECKSUM_FILE: ${{ github.workspace }}/.artifacts/database-recovery/metadata/backup-status-v0.json.sha256
+          LIQI_RESTORE_RESULT_FILE: ${{ github.workspace }}/.artifacts/database-recovery/restore/restore-result.json
+          LIQI_RESTORE_RESULT_CHECKSUM_FILE: ${{ github.workspace }}/.artifacts/database-recovery/restore/restore-result.json.sha256
         run: |
+          export LIQI_ENVIRONMENT="${{ inputs.environment }}"
+          export LIQI_RELEASE_ID="liqi-${{ inputs.stage }}-${GITHUB_SHA:0:12}"
           args=(
             --stage "${{ inputs.stage }}"
             --environment "${{ inputs.environment }}"
@@ -129,6 +182,29 @@ jobs:
           fi
           python scripts/operations/run_provider_gates.py "${args[@]}"
 
+      - name: Extract provider recovery and platform probe evidence
+        if: inputs.stage == 'promotion'
+        run: |
+          python scripts/operations/extract_provider_output.py             --integration-result .artifacts/provider-integration-result.json             --gate-id database-recovery-signals             --output .artifacts/recovery-status-v0.json
+          python scripts/operations/extract_provider_output.py             --integration-result .artifacts/provider-integration-result.json             --gate-id runtime-platform-probe             --output .artifacts/platform-probe-result-v0.json
+
+      - name: Evaluate recovery freshness
+        if: inputs.stage == 'promotion'
+        run: >-
+          python scripts/operations/check_recovery_freshness.py
+          --status .artifacts/recovery-status-v0.json
+          --output .artifacts/recovery-freshness-result-v0.json
+
+      - name: Compose final promotion evidence
+        if: inputs.stage == 'promotion'
+        run: >-
+          python scripts/operations/assemble_integration_result.py
+          --provider-result .artifacts/provider-integration-result.json
+          --capacity-result .artifacts/provider-capacity-result.json
+          --recovery-result .artifacts/recovery-freshness-result-v0.json
+          --platform-probe .artifacts/platform-probe-result-v0.json
+          --output .artifacts/final-integration-result-v0.json
+
       - name: Upload integration evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -138,5 +214,10 @@ jobs:
             .artifacts/provider-integration-result.json
             .artifacts/provider-compatibility-result.json
             .artifacts/provider-capacity-result.json
+            .artifacts/provider-gates/
+            .artifacts/recovery-status-v0.json
+            .artifacts/recovery-freshness-result-v0.json
+            .artifacts/platform-probe-result-v0.json
+            .artifacts/final-integration-result-v0.json
           if-no-files-found: error
           retention-days: 30
