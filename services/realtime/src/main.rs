@@ -35,6 +35,10 @@ const PLATFORM_PROBE_TOPIC: &str = "platform.probe.requested.v0";
 const HANDOFF_READINESS_INTERVAL: Duration = Duration::from_secs(1);
 
 type MainError = Box<dyn Error + Send + Sync>;
+type RealtimeProviders = (
+    Arc<dyn PlatformPersistence>,
+    Arc<dyn CommittedRealtimeReader>,
+);
 
 #[tokio::main]
 async fn main() -> Result<(), MainError> {
@@ -59,29 +63,7 @@ async fn main() -> Result<(), MainError> {
     let (persistence, realtime_reader) = persistence_provider(&config, database_secret)?;
     let persistence_for_shutdown = Arc::clone(&persistence);
     let health = Arc::new(HealthRegistry::new(ARTIFACT, &config.service.version));
-    let authentication_ready = dev_authentication_enabled(&config);
-    let _ = health
-        .set_check(
-            "realtime-authentication",
-            if authentication_ready {
-                DependencyStatus::Up
-            } else {
-                DependencyStatus::Down
-            },
-            Some(if authentication_ready {
-                "development-auth-placeholder-ready"
-            } else {
-                "authentication-provider-missing"
-            }),
-        )
-        .await;
-    let _ = health
-        .set_check(
-            "realtime-handoff",
-            DependencyStatus::Down,
-            Some("committed-handoff-unverified"),
-        )
-        .await;
+    let authentication_ready = initialize_realtime_health(&config, &health).await;
     let metrics = Arc::new(RuntimeMetrics::default());
     let control = RuntimeControl::new(Duration::from_millis(config.runtime.shutdown_deadline_ms));
     let operational = Arc::new(OperationalState::new(
@@ -152,14 +134,40 @@ async fn main() -> Result<(), MainError> {
     Ok(())
 }
 
+async fn initialize_realtime_health(config: &RuntimeConfig, health: &HealthRegistry) -> bool {
+    let authentication_ready = dev_authentication_enabled(config);
+    let _ = health
+        .set_check(
+            "realtime-authentication",
+            if authentication_ready {
+                DependencyStatus::Up
+            } else {
+                DependencyStatus::Down
+            },
+            Some(if authentication_ready {
+                "development-auth-placeholder-ready"
+            } else {
+                "authentication-provider-missing"
+            }),
+        )
+        .await;
+    let _ = health
+        .set_check(
+            "realtime-handoff",
+            DependencyStatus::Down,
+            Some("committed-handoff-unverified"),
+        )
+        .await;
+    authentication_ready
+}
+
 async fn realtime_upgrade(
     Extension(state): Extension<Arc<RealtimeSessionState>>,
     Extension(context): Extension<RequestContext>,
     websocket: WebSocketUpgrade,
 ) -> Response {
-    let permit = match state.connection_executor.try_acquire() {
-        Ok(permit) => permit,
-        Err(_) => return safe_code_response(ErrorCode::PlatformConcurrencyLimited, &context),
+    let Ok(permit) = state.connection_executor.try_acquire() else {
+        return safe_code_response(ErrorCode::PlatformConcurrencyLimited, &context);
     };
     let max_message = state.max_message_bytes;
     let max_write_buffer = max_message
@@ -181,13 +189,7 @@ async fn realtime_upgrade(
 fn persistence_provider(
     config: &RuntimeConfig,
     database_secret: SecretString,
-) -> Result<
-    (
-        Arc<dyn PlatformPersistence>,
-        Arc<dyn CommittedRealtimeReader>,
-    ),
-    PostgresAdapterError,
-> {
+) -> Result<RealtimeProviders, PostgresAdapterError> {
     #[cfg(feature = "dev-fakes")]
     if matches!(
         config.environment,
@@ -202,7 +204,7 @@ fn persistence_provider(
     }
     let store = Arc::new(PostgresAuthorityStore::connect_lazy(
         config,
-        database_secret,
+        &database_secret,
     )?);
     Ok((store.clone(), store))
 }
@@ -210,12 +212,12 @@ fn persistence_provider(
 fn dev_authentication_enabled(config: &RuntimeConfig) -> bool {
     #[cfg(feature = "dev-fakes")]
     {
-        return matches!(
+        matches!(
             config.environment,
             liqi_configuration::Environment::Local
                 | liqi_configuration::Environment::Development
                 | liqi_configuration::Environment::Test
-        );
+        )
     }
     #[cfg(not(feature = "dev-fakes"))]
     {

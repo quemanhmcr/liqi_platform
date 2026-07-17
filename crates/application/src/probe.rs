@@ -43,6 +43,11 @@ impl PlatformProbeApplication {
         }
     }
 
+    /// Commits a probe request and its durable outbox event within the request deadline.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when cancellation, timeout, or persistence prevents the atomic commit.
     pub async fn create(
         &self,
         request: CreateProbeRequest,
@@ -132,6 +137,11 @@ impl PlatformProbeWorker {
         )
     }
 
+    /// Builds a probe worker with an explicit bounded consumer identity.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the consumer identity is empty or exceeds 128 bytes.
     pub fn try_with_consumer_id(
         persistence: Arc<dyn PlatformPersistence>,
         outbox: Arc<dyn DurableOutboxConsumer>,
@@ -177,6 +187,11 @@ impl PlatformProbeWorker {
         }
     }
 
+    /// Claims and processes one bounded batch of committed platform-probe events.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when claiming, applying, acknowledging, or retrying a delivery fails.
     pub async fn run_once(&self) -> Result<ProbeWorkerOutcome, ApplicationError> {
         let deliveries = self
             .outbox
@@ -204,13 +219,19 @@ impl PlatformProbeWorker {
             terminal_without_effect: 0,
         };
         for result in outcomes {
-            let delivery = result?;
-            outcome.acknowledged += if delivery.acknowledged { 1 } else { 0 };
-            outcome.retried += if delivery.retried { 1 } else { 0 };
-            outcome.applied += if delivery.applied { 1 } else { 0 };
-            outcome.duplicates += if delivery.duplicate { 1 } else { 0 };
-            outcome.lease_lost += if delivery.lease_lost { 1 } else { 0 };
-            outcome.terminal_without_effect += if delivery.terminal { 1 } else { 0 };
+            match result? {
+                DeliveryOutcome::Retried => outcome.retried += 1,
+                DeliveryOutcome::Applied => {
+                    outcome.acknowledged += 1;
+                    outcome.applied += 1;
+                }
+                DeliveryOutcome::Duplicate => {
+                    outcome.acknowledged += 1;
+                    outcome.duplicates += 1;
+                }
+                DeliveryOutcome::LeaseLost => outcome.lease_lost += 1,
+                DeliveryOutcome::Terminal => outcome.terminal_without_effect += 1,
+            }
         }
         Ok(outcome)
     }
@@ -240,7 +261,7 @@ impl PlatformProbeWorker {
                 )
                 .await
                 .map_err(ApplicationError::from)?;
-            return Ok(DeliveryOutcome::retried());
+            return Ok(DeliveryOutcome::Retried);
         };
         let outcome = match self
             .persistence
@@ -254,9 +275,9 @@ impl PlatformProbeWorker {
             Ok(outcome) => outcome,
             Err(PersistenceError::Conflict) => {
                 warn!(event_id = %delivery.event.event_id, "platform probe lease was lost before terminal commit");
-                return Ok(DeliveryOutcome::lease_lost());
+                return Ok(DeliveryOutcome::LeaseLost);
             }
-            Err(error) => {
+            Err(_) => {
                 retry_delivery(
                     &*self.outbox,
                     delivery.event.event_id,
@@ -265,87 +286,28 @@ impl PlatformProbeWorker {
                     self.retry_max,
                     delivery.attempt,
                     &self.consumer_id,
-                    error,
                 )
                 .await?;
-                return Ok(DeliveryOutcome::retried());
+                return Ok(DeliveryOutcome::Retried);
             }
         };
         info!(event_id = %delivery.event.event_id, probe_id = %probe_id, "platform probe terminal transaction completed");
         Ok(match outcome {
-            ProbeEffectAckOutcome::AppliedAndAcknowledged => DeliveryOutcome::applied(),
-            ProbeEffectAckOutcome::AlreadyAcknowledged => DeliveryOutcome::duplicate(),
-            ProbeEffectAckOutcome::LeaseLost => DeliveryOutcome::lease_lost(),
-            ProbeEffectAckOutcome::TerminalWithoutEffect => DeliveryOutcome::terminal(),
+            ProbeEffectAckOutcome::AppliedAndAcknowledged => DeliveryOutcome::Applied,
+            ProbeEffectAckOutcome::AlreadyAcknowledged => DeliveryOutcome::Duplicate,
+            ProbeEffectAckOutcome::LeaseLost => DeliveryOutcome::LeaseLost,
+            ProbeEffectAckOutcome::TerminalWithoutEffect => DeliveryOutcome::Terminal,
         })
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-struct DeliveryOutcome {
-    acknowledged: bool,
-    retried: bool,
-    applied: bool,
-    duplicate: bool,
-    lease_lost: bool,
-    terminal: bool,
-}
-
-impl DeliveryOutcome {
-    const fn retried() -> Self {
-        Self {
-            acknowledged: false,
-            retried: true,
-            applied: false,
-            duplicate: false,
-            lease_lost: false,
-            terminal: false,
-        }
-    }
-
-    const fn applied() -> Self {
-        Self {
-            acknowledged: true,
-            retried: false,
-            applied: true,
-            duplicate: false,
-            lease_lost: false,
-            terminal: false,
-        }
-    }
-
-    const fn duplicate() -> Self {
-        Self {
-            acknowledged: true,
-            retried: false,
-            applied: false,
-            duplicate: true,
-            lease_lost: false,
-            terminal: false,
-        }
-    }
-
-    const fn lease_lost() -> Self {
-        Self {
-            acknowledged: false,
-            retried: false,
-            applied: false,
-            duplicate: false,
-            lease_lost: true,
-            terminal: false,
-        }
-    }
-
-    const fn terminal() -> Self {
-        Self {
-            acknowledged: false,
-            retried: false,
-            applied: false,
-            duplicate: false,
-            lease_lost: false,
-            terminal: true,
-        }
-    }
+enum DeliveryOutcome {
+    Retried,
+    Applied,
+    Duplicate,
+    LeaseLost,
+    Terminal,
 }
 
 fn extract_probe_id(payload: &Value) -> Option<Uuid> {
@@ -363,7 +325,6 @@ async fn retry_delivery(
     retry_max: Duration,
     attempt: u32,
     consumer_id: &str,
-    _error: PersistenceError,
 ) -> Result<(), ApplicationError> {
     outbox
         .retry(

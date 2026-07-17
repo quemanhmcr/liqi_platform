@@ -119,11 +119,11 @@ async fn create_probe(
     let request = match payload {
         Ok(Json(request)) => request,
         Err(rejection) if rejection.status() == StatusCode::PAYLOAD_TOO_LARGE => {
-            return safe_error_response(ApplicationError::BodyTooLarge, &context);
+            return safe_error_response(&ApplicationError::BodyTooLarge, &context);
         }
         Err(_) => {
             return safe_error_response(
-                ApplicationError::InvalidRequest(vec![ValidationDetail::bounded(
+                &ApplicationError::InvalidRequest(vec![ValidationDetail::bounded(
                     None,
                     "Request JSON does not match the platform probe contract.",
                 )]),
@@ -139,7 +139,7 @@ async fn create_probe(
             metrics.probe_committed();
             (StatusCode::ACCEPTED, Json(response)).into_response()
         }
-        Err(error) => safe_error_response(error, &context),
+        Err(error) => safe_error_response(&error, &context),
     }
 }
 
@@ -159,7 +159,8 @@ fn persistence_provider(
         return Ok(Arc::new(liqi_test_support::FakePlatformStore::ready()));
     }
     Ok(Arc::new(PostgresAuthorityStore::connect_lazy(
-        config, password,
+        config,
+        &database_secret,
     )?))
 }
 

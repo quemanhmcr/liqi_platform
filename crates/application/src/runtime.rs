@@ -2,6 +2,7 @@ use std::{future::Future, sync::Arc, time::Duration};
 use thiserror::Error;
 use tokio::{
     sync::{OwnedSemaphorePermit, Semaphore},
+    task::JoinHandle,
     time,
 };
 use tokio_util::sync::CancellationToken;
@@ -66,6 +67,11 @@ impl BoundedExecutor {
         }
     }
 
+    /// Acquires one bounded execution permit without waiting.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when all execution permits are already in use.
     pub fn try_acquire(&self) -> Result<OwnedSemaphorePermit, BoundedExecutorError> {
         self.semaphore
             .clone()
@@ -92,6 +98,11 @@ impl BoundedBlockingExecutor {
         }
     }
 
+    /// Spawns one blocking task only when a bounded permit is immediately available.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the blocking executor is already at capacity.
     pub fn try_spawn<F, T>(&self, task: F) -> Result<JoinHandle<T>, BoundedExecutorError>
     where
         F: FnOnce() -> T + Send + 'static,
@@ -120,6 +131,11 @@ pub enum BoundedExecutorError {
     AtCapacity,
 }
 
+/// Runs an application future until completion, cancellation, or deadline expiry.
+///
+/// # Errors
+///
+/// Returns the future's application error, or a cancellation/deadline error generated here.
 pub async fn run_with_deadline<F, T>(
     deadline: Duration,
     cancellation: CancellationToken,
@@ -129,6 +145,7 @@ where
     F: Future<Output = Result<T, ApplicationError>>,
 {
     tokio::select! {
+        biased;
         () = cancellation.cancelled() => Err(ApplicationError::Cancelled),
         result = time::timeout(deadline, future) => {
             match result {

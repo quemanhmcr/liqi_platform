@@ -57,6 +57,12 @@ pub enum PlatformProbeExit {
     Failed,
 }
 
+/// Executes the complete fail-closed platform probe and atomically writes its result.
+///
+/// # Errors
+///
+/// Returns an error when required probe settings are invalid, the HTTP client cannot be built,
+/// or the result artifact cannot be written atomically.
 pub async fn run(options: PlatformProbeOptions) -> Result<PlatformProbeExit, PlatformProbeError> {
     let settings = ProbeSettings::from_environment()?;
     let started_at = OffsetDateTime::now_utc();
@@ -68,13 +74,32 @@ pub async fn run(options: PlatformProbeOptions) -> Result<PlatformProbeExit, Pla
         .map_err(|_| PlatformProbeError::HttpClient)?;
     let mut recorder = ProbeRecorder::new(settings.release_id.clone(), settings.environment);
 
+    run_service_checks(&client, &options, &settings, &mut recorder).await;
+    run_durable_and_realtime_checks(&client, &options, &settings, &mut recorder).await;
+
+    let completed_at = OffsetDateTime::now_utc();
+    let result = recorder.finish(started_at, completed_at);
+    write_result_atomic(&options.output, &result)?;
+    Ok(if result.status == ProbeRunStatus::Passed {
+        PlatformProbeExit::Passed
+    } else {
+        PlatformProbeExit::Failed
+    })
+}
+
+async fn run_service_checks(
+    client: &Client,
+    options: &PlatformProbeOptions,
+    settings: &ProbeSettings,
+    recorder: &mut ProbeRecorder,
+) {
     let api_live_started = Instant::now();
     let api_live = verify_service(
-        &client,
+        client,
         &options.api_base_url,
         "/health/live",
         "liqi-api",
-        &settings,
+        settings,
         true,
     )
     .await;
@@ -85,11 +110,11 @@ pub async fn run(options: PlatformProbeOptions) -> Result<PlatformProbeExit, Pla
 
     let api_ready_started = Instant::now();
     let api_ready = verify_service(
-        &client,
+        client,
         &options.api_base_url,
         "/health/ready",
         "liqi-api",
-        &settings,
+        settings,
         false,
     )
     .await;
@@ -97,11 +122,11 @@ pub async fn run(options: PlatformProbeOptions) -> Result<PlatformProbeExit, Pla
 
     let realtime_live_started = Instant::now();
     let realtime_live = verify_service(
-        &client,
+        client,
         &options.realtime_base_url,
         "/health/live",
         "liqi-realtime",
-        &settings,
+        settings,
         true,
     )
     .await;
@@ -112,11 +137,11 @@ pub async fn run(options: PlatformProbeOptions) -> Result<PlatformProbeExit, Pla
 
     let realtime_ready_started = Instant::now();
     let realtime_ready = verify_service(
-        &client,
+        client,
         &options.realtime_base_url,
         "/health/ready",
         "liqi-realtime",
-        &settings,
+        settings,
         false,
     )
     .await;
@@ -124,11 +149,11 @@ pub async fn run(options: PlatformProbeOptions) -> Result<PlatformProbeExit, Pla
 
     let worker_ready_started = Instant::now();
     let worker_ready = verify_service(
-        &client,
+        client,
         &options.worker_base_url,
         "/health/ready",
         "liqi-worker",
-        &settings,
+        settings,
         true,
     )
     .await;
@@ -136,7 +161,14 @@ pub async fn run(options: PlatformProbeOptions) -> Result<PlatformProbeExit, Pla
         recorder.observe_release(&settings.release_id);
     }
     recorder.record_elapsed("worker-readiness", worker_ready_started, worker_ready);
+}
 
+async fn run_durable_and_realtime_checks(
+    client: &Client,
+    options: &PlatformProbeOptions,
+    settings: &ProbeSettings,
+    recorder: &mut ProbeRecorder,
+) {
     let subscription_id = Uuid::now_v7();
     let realtime_started = Instant::now();
     let realtime = RealtimeProbeConnection::connect(
@@ -148,7 +180,7 @@ pub async fn run(options: PlatformProbeOptions) -> Result<PlatformProbeExit, Pla
     .await;
     let durable_started = Instant::now();
     let probe_id = Uuid::now_v7();
-    let durable = commit_probe(&client, &options.api_base_url, probe_id).await;
+    let durable = commit_probe(client, &options.api_base_url, probe_id).await;
     let committed = match durable {
         Ok(response) => {
             recorder.record_elapsed(
@@ -202,15 +234,6 @@ pub async fn run(options: PlatformProbeOptions) -> Result<PlatformProbeExit, Pla
         )),
     };
     recorder.record_elapsed("realtime-delivery", realtime_started, delivery);
-
-    let completed_at = OffsetDateTime::now_utc();
-    let result = recorder.finish(started_at, completed_at);
-    write_result_atomic(&options.output, &result)?;
-    Ok(if result.status == ProbeRunStatus::Passed {
-        PlatformProbeExit::Passed
-    } else {
-        PlatformProbeExit::Failed
-    })
 }
 
 #[derive(Clone)]

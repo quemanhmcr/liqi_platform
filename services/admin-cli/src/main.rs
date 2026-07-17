@@ -67,17 +67,20 @@ enum Command {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum ServiceArgument {
-    LiqiApi,
-    LiqiRealtime,
-    LiqiWorker,
+    #[value(name = "liqi-api")]
+    Api,
+    #[value(name = "liqi-realtime")]
+    Realtime,
+    #[value(name = "liqi-worker")]
+    Worker,
 }
 
 impl From<ServiceArgument> for ServiceName {
     fn from(value: ServiceArgument) -> Self {
         match value {
-            ServiceArgument::LiqiApi => Self::LiqiApi,
-            ServiceArgument::LiqiRealtime => Self::LiqiRealtime,
-            ServiceArgument::LiqiWorker => Self::LiqiWorker,
+            ServiceArgument::Api => Self::LiqiApi,
+            ServiceArgument::Realtime => Self::LiqiRealtime,
+            ServiceArgument::Worker => Self::LiqiWorker,
         }
     }
 }

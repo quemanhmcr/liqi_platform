@@ -23,14 +23,11 @@ struct HostReadinessDocument {
 }
 
 pub async fn read_host_readiness(path: &Path, expected_schema: &str) -> HostReadinessStatus {
-    let metadata = match fs::metadata(path).await {
-        Ok(metadata) => metadata,
-        Err(_) => {
-            return HostReadinessStatus {
-                ready: false,
-                detail: "host-readiness-unavailable",
-            };
-        }
+    let Ok(metadata) = fs::metadata(path).await else {
+        return HostReadinessStatus {
+            ready: false,
+            detail: "host-readiness-unavailable",
+        };
     };
     if metadata.len() > MAX_HOST_READINESS_BYTES {
         return HostReadinessStatus {
@@ -38,14 +35,11 @@ pub async fn read_host_readiness(path: &Path, expected_schema: &str) -> HostRead
             detail: "host-readiness-oversized",
         };
     }
-    let bytes = match fs::read(path).await {
-        Ok(bytes) => bytes,
-        Err(_) => {
-            return HostReadinessStatus {
-                ready: false,
-                detail: "host-readiness-unreadable",
-            };
-        }
+    let Ok(bytes) = fs::read(path).await else {
+        return HostReadinessStatus {
+            ready: false,
+            detail: "host-readiness-unreadable",
+        };
     };
     let document: HostReadinessDocument = match serde_json::from_slice(&bytes) {
         Ok(document) => document,
@@ -95,23 +89,20 @@ pub async fn refresh_readiness(
                     if host.ready { DependencyStatus::Up } else { DependencyStatus::Down },
                     Some(host.detail),
                 ).await;
-                match persistence.readiness().await {
-                    Ok(readiness) => {
-                        let _ = health.set_check(
-                            "database",
-                            if readiness.database_reachable { DependencyStatus::Up } else { DependencyStatus::Down },
-                            Some(if readiness.database_reachable { "database-reachable" } else { "database-unavailable" }),
-                        ).await;
-                        let _ = health.set_check(
-                            "migration",
-                            if readiness.migration_ready { DependencyStatus::Up } else { DependencyStatus::Down },
-                            Some(if readiness.migration_ready { "migration-ready" } else { "migration-not-ready" }),
-                        ).await;
-                    }
-                    Err(_) => {
-                        let _ = health.set_check("database", DependencyStatus::Down, Some("database-probe-failed")).await;
-                        let _ = health.set_check("migration", DependencyStatus::Unknown, Some("migration-unknown")).await;
-                    }
+                if let Ok(readiness) = persistence.readiness().await {
+                    let _ = health.set_check(
+                        "database",
+                        if readiness.database_reachable { DependencyStatus::Up } else { DependencyStatus::Down },
+                        Some(if readiness.database_reachable { "database-reachable" } else { "database-unavailable" }),
+                    ).await;
+                    let _ = health.set_check(
+                        "migration",
+                        if readiness.migration_ready { DependencyStatus::Up } else { DependencyStatus::Down },
+                        Some(if readiness.migration_ready { "migration-ready" } else { "migration-not-ready" }),
+                    ).await;
+                } else {
+                    let _ = health.set_check("database", DependencyStatus::Down, Some("database-probe-failed")).await;
+                    let _ = health.set_check("migration", DependencyStatus::Unknown, Some("migration-unknown")).await;
                 }
             }
         }

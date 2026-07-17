@@ -1,3 +1,4 @@
+use ::time::OffsetDateTime;
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{SinkExt as _, StreamExt as _};
 use liqi_application::{
@@ -5,12 +6,12 @@ use liqi_application::{
 };
 use liqi_protocol::{
     AccessRevokedPayload, ApiError, AuthenticatePayload, ClientFrame, ClientFrameBody,
-    HeartbeatPayload, RequestContext, ResumeSubscription, ServerEventPayload, ServerFrame,
-    ServerFrameBody, SlowConsumerPayload, SubscribePayload, WelcomePayload, negotiate_protocol,
+    HeartbeatAckPayload, HeartbeatPayload, HelloPayload, RequestContext, ResumePayload,
+    ResumeSubscription, ServerEventPayload, ServerFrame, ServerFrameBody, SlowConsumerPayload,
+    SubscribePayload, UnsubscribePayload, WelcomePayload, negotiate_protocol,
 };
 use liqi_telemetry::RuntimeMetrics;
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
-use time::OffsetDateTime;
 use tokio::{
     sync::mpsc,
     task::JoinHandle,
@@ -23,6 +24,7 @@ use uuid::Uuid;
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 const REALTIME_POLL_INTERVAL: Duration = Duration::from_millis(250);
 const REALTIME_READ_BATCH: usize = 16;
+const FRAME_FIELDS: [&str; 5] = ["protocolVersion", "messageId", "sentAt", "kind", "payload"];
 
 #[derive(Clone)]
 pub struct RealtimeSessionState {
@@ -183,12 +185,8 @@ pub async fn run_session(
         }
     });
 
-    let mut negotiated = false;
-    let mut authenticated = false;
-    let mut subscriptions = SubscriptionSet::default();
+    let mut protocol = SessionProtocolState::new();
     let mut handshake_deadline = Box::pin(time::sleep(HANDSHAKE_TIMEOUT));
-    let mut last_heartbeat_ack = Instant::now();
-    let mut expected_heartbeat: Option<Uuid> = None;
     let mut heartbeat = time::interval_at(
         Instant::now() + state.heartbeat_interval,
         state.heartbeat_interval,
@@ -197,189 +195,45 @@ pub async fn run_session(
     let mut poll = time::interval(REALTIME_POLL_INTERVAL);
     poll.set_missed_tick_behavior(time::MissedTickBehavior::Skip);
 
-    'session: loop {
+    loop {
         tokio::select! {
             () = state.cancellation.cancelled() => break,
-            () = &mut handshake_deadline, if !negotiated => {
+            () = &mut handshake_deadline, if !protocol.negotiated => {
                 break_protocol(
                     &outbound,
                     connection_id,
                     &context,
-                    ApplicationError::ProtocolUnsupported,
+                    &ApplicationError::ProtocolUnsupported,
                     state.max_message_bytes,
                 );
                 break;
             }
             incoming = stream.next() => {
                 let Some(incoming) = incoming else { break; };
-                let message = match incoming {
-                    Ok(message) => message,
-                    Err(_) => break,
-                };
-                let text = match message {
-                    Message::Text(text) => text,
-                    Message::Close(_) => break,
-                    Message::Ping(bytes) => {
-                        if outbound.try_send(Message::Pong(bytes)).is_err() {
-                            disconnect_slow_consumer(&state, &outbound, connection_id);
-                            break;
-                        }
-                        continue;
-                    }
-                    Message::Pong(_) => continue,
-                    Message::Binary(_) => {
-                        let frame = error_frame(connection_id, &context, ApplicationError::InvalidRequest(Vec::new()));
-                        let _ = enqueue(&outbound, frame, state.max_message_bytes);
-                        break;
-                    }
-                };
-                let frame = match decode_client_frame(text.as_str(), state.max_message_bytes) {
-                    Ok(frame) => frame,
-                    Err(error) => {
-                        let frame = error_frame(connection_id, &context, error);
-                        let _ = enqueue(&outbound, frame, state.max_message_bytes);
-                        break;
-                    }
-                };
-                match frame.body {
-                    ClientFrameBody::Hello(payload) => {
-                        if negotiated || negotiate_protocol(&payload.supported_versions).is_err() {
-                            let frame = error_frame(connection_id, &context, ApplicationError::ProtocolUnsupported);
-                            let _ = enqueue(&outbound, frame, state.max_message_bytes);
-                            break;
-                        }
-                        negotiated = true;
-                        if enqueue(
-                            &outbound,
-                            welcome_frame(connection_id, &state),
-                            state.max_message_bytes,
-                        ).is_err() {
-                            disconnect_slow_consumer(&state, &outbound, connection_id);
-                            break;
-                        }
-                    }
-                    ClientFrameBody::Authenticate(mut payload) => {
-                        if !negotiated {
-                            break_protocol(&outbound, connection_id, &context, ApplicationError::ProtocolUnsupported, state.max_message_bytes);
-                            break;
-                        }
-                        authenticated = authenticate_placeholder(&mut payload, state.dev_authentication_enabled);
-                        if !authenticated {
-                            break_protocol(&outbound, connection_id, &context, ApplicationError::Unauthorized, state.max_message_bytes);
-                            break;
-                        }
-                        let response = server_frame(
-                            connection_id,
-                            ServerFrameBody::Authenticated { authenticated: true },
-                        );
-                        if enqueue(&outbound, response, state.max_message_bytes).is_err() {
-                            disconnect_slow_consumer(&state, &outbound, connection_id);
-                            break;
-                        }
-                    }
-                    ClientFrameBody::Subscribe(payload) => {
-                        if !authenticated {
-                            break_protocol(&outbound, connection_id, &context, ApplicationError::Unauthorized, state.max_message_bytes);
-                            break;
-                        }
-                        let subscription_id = payload.subscription_id;
-                        let topic = payload.topic.clone();
-                        if let Err(error) = subscriptions.subscribe(payload, state.max_subscriptions) {
-                            state.metrics.realtime_subscription_rejected();
-                            break_protocol(&outbound, connection_id, &context, error, state.max_message_bytes);
-                            break;
-                        }
-                        let response = server_frame(
-                            connection_id,
-                            ServerFrameBody::Subscribed {
-                                subscription_id,
-                                topic,
-                                accepted_cursor: subscriptions.entries.get(&subscription_id).and_then(|value| value.cursor.as_ref()).map(|value| value.as_opaque().to_owned()),
-                            },
-                        );
-                        if enqueue(&outbound, response, state.max_message_bytes).is_err() {
-                            disconnect_slow_consumer(&state, &outbound, connection_id);
-                            break;
-                        }
-                    }
-                    ClientFrameBody::Unsubscribe(payload) => {
-                        subscriptions.unsubscribe(payload.subscription_id);
-                        let response = server_frame(
-                            connection_id,
-                            ServerFrameBody::Unsubscribed { subscription_id: payload.subscription_id },
-                        );
-                        if enqueue(&outbound, response, state.max_message_bytes).is_err() {
-                            disconnect_slow_consumer(&state, &outbound, connection_id);
-                            break;
-                        }
-                    }
-                    ClientFrameBody::Resume(payload) => {
-                        if !authenticated {
-                            break_protocol(&outbound, connection_id, &context, ApplicationError::Unauthorized, state.max_message_bytes);
-                            break;
-                        }
-                        if let Err(error) = subscriptions.resume(payload.subscriptions, state.max_subscriptions) {
-                            break_protocol(&outbound, connection_id, &context, error, state.max_message_bytes);
-                            break;
-                        }
-                    }
-                    ClientFrameBody::HeartbeatAck(payload) => {
-                        if expected_heartbeat == Some(payload.nonce) {
-                            last_heartbeat_ack = Instant::now();
-                            expected_heartbeat = None;
-                        }
-                    }
-                }
-            }
-            _ = heartbeat.tick(), if negotiated => {
-                if heartbeat_timed_out(
-                    last_heartbeat_ack,
-                    Instant::now(),
-                    state.heartbeat_timeout,
-                ) {
-                    debug!(%connection_id, "realtime heartbeat timed out");
-                    break;
-                }
-                let nonce = Uuid::now_v7();
-                expected_heartbeat = Some(nonce);
-                let frame = server_frame(connection_id, ServerFrameBody::Heartbeat(HeartbeatPayload { nonce }));
-                if enqueue(&outbound, frame, state.max_message_bytes).is_err() {
-                    disconnect_slow_consumer(&state, &outbound, connection_id);
+                let Ok(message) = incoming else { break; };
+                if handle_wire_message(
+                    message,
+                    &mut protocol,
+                    &state,
+                    &context,
+                    &outbound,
+                    connection_id,
+                ) == SessionControl::Break {
                     break;
                 }
             }
-            _ = poll.tick(), if authenticated && !subscriptions.entries.is_empty() => {
-                let Some((subscription_id, topic, cursor)) = subscriptions.next_for_poll() else { continue; };
-                match state.reader.read_committed(RealtimeReadRequest {
-                    topics: vec![topic],
-                    after: cursor,
-                    batch_size: REALTIME_READ_BATCH,
-                }).await {
-                    Ok(batch) => {
-                        for delivery in batch.deliveries {
-                            state.metrics.record_realtime_delivery_duration(
-                                committed_delivery_age(delivery.event.occurred_at),
-                            );
-                            let cursor = delivery.cursor.clone();
-                            let frame = server_frame(
-                                connection_id,
-                                ServerFrameBody::ServerEvent(ServerEventPayload {
-                                    subscription_id,
-                                    cursor: cursor.as_opaque().to_owned(),
-                                    event: delivery.event,
-                                }),
-                            );
-                            if enqueue(&outbound, frame, state.max_message_bytes).is_err() {
-                                disconnect_slow_consumer(&state, &outbound, connection_id);
-                                break 'session;
-                            }
-                            subscriptions.advance(subscription_id, cursor);
-                        }
-                        if let Some(cursor) = batch.next_cursor {
-                            subscriptions.advance(subscription_id, cursor);
-                        }
-                    }
-                    Err(error) => warn!(%connection_id, error = %error, "committed realtime reader unavailable"),
+            _ = heartbeat.tick(), if protocol.negotiated => {
+                if handle_heartbeat(&mut protocol, &state, &outbound, connection_id)
+                    == SessionControl::Break
+                {
+                    break;
+                }
+            }
+            _ = poll.tick(), if protocol.authenticated && !protocol.subscriptions.entries.is_empty() => {
+                if poll_realtime(&mut protocol, &state, &outbound, connection_id).await
+                    == SessionControl::Break
+                {
+                    break;
                 }
             }
         }
@@ -392,6 +246,361 @@ pub async fn run_session(
     )
     .await;
     state.metrics.realtime_disconnected();
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SessionControl {
+    Continue,
+    Break,
+}
+
+#[derive(Debug)]
+struct SessionProtocolState {
+    negotiated: bool,
+    authenticated: bool,
+    subscriptions: SubscriptionSet,
+    last_heartbeat_ack: Instant,
+    expected_heartbeat: Option<Uuid>,
+}
+
+impl SessionProtocolState {
+    fn new() -> Self {
+        Self {
+            negotiated: false,
+            authenticated: false,
+            subscriptions: SubscriptionSet::default(),
+            last_heartbeat_ack: Instant::now(),
+            expected_heartbeat: None,
+        }
+    }
+}
+
+fn handle_wire_message(
+    message: Message,
+    protocol: &mut SessionProtocolState,
+    state: &RealtimeSessionState,
+    context: &RequestContext,
+    outbound: &mpsc::Sender<Message>,
+    connection_id: Uuid,
+) -> SessionControl {
+    let text = match message {
+        Message::Text(text) => text,
+        Message::Close(_) => return SessionControl::Break,
+        Message::Ping(bytes) => {
+            if outbound.try_send(Message::Pong(bytes)).is_err() {
+                disconnect_slow_consumer(state, outbound, connection_id);
+                return SessionControl::Break;
+            }
+            return SessionControl::Continue;
+        }
+        Message::Pong(_) => return SessionControl::Continue,
+        Message::Binary(_) => {
+            let error = ApplicationError::InvalidRequest(Vec::new());
+            let frame = error_frame(connection_id, context, &error);
+            let _ = enqueue(outbound, &frame, state.max_message_bytes);
+            return SessionControl::Break;
+        }
+    };
+    let frame = match decode_client_frame(text.as_str(), state.max_message_bytes) {
+        Ok(frame) => frame,
+        Err(error) => {
+            let frame = error_frame(connection_id, context, &error);
+            let _ = enqueue(outbound, &frame, state.max_message_bytes);
+            return SessionControl::Break;
+        }
+    };
+    handle_client_frame(frame, protocol, state, context, outbound, connection_id)
+}
+
+fn handle_client_frame(
+    frame: ClientFrame,
+    protocol: &mut SessionProtocolState,
+    state: &RealtimeSessionState,
+    context: &RequestContext,
+    outbound: &mpsc::Sender<Message>,
+    connection_id: Uuid,
+) -> SessionControl {
+    match frame.body {
+        ClientFrameBody::Hello(payload) => {
+            handle_hello(&payload, protocol, state, context, outbound, connection_id)
+        }
+        ClientFrameBody::Authenticate(payload) => {
+            handle_authenticate(payload, protocol, state, context, outbound, connection_id)
+        }
+        ClientFrameBody::Subscribe(payload) => {
+            handle_subscribe(payload, protocol, state, context, outbound, connection_id)
+        }
+        ClientFrameBody::Unsubscribe(payload) => {
+            handle_unsubscribe(&payload, protocol, state, outbound, connection_id)
+        }
+        ClientFrameBody::Resume(payload) => {
+            handle_resume(payload, protocol, state, context, outbound, connection_id)
+        }
+        ClientFrameBody::HeartbeatAck(payload) => handle_heartbeat_ack(&payload, protocol),
+    }
+}
+
+fn handle_hello(
+    payload: &HelloPayload,
+    protocol: &mut SessionProtocolState,
+    state: &RealtimeSessionState,
+    context: &RequestContext,
+    outbound: &mpsc::Sender<Message>,
+    connection_id: Uuid,
+) -> SessionControl {
+    if protocol.negotiated || negotiate_protocol(&payload.supported_versions).is_err() {
+        break_protocol(
+            outbound,
+            connection_id,
+            context,
+            &ApplicationError::ProtocolUnsupported,
+            state.max_message_bytes,
+        );
+        return SessionControl::Break;
+    }
+    protocol.negotiated = true;
+    let response = welcome_frame(connection_id, state);
+    enqueue_or_disconnect(state, outbound, connection_id, &response)
+}
+
+fn handle_authenticate(
+    mut payload: AuthenticatePayload,
+    protocol: &mut SessionProtocolState,
+    state: &RealtimeSessionState,
+    context: &RequestContext,
+    outbound: &mpsc::Sender<Message>,
+    connection_id: Uuid,
+) -> SessionControl {
+    if !protocol.negotiated {
+        break_protocol(
+            outbound,
+            connection_id,
+            context,
+            &ApplicationError::ProtocolUnsupported,
+            state.max_message_bytes,
+        );
+        return SessionControl::Break;
+    }
+    protocol.authenticated =
+        authenticate_placeholder(&mut payload, state.dev_authentication_enabled);
+    if !protocol.authenticated {
+        break_protocol(
+            outbound,
+            connection_id,
+            context,
+            &ApplicationError::Unauthorized,
+            state.max_message_bytes,
+        );
+        return SessionControl::Break;
+    }
+    let response = server_frame(
+        connection_id,
+        ServerFrameBody::Authenticated {
+            authenticated: true,
+        },
+    );
+    enqueue_or_disconnect(state, outbound, connection_id, &response)
+}
+
+fn handle_subscribe(
+    payload: SubscribePayload,
+    protocol: &mut SessionProtocolState,
+    state: &RealtimeSessionState,
+    context: &RequestContext,
+    outbound: &mpsc::Sender<Message>,
+    connection_id: Uuid,
+) -> SessionControl {
+    if !protocol.authenticated {
+        break_protocol(
+            outbound,
+            connection_id,
+            context,
+            &ApplicationError::Unauthorized,
+            state.max_message_bytes,
+        );
+        return SessionControl::Break;
+    }
+    let subscription_id = payload.subscription_id;
+    let topic = payload.topic.clone();
+    if let Err(error) = protocol
+        .subscriptions
+        .subscribe(payload, state.max_subscriptions)
+    {
+        state.metrics.realtime_subscription_rejected();
+        break_protocol(
+            outbound,
+            connection_id,
+            context,
+            &error,
+            state.max_message_bytes,
+        );
+        return SessionControl::Break;
+    }
+    let response = server_frame(
+        connection_id,
+        ServerFrameBody::Subscribed {
+            subscription_id,
+            topic,
+            accepted_cursor: protocol
+                .subscriptions
+                .entries
+                .get(&subscription_id)
+                .and_then(|value| value.cursor.as_ref())
+                .map(|value| value.as_opaque().to_owned()),
+        },
+    );
+    enqueue_or_disconnect(state, outbound, connection_id, &response)
+}
+
+fn handle_unsubscribe(
+    payload: &UnsubscribePayload,
+    protocol: &mut SessionProtocolState,
+    state: &RealtimeSessionState,
+    outbound: &mpsc::Sender<Message>,
+    connection_id: Uuid,
+) -> SessionControl {
+    protocol.subscriptions.unsubscribe(payload.subscription_id);
+    let response = server_frame(
+        connection_id,
+        ServerFrameBody::Unsubscribed {
+            subscription_id: payload.subscription_id,
+        },
+    );
+    enqueue_or_disconnect(state, outbound, connection_id, &response)
+}
+
+fn handle_resume(
+    payload: ResumePayload,
+    protocol: &mut SessionProtocolState,
+    state: &RealtimeSessionState,
+    context: &RequestContext,
+    outbound: &mpsc::Sender<Message>,
+    connection_id: Uuid,
+) -> SessionControl {
+    if !protocol.authenticated {
+        break_protocol(
+            outbound,
+            connection_id,
+            context,
+            &ApplicationError::Unauthorized,
+            state.max_message_bytes,
+        );
+        return SessionControl::Break;
+    }
+    if let Err(error) = protocol
+        .subscriptions
+        .resume(payload.subscriptions, state.max_subscriptions)
+    {
+        break_protocol(
+            outbound,
+            connection_id,
+            context,
+            &error,
+            state.max_message_bytes,
+        );
+        return SessionControl::Break;
+    }
+    SessionControl::Continue
+}
+
+fn handle_heartbeat_ack(
+    payload: &HeartbeatAckPayload,
+    protocol: &mut SessionProtocolState,
+) -> SessionControl {
+    if protocol.expected_heartbeat == Some(payload.nonce) {
+        protocol.last_heartbeat_ack = Instant::now();
+        protocol.expected_heartbeat = None;
+    }
+    SessionControl::Continue
+}
+
+fn handle_heartbeat(
+    protocol: &mut SessionProtocolState,
+    state: &RealtimeSessionState,
+    outbound: &mpsc::Sender<Message>,
+    connection_id: Uuid,
+) -> SessionControl {
+    if heartbeat_timed_out(
+        protocol.last_heartbeat_ack,
+        Instant::now(),
+        state.heartbeat_timeout,
+    ) {
+        debug!(%connection_id, "realtime heartbeat timed out");
+        return SessionControl::Break;
+    }
+    let nonce = Uuid::now_v7();
+    protocol.expected_heartbeat = Some(nonce);
+    let frame = server_frame(
+        connection_id,
+        ServerFrameBody::Heartbeat(HeartbeatPayload { nonce }),
+    );
+    enqueue_or_disconnect(state, outbound, connection_id, &frame)
+}
+
+async fn poll_realtime(
+    protocol: &mut SessionProtocolState,
+    state: &RealtimeSessionState,
+    outbound: &mpsc::Sender<Message>,
+    connection_id: Uuid,
+) -> SessionControl {
+    let Some((subscription_id, topic, cursor)) = protocol.subscriptions.next_for_poll() else {
+        return SessionControl::Continue;
+    };
+    match state
+        .reader
+        .read_committed(RealtimeReadRequest {
+            topics: vec![topic],
+            after: cursor,
+            batch_size: REALTIME_READ_BATCH,
+        })
+        .await
+    {
+        Ok(batch) => {
+            for delivery in batch.deliveries {
+                state
+                    .metrics
+                    .record_realtime_delivery_duration(committed_delivery_age(
+                        delivery.event.occurred_at,
+                    ));
+                let cursor = delivery.cursor.clone();
+                let frame = server_frame(
+                    connection_id,
+                    ServerFrameBody::ServerEvent(ServerEventPayload {
+                        subscription_id,
+                        cursor: cursor.as_opaque().to_owned(),
+                        event: delivery.event,
+                    }),
+                );
+                if enqueue_or_disconnect(state, outbound, connection_id, &frame)
+                    == SessionControl::Break
+                {
+                    return SessionControl::Break;
+                }
+                protocol.subscriptions.advance(subscription_id, cursor);
+            }
+            if let Some(cursor) = batch.next_cursor {
+                protocol.subscriptions.advance(subscription_id, cursor);
+            }
+        }
+        Err(error) => {
+            warn!(%connection_id, error = %error, "committed realtime reader unavailable");
+        }
+    }
+    SessionControl::Continue
+}
+
+fn enqueue_or_disconnect(
+    state: &RealtimeSessionState,
+    outbound: &mpsc::Sender<Message>,
+    connection_id: Uuid,
+    frame: &ServerFrame,
+) -> SessionControl {
+    if enqueue(outbound, frame, state.max_message_bytes).is_err() {
+        disconnect_slow_consumer(state, outbound, connection_id);
+        SessionControl::Break
+    } else {
+        SessionControl::Continue
+    }
 }
 
 fn committed_delivery_age(occurred_at: OffsetDateTime) -> Duration {
@@ -411,7 +620,6 @@ fn decode_client_frame(text: &str, maximum_bytes: usize) -> Result<ClientFrame, 
     let object = value
         .as_object()
         .ok_or_else(|| ApplicationError::InvalidRequest(Vec::new()))?;
-    const FRAME_FIELDS: [&str; 5] = ["protocolVersion", "messageId", "sentAt", "kind", "payload"];
     if object.len() != FRAME_FIELDS.len()
         || FRAME_FIELDS
             .iter()
@@ -455,7 +663,7 @@ fn welcome_frame(connection_id: Uuid, state: &RealtimeSessionState) -> ServerFra
 fn error_frame(
     connection_id: Uuid,
     context: &RequestContext,
-    error: ApplicationError,
+    error: &ApplicationError,
 ) -> ServerFrame {
     let error: ApiError = error.to_wire(context);
     server_frame(connection_id, ServerFrameBody::Error { error })
@@ -473,7 +681,7 @@ fn server_frame(connection_id: Uuid, body: ServerFrameBody) -> ServerFrame {
 
 fn enqueue(
     outbound: &mpsc::Sender<Message>,
-    frame: ServerFrame,
+    frame: &ServerFrame,
     maximum_bytes: usize,
 ) -> Result<(), ()> {
     let encoded = serde_json::to_string(&frame).map_err(|_| ())?;
@@ -489,14 +697,11 @@ fn break_protocol(
     outbound: &mpsc::Sender<Message>,
     connection_id: Uuid,
     context: &RequestContext,
-    error: ApplicationError,
+    error: &ApplicationError,
     maximum_bytes: usize,
 ) {
-    let _ = enqueue(
-        outbound,
-        error_frame(connection_id, context, error),
-        maximum_bytes,
-    );
+    let frame = error_frame(connection_id, context, error);
+    let _ = enqueue(outbound, &frame, maximum_bytes);
 }
 
 fn disconnect_slow_consumer(
@@ -514,7 +719,7 @@ fn disconnect_slow_consumer(
                 .unwrap_or(u64::MAX),
         }),
     );
-    let _ = enqueue(outbound, frame, state.max_message_bytes);
+    let _ = enqueue(outbound, &frame, state.max_message_bytes);
 }
 
 #[cfg(test)]
@@ -597,8 +802,8 @@ mod tests {
                 nonce: Uuid::now_v7(),
             }),
         );
-        assert!(enqueue(&sender, first, 65_536).is_ok());
-        assert!(enqueue(&sender, second, 65_536).is_err());
+        assert!(enqueue(&sender, &first, 65_536).is_ok());
+        assert!(enqueue(&sender, &second, 65_536).is_err());
     }
 
     #[test]

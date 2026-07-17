@@ -27,6 +27,11 @@ pub struct TelemetryGuard {
 }
 
 impl TelemetryGuard {
+    /// Flushes and shuts down the configured telemetry provider within the supplied timeout.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the provider cannot complete shutdown within its contract.
     pub fn shutdown(self, timeout: Duration) -> Result<(), TelemetryError> {
         if let Some(provider) = self.tracer_provider {
             provider
@@ -37,6 +42,12 @@ impl TelemetryGuard {
     }
 }
 
+/// Initializes structured logging and optional OTLP tracing for one runtime process.
+///
+/// # Errors
+///
+/// Returns an error when log filtering, OTLP configuration/exporter creation, or global
+/// subscriber initialization fails.
 pub fn initialize(config: &RuntimeConfig) -> Result<TelemetryGuard, TelemetryError> {
     global::set_text_map_propagator(TraceContextPropagator::new());
     let filter = EnvFilter::try_new(&config.telemetry.log_level)
@@ -136,7 +147,7 @@ mod log_tests {
         io,
         sync::{Arc, Mutex},
     };
-    use tracing_subscriber::{Registry, layer::SubscriberExt as _};
+    use tracing_subscriber::Registry;
 
     #[derive(Clone, Debug, Default)]
     struct CapturedWriter {
@@ -191,7 +202,7 @@ mod log_tests {
         let bytes = writer
             .bytes
             .lock()
-            .unwrap_or_else(|error| error.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
         let rendered = String::from_utf8_lossy(&bytes);
         assert!(rendered.contains("file"));

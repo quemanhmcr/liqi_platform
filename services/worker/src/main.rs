@@ -24,6 +24,7 @@ const EMPTY_POLL_INTERVAL: Duration = Duration::from_millis(500);
 const FAILURE_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
 type MainError = Box<dyn Error + Send + Sync>;
+type WorkerProviders = (Arc<dyn PlatformPersistence>, Arc<dyn DurableOutboxConsumer>);
 
 #[tokio::main]
 async fn main() -> Result<(), MainError> {
@@ -101,7 +102,7 @@ async fn main() -> Result<(), MainError> {
 fn persistence_provider(
     config: &RuntimeConfig,
     database_secret: SecretString,
-) -> Result<(Arc<dyn PlatformPersistence>, Arc<dyn DurableOutboxConsumer>), PostgresAdapterError> {
+) -> Result<WorkerProviders, PostgresAdapterError> {
     #[cfg(feature = "dev-fakes")]
     if matches!(
         config.environment,
@@ -116,7 +117,7 @@ fn persistence_provider(
     }
     let store = Arc::new(PostgresAuthorityStore::connect_lazy(
         config,
-        database_secret,
+        &database_secret,
     )?);
     Ok((store.clone(), store))
 }
