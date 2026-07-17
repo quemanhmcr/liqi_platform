@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 077
-ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
+ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 : "${LIQI_RESTORE_METADATA_FILE:?LIQI_RESTORE_METADATA_FILE is required}"
 : "${LIQI_RESTORE_METADATA_CHECKSUM_FILE:?LIQI_RESTORE_METADATA_CHECKSUM_FILE is required}"
 : "${LIQI_RESTORE_TARGET_PGDATA:?LIQI_RESTORE_TARGET_PGDATA is required}"
@@ -123,7 +123,7 @@ LIQI_RESTORE_PORT="$PORT" \
 LIQI_RESTORE_RESULT_FILE="$RESULT_FILE" \
 LIQI_RESTORE_METADATA_FILE="$LIQI_RESTORE_METADATA_FILE" \
 LIQI_RESTORE_METADATA_CHECKSUM_FILE="$LIQI_RESTORE_METADATA_CHECKSUM_FILE" \
-  "$ROOT_DIR/operations/disaster-recovery/database/verify-restore.sh"
+  "$ROOT_DIR/database/recovery/verify-restore.sh"
 
 if [[ "$KEEP_RUNNING" != true ]]; then
   "$PG_CTL" -D "$canonical_target" -m fast -w stop

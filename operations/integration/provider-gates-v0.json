@@ -69,7 +69,15 @@
       "required_paths": [
         "database/tests/run-source-validation.sh",
         "contracts/platform/database-v0.schema.json",
-        "contracts/platform/database-v0.example.json"
+        "contracts/platform/database-v0.example.json",
+        "database/recovery/fetch-backup-metadata.sh",
+        "database/recovery/prepare-restore-exercise.sh",
+        "database/recovery/restore-exercise.sh",
+        "database/recovery/restore.sh",
+        "database/recovery/verify-restore-exercise.sh",
+        "database/recovery/verify-restore.sh",
+        "database/recovery/cleanup-restore-exercise.sh",
+        "operations/disaster-recovery/recovery-exercise-plan-v0.example.json"
       ],
       "argv": [
         "bash",
@@ -118,7 +126,15 @@
         "database/bin/recovery-status.sh",
         "database/tools/recovery_contract.py",
         "contracts/platform/database-restore-result-v0.schema.json",
-        "contracts/operations/recovery-status-v0.schema.json"
+        "contracts/operations/recovery-status-v0.schema.json",
+        "database/recovery/fetch-backup-metadata.sh",
+        "database/recovery/prepare-restore-exercise.sh",
+        "database/recovery/restore-exercise.sh",
+        "database/recovery/restore.sh",
+        "database/recovery/verify-restore-exercise.sh",
+        "database/recovery/verify-restore.sh",
+        "database/recovery/cleanup-restore-exercise.sh",
+        "operations/disaster-recovery/recovery-exercise-plan-v0.example.json"
       ],
       "argv": [
         "bash",

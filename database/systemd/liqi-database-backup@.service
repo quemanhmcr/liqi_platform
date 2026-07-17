@@ -1,6 +1,6 @@
 [Unit]
 Description=LIQI PostgreSQL %i backup with durable OCI metadata
-Documentation=file:/opt/liqi/current/operations/runbooks/database/backup-and-wal.md
+Documentation=file:/opt/liqi/current/database/runbooks/backup-and-wal.md
 After=postgresql-17.service network-online.target
 Wants=network-online.target
 ConditionPathExists=/etc/liqi/database/backup.env

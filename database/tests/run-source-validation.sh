@@ -17,7 +17,7 @@ for script in \
   "$ROOT_DIR"/database/bin/*.sh \
   "$ROOT_DIR"/database/tests/integration/*.sh \
   "$ROOT_DIR"/database/tests/static/*.sh \
-  "$ROOT_DIR"/operations/disaster-recovery/database/*.sh; do
+  "$ROOT_DIR"/database/recovery/*.sh; do
   bash -n "$script"
 done
 printf '%s\n' '{"validation":"database-shell-syntax-v0","passed":true}'

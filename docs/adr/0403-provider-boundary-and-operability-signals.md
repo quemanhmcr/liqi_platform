@@ -24,3 +24,6 @@ Senior 2 must update command paths or provide a Senior 2-owned compatibility ada
 ## Trade-off and compatibility
 
 This adds a small provider adapter/output burden but preserves ownership, keeps provider failures attributable and prevents operational orchestration from becoming a database implementation layer. Existing command strings remain accepted only until checkpoint 2; removal owner is Senior 2.
+## V0 closeout resolution
+
+The ownership mismatch is resolved: restore and verification commands are published under `database/recovery/**`. Operations consumes those paths directly and retains only orchestration and evidence freshness policy.

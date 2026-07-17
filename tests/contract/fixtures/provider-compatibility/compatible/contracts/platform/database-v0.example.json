@@ -1,1 +1,1 @@
-{"restore": {"command": "database/bin/restore-exercise.sh", "verificationCommand": "database/bin/verify-restore-exercise.sh", "resultSchema": "contracts/platform/database-restore-result-v0.schema.json"}}
+{"restore": {"command": "database/recovery/restore-exercise.sh", "verificationCommand": "database/recovery/verify-restore-exercise.sh", "resultSchema": "contracts/platform/database-restore-result-v0.schema.json"}}

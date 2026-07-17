@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 077
-ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
+ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 LABEL=${1:-}
 OUTPUT_DIR=${2:-}
 [[ "$LABEL" =~ ^[0-9]{8}-[0-9]{6}F(_[0-9]{8}-[0-9]{6}[DI])?$ ]] || { echo 'usage: fetch-backup-metadata.sh <backup-label> <output-directory>' >&2; exit 64; }

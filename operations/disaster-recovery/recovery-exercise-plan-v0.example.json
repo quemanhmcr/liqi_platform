@@ -10,14 +10,14 @@
     "production_traffic": false,
     "isolated": true
   },
-  "backup_ref": "oci://namespace/liqi-development-backups/postgresql/example",
-  "required_database_migration": "2",
+  "backup_ref": "oci://example-namespace/liqi-development-backups/postgresql/v0/metadata/20260717-030000F.json",
+  "required_database_migration": "4",
   "approval_ref": null,
   "steps": [
-    {"name": "prepare", "owner": "Senior 2", "argv": ["database/bin/prepare-restore-exercise.sh", "{target_root}", "{target_database}"], "timeout_seconds": 300, "mutation": "isolated-target"},
-    {"name": "restore", "owner": "Senior 2", "argv": ["database/bin/restore-exercise.sh", "{backup_ref}", "{target_root}", "{target_database}"], "timeout_seconds": 3600, "mutation": "isolated-target"},
-    {"name": "verify", "owner": "Senior 2", "argv": ["database/bin/verify-restore-exercise.sh", "{target_root}", "{target_database}", "{required_database_migration}", "{verification_output}"], "timeout_seconds": 900, "mutation": "none"},
-    {"name": "cleanup", "owner": "Senior 2", "argv": ["database/bin/cleanup-restore-exercise.sh", "{target_root}", "{target_database}"], "timeout_seconds": 300, "mutation": "isolated-target"}
+    {"name": "prepare", "owner": "Senior 2", "argv": ["database/recovery/prepare-restore-exercise.sh", "{target_root}", "{target_database}"], "timeout_seconds": 300, "mutation": "isolated-target"},
+    {"name": "restore", "owner": "Senior 2", "argv": ["database/recovery/restore-exercise.sh", "{backup_ref}", "{target_root}", "{target_database}"], "timeout_seconds": 3600, "mutation": "isolated-target"},
+    {"name": "verify", "owner": "Senior 2", "argv": ["database/recovery/verify-restore-exercise.sh", "{target_root}", "{target_database}", "{required_database_migration}", "{verification_output}", "{source_environment}"], "timeout_seconds": 900, "mutation": "none"},
+    {"name": "cleanup", "owner": "Senior 2", "argv": ["database/recovery/cleanup-restore-exercise.sh", "{target_root}", "{target_database}"], "timeout_seconds": 300, "mutation": "isolated-target"}
   ],
   "cleanup_policy": "always",
   "mutation_policy": {"source_database_write": false, "production_traffic": false, "oci_mutation": false, "target_only": true}

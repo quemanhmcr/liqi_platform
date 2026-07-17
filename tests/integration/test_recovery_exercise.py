@@ -6,12 +6,12 @@ RUN=ROOT/'scripts/operations/run_recovery_exercise.py'
 MOCK=ROOT/'tests/contract/fixtures/recovery-exercise/plan.mock.json'
 PROVIDER=ROOT/'operations/disaster-recovery/recovery-exercise-plan-v0.example.json'
 class RecoveryExerciseTests(unittest.TestCase):
-    def test_provider_plan_is_blocked_until_senior2_commands_exist(self):
+    def test_provider_plan_resolves_to_database_owned_commands(self):
         with tempfile.TemporaryDirectory() as t:
             root=Path(t); out=root/'result.json'
             r=subprocess.run([sys.executable,str(RUN),'--plan',str(PROVIDER),'--output',str(out),'--evidence-dir',str(root/'evidence')],cwd=ROOT,text=True,capture_output=True,check=False)
-            self.assertEqual(r.returncode,2)
-            payload=json.loads(out.read_text()); self.assertEqual(payload['status'],'blocked'); self.assertTrue(any('provider command missing' in f for f in payload['failures']))
+            self.assertEqual(r.returncode,0,r.stderr)
+            payload=json.loads(out.read_text()); self.assertEqual(payload['status'],'planned'); self.assertTrue(all(step['command'].startswith('database/recovery/') for step in payload['steps']))
     def test_mock_execution_proves_verify_freshness_and_cleanup(self):
         with tempfile.TemporaryDirectory() as t:
             root=Path(t); out=root/'result.json'; target=root/'isolated'

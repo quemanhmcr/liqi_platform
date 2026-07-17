@@ -30,7 +30,7 @@ database/bin/render-pgbackrest-config.sh
 database/bin/pgbackrest-command.sh --stanza=liqi stanza-create
 database/bin/pgbackrest-command.sh --stanza=liqi check
 database/bin/backup.sh full
-operations/disaster-recovery/database/restore.sh
+database/recovery/restore-exercise.sh
 ```
 
 Expected evidence is a valid `database-backup-metadata-v0` document plus SHA-256 sidecar and a `database-restore-result-v0` document with `success=true`. Source validation cannot substitute for this drill.

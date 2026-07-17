@@ -366,8 +366,8 @@
     "alwaysFreeObjectBudgetGiB": 18
   },
   "restore": {
-    "command": "operations/disaster-recovery/database/restore.sh",
-    "verificationCommand": "operations/disaster-recovery/database/verify-restore.sh",
+    "command": "database/recovery/restore-exercise.sh",
+    "verificationCommand": "database/recovery/verify-restore-exercise.sh",
     "resultSchema": "contracts/platform/database-restore-result-v0.schema.json",
     "target": "new-isolated-data-directory-and-database-name",
     "workingRto": "60m",

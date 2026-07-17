@@ -66,10 +66,10 @@ No script accepts a password or plaintext DSN argument. Runtime and backup crede
 - Backup status and age: `database/bin/backup-status.sh`, `database/bin/backup-metrics.sh`
 - Last checksummed restore evidence metrics: `database/bin/restore-result-metrics.sh`
 - Senior 4 recovery contract document: `database/bin/recovery-status.sh`
-- Recovery execution and verification: `operations/disaster-recovery/database/*.sh`
+- Recovery execution and verification: `database/recovery/*.sh`
 
 Backup readiness and restore verification are intentionally separate. A healthy repository does not prove a backup has restored successfully, and a historical restore result does not prove current WAL archiving is healthy.
 
 ## Integration and recovery validation
 
-See `database/tests/README.md` and `operations/runbooks/database/`. The local Windows authoring workspace has no PostgreSQL or pgBackRest binaries, so real database integration, repository creation, backup and isolated restore remain mandatory gates on the target PostgreSQL 17 host. None has been simulated as production evidence.
+See `database/tests/README.md` and `database/runbooks/`. The local Windows authoring workspace has no PostgreSQL or pgBackRest binaries, so real database integration, repository creation, backup and isolated restore remain mandatory gates on the target PostgreSQL 17 host. None has been simulated as production evidence.
