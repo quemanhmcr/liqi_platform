@@ -30,6 +30,8 @@ PAIRS = (
     ("platform-probe-result-v0.schema.json", "../../../integration/fixtures/platform-probe-result.valid.json"),
     ("deployment-spec-v0.schema.json", "deployment-spec.valid.json"),
     ("activation-result-v0.schema.json", "activation-result.valid.json"),
+    ("telemetry-runtime-policy-v0.schema.json", "../../../../operations/telemetry/telemetry-runtime-policy-v0.json"),
+    ("telemetry-sink-v0.schema.json", "../../../../operations/telemetry/telemetry-sink-v0.example.json"),
 )
 
 
