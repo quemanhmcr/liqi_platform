@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.app/events/event-envelope-v0.schema.json",
+  "title": "LIQI Committed Event Envelope V0",
+  "description": "Wire representation of an event that is already committed by the durable PostgreSQL authority. The envelope itself is not an authority and makes no exactly-once claim.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "eventVersion",
+    "occurredAt",
+    "producer",
+    "aggregateKey",
+    "payload",
+    "metadata"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventType": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+\\.v[0-9]+$",
+      "maxLength": 160
+    },
+    "eventVersion": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2147483647
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "string",
+      "pattern": "^liqi-[a-z0-9-]{2,48}$",
+      "maxLength": 64
+    },
+    "correlationId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "causationId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregateKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "orderingKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "payload": {
+      "type": "object"
+    },
+    "metadata": {
+      "type": "object",
+      "maxProperties": 16,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_.-]{0,63}$"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string",
+            "maxLength": 256
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    }
+  },
+  "x-liqi-constraints": {
+    "metadataMaxSerializedBytes": 4096,
+    "delivery": "at-least-once",
+    "authority": "postgresql",
+    "publishCondition": "after-commit"
+  }
+}

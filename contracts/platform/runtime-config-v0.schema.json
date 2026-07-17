@@ -1,0 +1,465 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.app/platform/runtime-config-v0.schema.json",
+  "title": "LIQI Runtime Configuration V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "environment",
+    "host",
+    "service",
+    "database",
+    "runtime",
+    "limits",
+    "telemetry",
+    "features"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "0"
+    },
+    "environment": {
+      "enum": [
+        "local",
+        "development",
+        "test",
+        "staging",
+        "production"
+      ]
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readinessFile",
+        "readinessSchemaVersion"
+      ],
+      "properties": {
+        "readinessFile": {
+          "type": "string",
+          "pattern": "^/",
+          "maxLength": 4096
+        },
+        "readinessSchemaVersion": {
+          "const": "liqi.platform.host-readiness/v0"
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "listen"
+      ],
+      "properties": {
+        "name": {
+          "enum": [
+            "liqi-api",
+            "liqi-realtime",
+            "liqi-worker"
+          ]
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "instanceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "listen": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "host",
+            "port"
+          ],
+          "properties": {
+            "host": {
+              "const": "127.0.0.1"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            }
+          }
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoint",
+        "databaseName",
+        "role",
+        "secretRef",
+        "connectTimeoutMs",
+        "acquireTimeoutMs",
+        "statementTimeoutMs",
+        "lockTimeoutMs",
+        "idleInTransactionTimeoutMs",
+        "maxConnections",
+        "minConnections",
+        "requiredMigrationVersion"
+      ],
+      "properties": {
+        "endpoint": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "host",
+            "port",
+            "poolingMode"
+          ],
+          "properties": {
+            "host": {
+              "const": "127.0.0.1"
+            },
+            "port": {
+              "const": 6432
+            },
+            "poolingMode": {
+              "const": "transaction"
+            }
+          }
+        },
+        "databaseName": {
+          "const": "liqi"
+        },
+        "role": {
+          "enum": [
+            "liqi_api",
+            "liqi_realtime",
+            "liqi_worker"
+          ]
+        },
+        "secretRef": {
+          "type": "string",
+          "pattern": "^(env|file|oci-vault)://[^\\s]+$",
+          "maxLength": 2048
+        },
+        "connectTimeoutMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 60000
+        },
+        "acquireTimeoutMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 60000
+        },
+        "statementTimeoutMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 30000
+        },
+        "lockTimeoutMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 5000
+        },
+        "idleInTransactionTimeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 30000
+        },
+        "maxConnections": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 40
+        },
+        "minConnections": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16
+        },
+        "requiredMigrationVersion": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requestTimeoutMs",
+        "shutdownDeadlineMs",
+        "maxInFlightRequests",
+        "maxBlockingTasks"
+      ],
+      "properties": {
+        "requestTimeoutMs": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 120000
+        },
+        "shutdownDeadlineMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 120000
+        },
+        "maxInFlightRequests": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "maxBlockingTasks": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxRequestBodyBytes",
+        "maxRealtimeMessageBytes",
+        "realtimeOutboundQueue",
+        "workerClaimBatch",
+        "workerConcurrency",
+        "validationErrorItems",
+        "eventMetadataBytes",
+        "workerMaxAttempts",
+        "workerRetryBaseMs",
+        "workerRetryMaxMs",
+        "realtimeHeartbeatIntervalMs",
+        "realtimeHeartbeatTimeoutMs",
+        "realtimeSlowConsumerDisconnectMs",
+        "realtimeMaxSubscriptions"
+      ],
+      "properties": {
+        "maxRequestBodyBytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 16777216
+        },
+        "maxRealtimeMessageBytes": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 1048576
+        },
+        "realtimeOutboundQueue": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "workerClaimBatch": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "workerConcurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "validationErrorItems": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "eventMetadataBytes": {
+          "const": 4096
+        },
+        "workerMaxAttempts": {
+          "type": "integer",
+          "const": 8
+        },
+        "workerRetryBaseMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 5000
+        },
+        "workerRetryMaxMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 60000
+        },
+        "realtimeHeartbeatIntervalMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 120000
+        },
+        "realtimeHeartbeatTimeoutMs": {
+          "type": "integer",
+          "minimum": 2000,
+          "maximum": 300000
+        },
+        "realtimeSlowConsumerDisconnectMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "realtimeMaxSubscriptions": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        }
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logLevel",
+        "traceSampleRatio"
+      ],
+      "properties": {
+        "logLevel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "otlpEndpoint": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri",
+          "maxLength": 2048
+        },
+        "traceSampleRatio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_.-]{0,63}$"
+      },
+      "maxProperties": 64
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "service": {
+            "properties": {
+              "name": {
+                "const": "liqi-api"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "service": {
+            "properties": {
+              "listen": {
+                "properties": {
+                  "port": {
+                    "const": 8080
+                  }
+                }
+              }
+            }
+          },
+          "database": {
+            "properties": {
+              "role": {
+                "const": "liqi_api"
+              },
+              "maxConnections": {
+                "maximum": 20
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "service": {
+            "properties": {
+              "name": {
+                "const": "liqi-realtime"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "service": {
+            "properties": {
+              "listen": {
+                "properties": {
+                  "port": {
+                    "const": 8081
+                  }
+                }
+              }
+            }
+          },
+          "database": {
+            "properties": {
+              "role": {
+                "const": "liqi_realtime"
+              },
+              "maxConnections": {
+                "maximum": 5
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "service": {
+            "properties": {
+              "name": {
+                "const": "liqi-worker"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "service": {
+            "properties": {
+              "listen": {
+                "properties": {
+                  "port": {
+                    "const": 8082
+                  }
+                }
+              }
+            }
+          },
+          "database": {
+            "properties": {
+              "role": {
+                "const": "liqi_worker"
+              },
+              "maxConnections": {
+                "maximum": 10
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
