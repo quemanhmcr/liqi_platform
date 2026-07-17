@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/integration-readiness-result-v0.schema.json",
+  "title": "LIQI source integration readiness result V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "git_sha", "status", "checkpoints", "blockers"],
+  "properties": {
+    "schema_version": {"const": "integration-readiness-result-v0"},
+    "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "status": {"enum": ["passed", "blocked", "failed"]},
+    "checkpoints": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status", "evidence_ref"],
+        "properties": {
+          "name": {"enum": ["provider-source", "provider-compatibility", "provider-capacity"]},
+          "status": {"enum": ["passed", "blocked", "failed"]},
+          "evidence_ref": {"type": "string", "minLength": 1, "maxLength": 1024}
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["owner", "seam", "code", "severity", "message", "action_required"],
+        "properties": {
+          "owner": {"enum": ["Senior 1", "Senior 2", "Senior 3", "Senior 4"]},
+          "seam": {"type": "string", "minLength": 1, "maxLength": 256},
+          "code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,63}$"},
+          "severity": {"enum": ["blocked", "failed"]},
+          "message": {"type": "string", "minLength": 1, "maxLength": 1000},
+          "action_required": {"type": "string", "minLength": 1, "maxLength": 1000}
+        }
+      }
+    }
+  }
+}
