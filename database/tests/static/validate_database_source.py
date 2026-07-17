@@ -54,12 +54,28 @@ required_pgbouncer = {
     "pool_mode = transaction",
     "max_client_conn = 300",
     "max_db_connections = 40",
+    "liqi_api = pool_size=20 max_user_connections=20",
+    "liqi_realtime = pool_size=5 max_user_connections=5",
+    "liqi_worker = pool_size=10 max_user_connections=10",
+    "liqi_readonly = pool_size=3 max_user_connections=3",
+    "liqi_monitor = pool_mode=session pool_size=2 max_user_connections=2",
     "listen_addr = 127.0.0.1",
     "auth_type = scram-sha-256",
 }
 for line in required_pgbouncer:
     if line not in config:
         failures.append(f"missing PgBouncer contract line: {line}")
+
+migration4 = (MIGRATIONS / "000000000004_runtime_persistence_handoffs.sql").read_text(encoding="utf-8")
+for seam in (
+    "platform.publish_realtime_handoff_v0",
+    "platform.read_realtime_handoff_v0",
+    "platform.observe_probe_v0",
+    "GRANT EXECUTE ON FUNCTION platform.read_realtime_handoff_v0(bigint, integer) TO liqi_realtime",
+    "REVOKE SELECT ON platform.probe_state_v0, platform.probe_effects_v0 FROM liqi_readonly",
+):
+    if seam not in migration4:
+        failures.append(f"migration 4 missing provider seam: {seam}")
 
 postgres_config = (ROOT / "config/postgresql-liqi.conf").read_text(encoding="utf-8")
 for line in ["listen_addresses = ''", "max_connections = 80", "archive_timeout = '5min'", "password_encryption = 'scram-sha-256'"]:

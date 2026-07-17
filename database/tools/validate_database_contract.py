@@ -61,6 +61,7 @@ def main() -> int:
     budget = example["connectionBudget"]
     allocated = (
         budget["runtimeServerConnections"]
+        + budget["operationalPoolConnections"]
         + budget["directAdministrativeConnections"]
         + budget["reservedHeadroom"]
     )
@@ -69,6 +70,26 @@ def main() -> int:
             "connection budget must exactly partition postgresMaxConnections: "
             f"{allocated} != {budget['postgresMaxConnections']}"
         )
+
+    role_caps = budget["poolRoleCaps"]
+    expected_role_caps = {
+        "liqi_api": 20, "liqi_realtime": 5, "liqi_worker": 10,
+        "liqi_readonly": 3, "liqi_monitor": 2,
+    }
+    if role_caps != expected_role_caps:
+        failures.append(f"PgBouncer role caps differ from V0 hard allocation: {role_caps}")
+    if sum(role_caps[name] for name in ("liqi_api", "liqi_realtime", "liqi_worker")) != 35:
+        failures.append("runtime PgBouncer role caps must total 35")
+    if sum(role_caps[name] for name in ("liqi_readonly", "liqi_monitor")) != 5:
+        failures.append("operational PgBouncer role caps must total 5")
+    if example["migration"]["requiredVersion"] != 4 or example["health"]["requiredMigrationVersion"] != 4:
+        failures.append("all V0 consumers must fail closed against required migration version 4")
+    if example["realtimeHandoff"]["readFunction"] != "platform.read_realtime_handoff_v0(bigint,integer)":
+        failures.append("committed realtime handoff reader function changed")
+    if example["probeObservation"]["function"] != "platform.observe_probe_v0(uuid,uuid)":
+        failures.append("provider-owned probe observation function changed")
+    if example["probeObservation"]["directTableAccess"] is not False:
+        failures.append("probe observation must not grant direct table access")
 
     required_wire = {
         "eventId", "eventType", "eventVersion", "occurredAt",

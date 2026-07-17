@@ -68,7 +68,7 @@ def main() -> int:
         actual = {
             "postgresqlMajor": 17,
             "postgresqlVersion": "17.10",
-            "migrationVersion": 3,
+            "migrationVersion": 4,
             "failedMigrationRuns": 0,
             "inRecovery": False,
             "archiveMode": "off",

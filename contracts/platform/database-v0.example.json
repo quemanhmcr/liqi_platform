@@ -171,11 +171,13 @@
       "purpose": "Read committed realtime handoff data through approved functions.",
       "privileges": [
         "CONNECT liqi",
-        "EXECUTE approved realtime functions"
+        "EXECUTE platform.read_realtime_handoff_v0(bigint,integer)",
+        "EXECUTE platform.database_readiness_v0(bigint)"
       ],
       "prohibited": [
         "DDL",
-        "outbox claim",
+        "outbox claim or acknowledgement",
+        "authority table reads",
         "LISTEN through transaction pool"
       ]
     },
@@ -199,11 +201,14 @@
       "purpose": "Run explicitly granted operational reads.",
       "privileges": [
         "CONNECT liqi",
-        "SELECT approved views"
+        "SELECT approved health views",
+        "EXECUTE platform.observe_probe_v0(uuid,uuid) for promotion/disposable tests"
       ],
       "prohibited": [
         "WRITE",
         "DDL",
+        "direct probe or outbox table reads",
+        "long-lived application runtime traffic",
         "implicit read of future schemas"
       ]
     },
@@ -238,11 +243,25 @@
   ],
   "connectionBudget": {
     "postgresMaxConnections": 80,
-    "runtimeServerConnections": 40,
+    "runtimeServerConnections": 35,
     "directAdministrativeConnections": 10,
     "reservedHeadroom": 30,
     "pgbouncerMaxClientConnections": 300,
-    "saturationThresholdPercent": 80
+    "saturationThresholdPercent": 80,
+    "operationalPoolConnections": 5,
+    "poolRoleCaps": {
+      "liqi_api": 20,
+      "liqi_realtime": 5,
+      "liqi_worker": 10,
+      "liqi_readonly": 3,
+      "liqi_monitor": 2
+    },
+    "observerConnection": {
+      "role": "liqi_readonly",
+      "maxConcurrent": 1,
+      "lifecycle": "promotion-or-disposable-test-only",
+      "throughPool": true
+    }
   },
   "migration": {
     "policy": "forward-only-expand-migrate-contract",
@@ -251,12 +270,16 @@
     "lock": "postgres-session-advisory-lock",
     "command": "database/bin/migrate.sh",
     "statusCommand": "database/bin/migration-status.sh",
-    "pendingMigrationReadiness": "not-ready"
+    "pendingMigrationReadiness": "not-ready",
+    "requiredVersion": 4,
+    "readinessFunction": "platform.database_readiness_v0(bigint)"
   },
   "health": {
     "liveness": "direct-select-1-only",
     "readiness": "pool-connectivity-and-required-migration-version",
-    "recoveryReadiness": "separate-backup-archive-and-restore-verification-signal"
+    "recoveryReadiness": "separate-backup-archive-and-restore-verification-signal",
+    "requiredMigrationVersion": 4,
+    "runtimeFailureMode": "all-runtime-processes-not-ready-on-database-unavailable-or-version-below-required"
   },
   "transactionPolicy": {
     "defaultIsolation": "read-committed",
@@ -451,7 +474,7 @@
     }
   ],
   "capacity": {
-    "steadyStateCpu": 0.73,
+    "steadyStateCpu": 0.58,
     "steadyStateMemoryMiB": 4416,
     "hardMemoryMiB": 7936,
     "diskBudgetGiB": 131,
@@ -472,7 +495,11 @@
       "outbox producer and worker stored function semantics",
       "required migration version is supplied to readiness",
       "test bootstrap command creates an isolated database",
-      "wire mapping preserves event ID, version, occurred-at, aggregate key, ordering key and payload"
+      "wire mapping preserves event ID, version, occurred-at, aggregate key, ordering key and payload",
+      "realtime reads committed events only through platform.read_realtime_handoff_v0(bigint,integer)",
+      "promotion observer calls platform.observe_probe_v0(uuid,uuid) with one bounded liqi_readonly connection",
+      "API, realtime and worker pass required migration version 4 to platform.database_readiness_v0(bigint)",
+      "runtime pool caps are liqi_api=20, liqi_realtime=5 and liqi_worker=10"
     ],
     "senior4": [
       "machine-readable migration status",
@@ -482,5 +509,70 @@
       "WAL archive age and failure metrics",
       "database runbooks and recovery commands"
     ]
+  },
+  "realtimeHandoff": {
+    "schemaVersion": 0,
+    "storage": "platform.realtime_handoff_events_v0",
+    "publishFunction": "platform.publish_realtime_handoff_v0(uuid)",
+    "readFunction": "platform.read_realtime_handoff_v0(bigint,integer)",
+    "publisherRole": "liqi_api",
+    "readerRole": "liqi_realtime",
+    "visibility": "after-producer-transaction-commit",
+    "delivery": "at-least-once-poll-by-cursor",
+    "ordering": "global-handoff-id-commit-serialized-for-published-events",
+    "cursor": {
+      "field": "handoff_id",
+      "initialValue": 0,
+      "comparison": "strictly-greater-than-last-delivered",
+      "resumeRule": "consumer-persists-last-delivered-handoff-id"
+    },
+    "batch": {
+      "default": 64,
+      "maximum": 128
+    },
+    "fields": [
+      "handoff_id",
+      "event_id",
+      "event_type",
+      "event_version",
+      "occurred_at",
+      "aggregate_key",
+      "ordering_key",
+      "payload",
+      "recorded_at"
+    ],
+    "prohibited": [
+      "realtime-outbox-claim",
+      "realtime-authority-table-read",
+      "broadcast-before-producer-commit",
+      "exactly-once-delivery-claim"
+    ],
+    "eventScope": "platform.probe.requested.v0@0-only",
+    "growthBound": "promotion-probe-frequency-and-v0-database-data-cap",
+    "failureBehavior": "reject-non-probe-publication-until-versioned-retention-contract"
+  },
+  "probeObservation": {
+    "function": "platform.observe_probe_v0(uuid,uuid)",
+    "role": "liqi_readonly",
+    "connectionLifecycle": "promotion-or-disposable-test-only",
+    "throughPool": true,
+    "directTableAccess": false,
+    "noRowSemantics": "probe-or-event-pair-not-found",
+    "inputs": [
+      "requested_probe_id",
+      "requested_event_id"
+    ],
+    "outputs": [
+      "probe_id",
+      "event_id",
+      "probe_status",
+      "outbox_state",
+      "effect_applied",
+      "probe_completed_at",
+      "effect_applied_at",
+      "terminal",
+      "observed_at"
+    ],
+    "terminalCondition": "probe_status='completed' AND outbox_state='succeeded' AND effect_applied=true"
   }
 }

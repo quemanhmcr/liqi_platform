@@ -28,7 +28,7 @@ PostgreSQL 17 provides the required transaction, locking, JSONB, role, WAL archi
 
 - PostgreSQL plus PgBouncer steady-state memory target: no more than 6.5 GiB.
 - Database subsystem hard memory ceiling: 10 GiB.
-- PostgreSQL `max_connections`: 80; PgBouncer converts at most 300 bounded client sessions into at most 40 runtime server connections.
+- PostgreSQL `max_connections`: 80; PgBouncer converts at most 300 bounded client sessions into 35 runtime and 5 operational server connections.
 - V0 durable database data cap: 8 GiB while relying on the 20 GiB Always Free Object Storage allowance for encrypted backup retention.
 - Database data, WAL/spool, logs and restore scratch use an explicit 130 GiB disk budget. Crossing the V0 cap requires a PAYG/capacity decision rather than silent retention loss.
 

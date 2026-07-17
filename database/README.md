@@ -10,7 +10,7 @@ It intentionally contains no LIQI product/domain schema.
 - Accepted V0 values: `contracts/platform/database-v0.example.json`
 - Backup evidence: `contracts/platform/database-backup-metadata-v0.schema.json`
 - Restore evidence: `contracts/platform/database-restore-result-v0.schema.json`
-- Decisions: `docs/adr/0200-*`, `0201-*`, `0202-*`
+- Decisions: `docs/adr/0200-*` through `0204-*`
 
 Validate every source contract without starting PostgreSQL, building an image or mutating OCI:
 
@@ -22,7 +22,7 @@ database/tests/run-source-validation.sh
 
 Runtime processes connect only through PgBouncer transaction pooling. They must not depend on session state, temporary tables, session advisory locks, `LISTEN/NOTIFY` through the pool, or named prepared statements unless the selected driver proves compatibility.
 
-Approved persistence functions after migration version 3:
+Approved persistence functions after migration version 4:
 
 - Producer: `platform.enqueue_outbox_v0(...)`
 - Walking skeleton producer: `platform.request_probe_v0(...)`
@@ -30,7 +30,10 @@ Approved persistence functions after migration version 3:
 - Worker acknowledgement: `platform.ack_outbox_v0(...)`
 - Worker retry/dead letter: `platform.fail_outbox_v0(...)`
 - Probe idempotent effect: `platform.apply_probe_effect_and_ack_v0(...)`
-- Readiness: `platform.database_readiness_v0(required_version)`
+- Committed realtime publisher: `platform.publish_realtime_handoff_v0(event_id)`
+- Committed realtime reader: `platform.read_realtime_handoff_v0(after_handoff_id, batch_size)`
+- Promotion observer: `platform.observe_probe_v0(probe_id, event_id)`
+- Readiness: `platform.database_readiness_v0(required_version)` with required version `4`
 
 The wire adapter must preserve event ID, type, version, occurred-at, aggregate key, ordering key and payload. `database/tests/contract/validate_wire_mapping.py` consumes Senior 3's accepted example; the placeholder fixture is not a wire contract and states its removal condition.
 

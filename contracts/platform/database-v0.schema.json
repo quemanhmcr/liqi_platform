@@ -23,7 +23,9 @@
     "restore",
     "metrics",
     "capacity",
-    "consumerInterfaces"
+    "consumerInterfaces",
+    "realtimeHandoff",
+    "probeObservation"
   ],
   "properties": {
     "$schema": {
@@ -97,6 +99,12 @@
     },
     "consumerInterfaces": {
       "$ref": "#/$defs/consumerInterfaces"
+    },
+    "realtimeHandoff": {
+      "$ref": "#/$defs/realtimeHandoff"
+    },
+    "probeObservation": {
+      "$ref": "#/$defs/probeObservation"
     }
   },
   "$defs": {
@@ -379,7 +387,10 @@
         "directAdministrativeConnections",
         "reservedHeadroom",
         "pgbouncerMaxClientConnections",
-        "saturationThresholdPercent"
+        "saturationThresholdPercent",
+        "operationalPoolConnections",
+        "poolRoleCaps",
+        "observerConnection"
       ],
       "properties": {
         "postgresMaxConnections": {
@@ -408,6 +419,62 @@
           "type": "integer",
           "minimum": 50,
           "maximum": 95
+        },
+        "operationalPoolConnections": {
+          "type": "integer",
+          "const": 5
+        },
+        "poolRoleCaps": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "liqi_api",
+            "liqi_realtime",
+            "liqi_worker",
+            "liqi_readonly",
+            "liqi_monitor"
+          ],
+          "properties": {
+            "liqi_api": {
+              "const": 20
+            },
+            "liqi_realtime": {
+              "const": 5
+            },
+            "liqi_worker": {
+              "const": 10
+            },
+            "liqi_readonly": {
+              "const": 3
+            },
+            "liqi_monitor": {
+              "const": 2
+            }
+          }
+        },
+        "observerConnection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "maxConcurrent",
+            "lifecycle",
+            "throughPool"
+          ],
+          "properties": {
+            "role": {
+              "const": "liqi_readonly"
+            },
+            "maxConcurrent": {
+              "const": 1
+            },
+            "lifecycle": {
+              "const": "promotion-or-disposable-test-only"
+            },
+            "throughPool": {
+              "const": true
+            }
+          }
         }
       }
     },
@@ -421,7 +488,9 @@
         "lock",
         "command",
         "statusCommand",
-        "pendingMigrationReadiness"
+        "pendingMigrationReadiness",
+        "requiredVersion",
+        "readinessFunction"
       ],
       "properties": {
         "policy": {
@@ -444,6 +513,12 @@
         },
         "pendingMigrationReadiness": {
           "const": "not-ready"
+        },
+        "requiredVersion": {
+          "const": 4
+        },
+        "readinessFunction": {
+          "const": "platform.database_readiness_v0(bigint)"
         }
       }
     },
@@ -453,7 +528,9 @@
       "required": [
         "liveness",
         "readiness",
-        "recoveryReadiness"
+        "recoveryReadiness",
+        "requiredMigrationVersion",
+        "runtimeFailureMode"
       ],
       "properties": {
         "liveness": {
@@ -464,6 +541,12 @@
         },
         "recoveryReadiness": {
           "const": "separate-backup-archive-and-restore-verification-signal"
+        },
+        "requiredMigrationVersion": {
+          "const": 4
+        },
+        "runtimeFailureMode": {
+          "const": "all-runtime-processes-not-ready-on-database-unavailable-or-version-below-required"
         }
       }
     },
@@ -895,6 +978,184 @@
           "items": {
             "$ref": "#/$defs/nonEmptyString"
           }
+        }
+      }
+    },
+    "realtimeHandoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "storage",
+        "publishFunction",
+        "readFunction",
+        "publisherRole",
+        "readerRole",
+        "visibility",
+        "delivery",
+        "ordering",
+        "cursor",
+        "batch",
+        "fields",
+        "prohibited",
+        "eventScope",
+        "growthBound",
+        "failureBehavior"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 0
+        },
+        "storage": {
+          "const": "platform.realtime_handoff_events_v0"
+        },
+        "publishFunction": {
+          "const": "platform.publish_realtime_handoff_v0(uuid)"
+        },
+        "readFunction": {
+          "const": "platform.read_realtime_handoff_v0(bigint,integer)"
+        },
+        "publisherRole": {
+          "const": "liqi_api"
+        },
+        "readerRole": {
+          "const": "liqi_realtime"
+        },
+        "visibility": {
+          "const": "after-producer-transaction-commit"
+        },
+        "delivery": {
+          "const": "at-least-once-poll-by-cursor"
+        },
+        "ordering": {
+          "const": "global-handoff-id-commit-serialized-for-published-events"
+        },
+        "cursor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "field",
+            "initialValue",
+            "comparison",
+            "resumeRule"
+          ],
+          "properties": {
+            "field": {
+              "const": "handoff_id"
+            },
+            "initialValue": {
+              "const": 0
+            },
+            "comparison": {
+              "const": "strictly-greater-than-last-delivered"
+            },
+            "resumeRule": {
+              "const": "consumer-persists-last-delivered-handoff-id"
+            }
+          }
+        },
+        "batch": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "default",
+            "maximum"
+          ],
+          "properties": {
+            "default": {
+              "const": 64
+            },
+            "maximum": {
+              "const": 128
+            }
+          }
+        },
+        "fields": {
+          "const": [
+            "handoff_id",
+            "event_id",
+            "event_type",
+            "event_version",
+            "occurred_at",
+            "aggregate_key",
+            "ordering_key",
+            "payload",
+            "recorded_at"
+          ]
+        },
+        "prohibited": {
+          "const": [
+            "realtime-outbox-claim",
+            "realtime-authority-table-read",
+            "broadcast-before-producer-commit",
+            "exactly-once-delivery-claim"
+          ]
+        },
+        "eventScope": {
+          "const": "platform.probe.requested.v0@0-only"
+        },
+        "growthBound": {
+          "const": "promotion-probe-frequency-and-v0-database-data-cap"
+        },
+        "failureBehavior": {
+          "const": "reject-non-probe-publication-until-versioned-retention-contract"
+        }
+      }
+    },
+    "probeObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "function",
+        "role",
+        "connectionLifecycle",
+        "throughPool",
+        "directTableAccess",
+        "noRowSemantics",
+        "inputs",
+        "outputs",
+        "terminalCondition"
+      ],
+      "properties": {
+        "function": {
+          "const": "platform.observe_probe_v0(uuid,uuid)"
+        },
+        "role": {
+          "const": "liqi_readonly"
+        },
+        "connectionLifecycle": {
+          "const": "promotion-or-disposable-test-only"
+        },
+        "throughPool": {
+          "const": true
+        },
+        "directTableAccess": {
+          "const": false
+        },
+        "noRowSemantics": {
+          "const": "probe-or-event-pair-not-found"
+        },
+        "inputs": {
+          "const": [
+            "requested_probe_id",
+            "requested_event_id"
+          ]
+        },
+        "outputs": {
+          "const": [
+            "probe_id",
+            "event_id",
+            "probe_status",
+            "outbox_state",
+            "effect_applied",
+            "probe_completed_at",
+            "effect_applied_at",
+            "terminal",
+            "observed_at"
+          ]
+        },
+        "terminalCondition": {
+          "const": "probe_status='completed' AND outbox_state='succeeded' AND effect_applied=true"
         }
       }
     }

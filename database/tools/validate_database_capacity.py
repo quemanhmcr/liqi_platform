@@ -16,10 +16,10 @@ DATABASE_CONTRACT = ROOT / "contracts/platform/database-v0.example.json"
 
 EXPECTED_COMPONENTS = {"postgresql-authority", "pgbouncer-boundary", "database-recovery"}
 HARD_CEILING = {
-    "ocpu": 1.5,
+    "ocpu": 1.2,
     "memory_mib": 7936,
     "disk_gib": 130.2,
-    "postgres_connections": 82,
+    "postgres_connections": 50,
 }
 
 
@@ -84,11 +84,32 @@ def main() -> int:
         fail("PostgreSQL max_connections contract unexpectedly changed")
     if (
         contract["connectionBudget"]["runtimeServerConnections"]
+        + contract["connectionBudget"]["operationalPoolConnections"]
         + contract["connectionBudget"]["directAdministrativeConnections"]
         + contract["connectionBudget"]["reservedHeadroom"]
         != 80
     ):
         fail("PostgreSQL connection partition no longer equals max_connections")
+    components_by_name = {component["name"]: component for component in components}
+    pooled_capacity = int(components_by_name["pgbouncer-boundary"]["postgres_connections"])
+    pooled_demand = (
+        contract["connectionBudget"]["runtimeServerConnections"]
+        + contract["connectionBudget"]["operationalPoolConnections"]
+    )
+    direct_capacity = sum(
+        int(component["postgres_connections"])
+        for component in components
+        if component["name"] != "pgbouncer-boundary"
+    )
+    if pooled_capacity != pooled_demand:
+        fail(f"PgBouncer server capacity differs from pooled demand: {pooled_capacity} != {pooled_demand}")
+    if direct_capacity != contract["connectionBudget"]["directAdministrativeConnections"]:
+        fail(
+            "direct database provider reservation differs from contract: "
+            f"{direct_capacity} != {contract['connectionBudget']['directAdministrativeConnections']}"
+        )
+    if int(totals["postgres_connections"]) != pooled_capacity + direct_capacity:
+        fail("database server reservation does not equal pooled plus direct capacity")
 
     rendered_totals = {
         "ocpu": round(totals["ocpu"], 3),
