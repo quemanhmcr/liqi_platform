@@ -57,6 +57,12 @@ class SecurityPolicyTests(unittest.TestCase):
         runner = (ROOT / "database/tests/run-source-validation.sh").read_text(encoding="utf-8")
         self.assertIn('bash "$test_script"', runner)
 
+    def test_database_validation_dependency_is_pinned(self) -> None:
+        requirements = (ROOT / "database/requirements-validation.txt").read_text(encoding="utf-8").splitlines()
+        pglast = [line for line in requirements if line.startswith("pglast==")]
+        self.assertEqual(1, len(pglast))
+        self.assertRegex(pglast[0], r"^pglast==\d+\.\d+$")
+
 
 if __name__ == "__main__":
     unittest.main()

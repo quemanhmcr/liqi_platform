@@ -98,6 +98,15 @@ def main() -> int:
                 if required not in text:
                     failures.append(f"{relative}: source CI is missing integration readiness seam {required}")
             step_by_name = {step.get("name"): step for step in iter_steps(workflow) if step.get("name")}
+            python_step = step_by_name.get("Configure Python")
+            python_with = python_step.get("with", {}) if isinstance(python_step, dict) else {}
+            cache_paths = python_with.get("cache-dependency-path", "") if isinstance(python_with, dict) else ""
+            if "database/requirements-validation.txt" not in cache_paths:
+                failures.append(f"{relative}: source CI cache must include pinned database validation requirements")
+            install_step = step_by_name.get("Install pinned control-plane dependencies")
+            install_command = install_step.get("run", "") if isinstance(install_step, dict) else ""
+            if "-r database/requirements-validation.txt" not in install_command:
+                failures.append(f"{relative}: source CI must install pinned database validation requirements")
             for evidence_step in (
                 "Validate cross-provider compatibility",
                 "Collect provider capacity budgets",

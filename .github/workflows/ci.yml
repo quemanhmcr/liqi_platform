@@ -35,10 +35,15 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: operations/ci/requirements-v0.txt
+          cache-dependency-path: |
+            operations/ci/requirements-v0.txt
+            database/requirements-validation.txt
 
       - name: Install pinned control-plane dependencies
-        run: python -m pip install -r operations/ci/requirements-v0.txt
+        run: >-
+          python -m pip install
+          -r operations/ci/requirements-v0.txt
+          -r database/requirements-validation.txt
 
       - name: Install pinned OpenTofu
         uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f
