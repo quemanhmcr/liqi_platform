@@ -33,6 +33,7 @@ opentelemetry-http = "0.32.0"
 opentelemetry-otlp = { version = "0.32.0", default-features = false, features = ["http-proto", "reqwest-rustls", "trace"] }
 opentelemetry_sdk = { version = "0.32.0", features = ["rt-tokio", "trace"] }
 oas3 = { version = "0.22.0", default-features = false, features = ["yaml-spec"] }
+reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls"] }
 secrecy = "0.10.3"
 sqlx = { version = "0.9.0", default-features = false, features = ["json", "postgres", "runtime-tokio", "time", "uuid"] }
 serde = { version = "1.0.228", features = ["derive"] }
@@ -41,6 +42,7 @@ thiserror = "2.0.18"
 time = { version = "0.3.53", features = ["formatting", "parsing", "serde", "serde-well-known"] }
 tokio = { version = "1.52.3", default-features = false, features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-util = { version = "0.7.18", features = ["rt"] }
+tokio-tungstenite = { version = "0.30.0", default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
 tower = { version = "0.5.2", features = ["limit", "timeout", "util"] }
 tower-http = { version = "0.7.0", features = ["catch-panic", "limit", "request-id", "sensitive-headers", "timeout", "trace"] }
 tracing = "0.1.44"
