@@ -1,0 +1,38 @@
+[Unit]
+Description=LIQI PostgreSQL %i backup with durable OCI metadata
+Documentation=file:/opt/liqi/current/operations/runbooks/database/backup-and-wal.md
+After=postgresql-17.service network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/liqi/database/backup.env
+
+[Service]
+Type=oneshot
+User=postgres
+Group=postgres
+EnvironmentFile=/etc/liqi/database/backup.env
+# Senior 1 supplies LoadCredential= drop-ins with these credential names.
+Environment=LIQI_SECRET_PGBACKREST_S3_KEY_FILE=%d/pgbackrest-s3-key
+Environment=LIQI_SECRET_PGBACKREST_S3_SECRET_FILE=%d/pgbackrest-s3-secret
+Environment=LIQI_SECRET_PGBACKREST_CIPHER_FILE=%d/pgbackrest-cipher-passphrase
+ExecStart=/opt/liqi/current/database/bin/backup.sh %i
+TimeoutStartSec=2h
+UMask=0077
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+CPUQuota=40%
+MemoryMax=1536M
+TasksMax=64
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
