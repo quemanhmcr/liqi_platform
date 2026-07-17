@@ -150,7 +150,7 @@ locals {
       path     = "/run/liqi/secrets"
       owner    = "root"
       group    = "liqi"
-      mode     = "0750"
+      mode     = "0710"
       storage  = "tmpfs"
       consumer = "shared"
     },
@@ -191,4 +191,118 @@ locals {
       consumer = "shared"
     }
   ]
+
+  runtime_configuration = {
+    environment_variable = "LIQI_CONFIG_PATH"
+    cli_argument         = "--config"
+    maximum_file_bytes   = 1048576
+    files = [
+      {
+        service = "liqi-api"
+        path    = "/etc/liqi/api.json"
+        owner   = "root"
+        group   = "liqi"
+        mode    = "0640"
+      },
+      {
+        service = "liqi-realtime"
+        path    = "/etc/liqi/realtime.json"
+        owner   = "root"
+        group   = "liqi"
+        mode    = "0640"
+      },
+      {
+        service = "liqi-worker"
+        path    = "/etc/liqi/worker.json"
+        owner   = "root"
+        group   = "liqi"
+        mode    = "0640"
+      }
+    ]
+  }
+
+  execution_control = {
+    manager                  = "systemd"
+    provider_budget_contract = "contracts/platform/infrastructure-capacity-budget-v0.json"
+    parent = {
+      slice               = "liqi-platform.slice"
+      parent              = null
+      cpu_quota_percent   = 300
+      memory_max_mib      = 20480
+      memory_swap_max_mib = 0
+    }
+    runtime = {
+      slice               = "liqi-platform-runtime.slice"
+      parent              = "liqi-platform.slice"
+      cpu_quota_percent   = 145
+      memory_max_mib      = 7168
+      memory_swap_max_mib = 0
+    }
+    database = {
+      slice               = "liqi-platform-database.slice"
+      parent              = "liqi-platform.slice"
+      cpu_quota_percent   = 120
+      memory_max_mib      = 7936
+      memory_swap_max_mib = 0
+    }
+    operations = {
+      slice               = "liqi-platform-operations.slice"
+      parent              = "liqi-platform.slice"
+      cpu_quota_percent   = 25
+      memory_max_mib      = 1024
+      memory_swap_max_mib = 0
+    }
+    edge = {
+      slice               = "liqi-platform-edge.slice"
+      parent              = "liqi-platform.slice"
+      cpu_quota_percent   = 10
+      memory_max_mib      = 256
+      memory_swap_max_mib = 0
+    }
+    services = [
+      {
+        service             = "liqi-api"
+        unit                = "liqi-api.service"
+        slice               = "liqi-platform-runtime.slice"
+        cpu_quota_percent   = 45
+        memory_max_mib      = 2048
+        memory_swap_max_mib = 0
+        config_path         = "/etc/liqi/api.json"
+      },
+      {
+        service             = "liqi-realtime"
+        unit                = "liqi-realtime.service"
+        slice               = "liqi-platform-runtime.slice"
+        cpu_quota_percent   = 65
+        memory_max_mib      = 3072
+        memory_swap_max_mib = 0
+        config_path         = "/etc/liqi/realtime.json"
+      },
+      {
+        service             = "liqi-worker"
+        unit                = "liqi-worker.service"
+        slice               = "liqi-platform-runtime.slice"
+        cpu_quota_percent   = 35
+        memory_max_mib      = 2048
+        memory_swap_max_mib = 0
+        config_path         = "/etc/liqi/worker.json"
+      }
+    ]
+    cpu_aggregation = {
+      hard_ceiling_semantics       = "additive-admission-with-parent-enforcement"
+      hard_ceiling_limit_ocpu      = 3
+      steady_state_limit_ocpu      = 3
+      host_scheduling_reserve_ocpu = 1
+      parent_enforcement           = "liqi-platform.slice"
+    }
+    memory_aggregation = {
+      hard_limits_additive = true
+      hard_limit_mib       = 20480
+      host_reserve_mib     = 4096
+      swap_is_capacity     = false
+    }
+    container_policy     = "inner-limit-must-not-exceed-systemd-outer-limit"
+    assignment_semantics = "provider-base-units-must-attach-to-published-slice"
+  }
+
 }

@@ -67,8 +67,10 @@ locals {
         runs_services = false
       }
     }
-    directories = local.host_directories
-    ports       = local.host_ports
+    directories           = local.host_directories
+    ports                 = local.host_ports
+    runtime_configuration = local.runtime_configuration
+    execution_control     = local.execution_control
     object_storage_references = [
       {
         purpose             = "postgresql-backups"
@@ -117,7 +119,8 @@ locals {
         "firewall-policy",
         "ssh-root-disabled",
         "ssh-password-auth-disabled",
-        "legacy-imds-disabled"
+        "legacy-imds-disabled",
+        "capacity-controls"
       ]
     }
     release_target = {

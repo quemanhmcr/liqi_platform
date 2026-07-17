@@ -433,6 +433,142 @@
           "uniqueItems": true
         }
       }
+    },
+    "runtime_configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment_variable",
+        "cli_argument",
+        "maximum_file_bytes",
+        "files"
+      ],
+      "properties": {
+        "environment_variable": {
+          "const": "LIQI_CONFIG_PATH"
+        },
+        "cli_argument": {
+          "const": "--config"
+        },
+        "maximum_file_bytes": {
+          "const": 1048576
+        },
+        "files": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/runtimeConfigurationFile"
+          }
+        }
+      }
+    },
+    "execution_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manager",
+        "provider_budget_contract",
+        "parent",
+        "runtime",
+        "database",
+        "operations",
+        "edge",
+        "services",
+        "cpu_aggregation",
+        "memory_aggregation",
+        "container_policy",
+        "assignment_semantics"
+      ],
+      "properties": {
+        "manager": {
+          "const": "systemd"
+        },
+        "provider_budget_contract": {
+          "const": "contracts/platform/infrastructure-capacity-budget-v0.json"
+        },
+        "parent": {
+          "$ref": "#/$defs/sliceControl"
+        },
+        "runtime": {
+          "$ref": "#/$defs/sliceControl"
+        },
+        "edge": {
+          "$ref": "#/$defs/sliceControl"
+        },
+        "services": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/serviceControl"
+          }
+        },
+        "cpu_aggregation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "hard_ceiling_semantics",
+            "hard_ceiling_limit_ocpu",
+            "steady_state_limit_ocpu",
+            "host_scheduling_reserve_ocpu",
+            "parent_enforcement"
+          ],
+          "properties": {
+            "hard_ceiling_semantics": {
+              "const": "additive-admission-with-parent-enforcement"
+            },
+            "steady_state_limit_ocpu": {
+              "const": 3
+            },
+            "host_scheduling_reserve_ocpu": {
+              "const": 1
+            },
+            "parent_enforcement": {
+              "const": "liqi-platform.slice"
+            },
+            "hard_ceiling_limit_ocpu": {
+              "const": 3
+            }
+          }
+        },
+        "memory_aggregation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "hard_limits_additive",
+            "hard_limit_mib",
+            "host_reserve_mib",
+            "swap_is_capacity"
+          ],
+          "properties": {
+            "hard_limits_additive": {
+              "const": true
+            },
+            "hard_limit_mib": {
+              "const": 20480
+            },
+            "host_reserve_mib": {
+              "const": 4096
+            },
+            "swap_is_capacity": {
+              "const": false
+            }
+          }
+        },
+        "container_policy": {
+          "const": "inner-limit-must-not-exceed-systemd-outer-limit"
+        },
+        "database": {
+          "$ref": "#/$defs/sliceControl"
+        },
+        "operations": {
+          "$ref": "#/$defs/sliceControl"
+        },
+        "assignment_semantics": {
+          "const": "provider-base-units-must-attach-to-published-slice"
+        }
+      }
     }
   },
   "$defs": {
@@ -641,6 +777,126 @@
             "paid",
             "unknown"
           ]
+        }
+      }
+    },
+    "runtimeConfigurationFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service",
+        "path",
+        "owner",
+        "group",
+        "mode"
+      ],
+      "properties": {
+        "service": {
+          "enum": [
+            "liqi-api",
+            "liqi-realtime",
+            "liqi-worker"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/etc/liqi/[a-z]+\\.json$"
+        },
+        "owner": {
+          "const": "root"
+        },
+        "group": {
+          "const": "liqi"
+        },
+        "mode": {
+          "const": "0640"
+        }
+      }
+    },
+    "sliceControl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slice",
+        "parent",
+        "cpu_quota_percent",
+        "memory_max_mib",
+        "memory_swap_max_mib"
+      ],
+      "properties": {
+        "slice": {
+          "type": "string",
+          "pattern": "^liqi-platform(?:-[a-z]+)?\\.slice$"
+        },
+        "parent": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^liqi-platform\\.slice$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cpu_quota_percent": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300
+        },
+        "memory_max_mib": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20480
+        },
+        "memory_swap_max_mib": {
+          "const": 0
+        }
+      }
+    },
+    "serviceControl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service",
+        "unit",
+        "slice",
+        "cpu_quota_percent",
+        "memory_max_mib",
+        "memory_swap_max_mib",
+        "config_path"
+      ],
+      "properties": {
+        "service": {
+          "enum": [
+            "liqi-api",
+            "liqi-realtime",
+            "liqi-worker"
+          ]
+        },
+        "unit": {
+          "type": "string",
+          "pattern": "^liqi-(?:api|realtime|worker)\\.service$"
+        },
+        "slice": {
+          "const": "liqi-platform-runtime.slice"
+        },
+        "cpu_quota_percent": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 145
+        },
+        "memory_max_mib": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 7168
+        },
+        "memory_swap_max_mib": {
+          "const": 0
+        },
+        "config_path": {
+          "type": "string",
+          "pattern": "^/etc/liqi/[a-z]+\\.json$"
         }
       }
     }

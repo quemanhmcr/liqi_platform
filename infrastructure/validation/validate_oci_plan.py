@@ -116,7 +116,7 @@ def validate_outputs(plan: dict[str, object]) -> None:
     if contract:
         if contract.get("schema_version") != "liqi.platform.oci-host/v0":
             fail("planned host output has unexpected schema_version")
-        if contract.get("infrastructure_output_version") != "0.2.0":
+        if contract.get("infrastructure_output_version") != "0.3.0":
             fail("planned host output has unexpected infrastructure_output_version")
 
 
@@ -201,6 +201,14 @@ def validate_rendered_cloud_init(rendered: str) -> None:
         "/etc/systemd/system/liqi-disable-swap.service",
         "/etc/systemd/system/liqi-data-volume.service",
         "/etc/systemd/system/liqi-host-readiness.service",
+        "/etc/systemd/system/liqi-platform.slice",
+        "/etc/systemd/system/liqi-platform-runtime.slice",
+        "/etc/systemd/system/liqi-platform-database.slice",
+        "/etc/systemd/system/liqi-platform-operations.slice",
+        "/etc/systemd/system/liqi-platform-edge.slice",
+        "/etc/systemd/system/liqi-api.service.d/10-capacity.conf",
+        "/etc/systemd/system/liqi-realtime.service.d/10-capacity.conf",
+        "/etc/systemd/system/liqi-worker.service.d/10-capacity.conf",
     }
     if not required_paths.issubset(paths):
         fail(f"rendered cloud-init missing files: {sorted(required_paths - paths)}")
@@ -218,6 +226,30 @@ def validate_rendered_cloud_init(rendered: str) -> None:
             script.write_text(content, encoding="utf-8", newline="\n")
             subprocess.run([bash, "-n", script.as_posix()], check=True)
 
+    contents_by_path = {
+        item.get("path"): item.get("content")
+        for item in write_files
+        if isinstance(item, dict) and isinstance(item.get("content"), str)
+    }
+    expected_control_lines = {
+        "/etc/systemd/system/liqi-platform.slice": {"CPUQuota=300%", "MemoryMax=20G", "MemorySwapMax=0"},
+        "/etc/systemd/system/liqi-platform-runtime.slice": {"CPUQuota=145%", "MemoryMax=7G", "MemorySwapMax=0"},
+        "/etc/systemd/system/liqi-platform-database.slice": {"CPUQuota=120%", "MemoryMax=7936M", "MemorySwapMax=0"},
+        "/etc/systemd/system/liqi-platform-operations.slice": {"CPUQuota=25%", "MemoryMax=1G", "MemorySwapMax=0"},
+        "/etc/systemd/system/liqi-platform-edge.slice": {"CPUQuota=10%", "MemoryMax=256M", "MemorySwapMax=0"},
+        "/etc/systemd/system/liqi-api.service.d/10-capacity.conf": {"Slice=liqi-platform-runtime.slice", "CPUQuota=45%", "MemoryMax=2G", "MemorySwapMax=0", "Environment=LIQI_CONFIG_PATH=/etc/liqi/api.json"},
+        "/etc/systemd/system/liqi-realtime.service.d/10-capacity.conf": {"Slice=liqi-platform-runtime.slice", "CPUQuota=65%", "MemoryMax=3G", "MemorySwapMax=0", "Environment=LIQI_CONFIG_PATH=/etc/liqi/realtime.json"},
+        "/etc/systemd/system/liqi-worker.service.d/10-capacity.conf": {"Slice=liqi-platform-runtime.slice", "CPUQuota=35%", "MemoryMax=2G", "MemorySwapMax=0", "Environment=LIQI_CONFIG_PATH=/etc/liqi/worker.json"},
+    }
+    for control_path, expected_lines in expected_control_lines.items():
+        content = contents_by_path.get(control_path)
+        if not isinstance(content, str):
+            fail(f"rendered cloud-init missing capacity control {control_path}")
+        actual_lines = {line.strip() for line in content.splitlines() if line.strip()}
+        missing_lines = expected_lines - actual_lines
+        if missing_lines:
+            fail(f"capacity control {control_path} missing {sorted(missing_lines)}")
+
     readiness_script = next(
         item["content"]
         for item in write_files
@@ -227,6 +259,7 @@ def validate_rendered_cloud_init(rendered: str) -> None:
         '"schema_version": "liqi.platform.host-readiness/v0"',
         '"status": "ready"',
         '"data_volume_mounted": "pass"',
+        '"capacity_controls": "pass"',
         'mv -f "$tmp_file" /run/liqi/host-ready.json',
     )
     for fragment in required_readiness:
