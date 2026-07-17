@@ -1,0 +1,19 @@
+{
+  "schema_version": "alert-policy-v0",
+  "principles": {
+    "page_on_user_impact_or_imminent_capacity_risk": true,
+    "cpu_spike_alone_pages": false,
+    "average_latency_is_primary": false,
+    "missing_security_data_is_good": false
+  },
+  "slo_burn_rate": [
+    { "name": "fast-burn", "window": "1h", "burn_rate": 14.4, "severity": "SEV1" },
+    { "name": "slow-burn", "window": "6h", "burn_rate": 6.0, "severity": "SEV2" }
+  ],
+  "routing": {
+    "SEV0": { "ack_minutes": 5, "page": true, "incident_commander": true },
+    "SEV1": { "ack_minutes": 10, "page": true, "incident_commander": true },
+    "SEV2": { "ack_minutes": 30, "page": "business-hours-unless-user-impact", "incident_commander": false },
+    "SEV3": { "ack_minutes": 1440, "page": false, "incident_commander": false }
+  }
+}

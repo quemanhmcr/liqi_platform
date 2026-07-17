@@ -1,0 +1,152 @@
+{
+  "schema_version": "slo-catalog-v0",
+  "classification": "working-objectives-not-external-sla",
+  "window_days": 28,
+  "slos": [
+    {
+      "id": "api-availability",
+      "owner": "Senior 3",
+      "sli_source": "good non-maintenance API requests / valid API requests from http.server.request.duration and result.class",
+      "measurement_window": "28d",
+      "missing_data": "alert-and-bad",
+      "objective": { "kind": "ratio", "operator": ">=", "value": 0.999, "unit": "ratio" },
+      "alert": { "warning": "6x burn for 6h", "critical": "14.4x burn for 1h", "severity": "SEV1" },
+      "runbook": "operations/runbooks/api-slo-burn-v0.md",
+      "degraded_mode": "Reject nonessential or expensive endpoints; preserve authentication, safety and durable commands."
+    },
+    {
+      "id": "durable-write-success",
+      "owner": "Senior 3",
+      "sli_source": "committed durable command successes / accepted durable command attempts; client validation rejects excluded",
+      "measurement_window": "28d",
+      "missing_data": "alert-and-bad",
+      "objective": { "kind": "ratio", "operator": ">=", "value": 0.999, "unit": "ratio" },
+      "alert": { "warning": "6x burn for 6h", "critical": "14.4x burn for 1h", "severity": "SEV1" },
+      "runbook": "operations/runbooks/durable-write-failure-v0.md",
+      "degraded_mode": "Fail closed and preserve idempotency; do not acknowledge writes that are not committed."
+    },
+    {
+      "id": "api-server-latency-p95",
+      "owner": "Senior 3",
+      "sli_source": "p95 http.server.request.duration by normalized route and result class",
+      "measurement_window": "1h",
+      "missing_data": "bad",
+      "objective": { "kind": "percentile", "operator": "<=", "value": 0.25, "unit": "seconds", "percentile": "p95" },
+      "alert": { "warning": "p95 >250ms for 15m", "critical": "p95 >500ms for 15m with user impact", "severity": "SEV2" },
+      "runbook": "operations/runbooks/api-latency-v0.md",
+      "degraded_mode": "Disable expensive projections and enforce tighter concurrency before database saturation."
+    },
+    {
+      "id": "api-server-latency-p99",
+      "owner": "Senior 3",
+      "sli_source": "p99 http.server.request.duration by normalized route and result class",
+      "measurement_window": "1h",
+      "missing_data": "bad",
+      "objective": { "kind": "percentile", "operator": "<=", "value": 0.75, "unit": "seconds", "percentile": "p99" },
+      "alert": { "warning": "p99 >750ms for 15m", "critical": "p99 >1500ms for 15m with user impact", "severity": "SEV2" },
+      "runbook": "operations/runbooks/api-latency-v0.md",
+      "degraded_mode": "Shed noncritical work and keep bounded deadlines; do not increase queues without a capacity decision."
+    },
+    {
+      "id": "realtime-committed-delivery-p95",
+      "owner": "Senior 3",
+      "sli_source": "p95 committed timestamp to acknowledged realtime delivery duration",
+      "measurement_window": "1h",
+      "missing_data": "bad",
+      "objective": { "kind": "percentile", "operator": "<=", "value": 1, "unit": "seconds", "percentile": "p95" },
+      "alert": { "warning": "p95 >1s for 15m", "critical": "p95 >5s or delivery failures for 10m", "severity": "SEV2" },
+      "runbook": "operations/runbooks/realtime-delivery-v0.md",
+      "degraded_mode": "Drop typing/presence first, retain committed message delivery and reconnect cursors."
+    },
+    {
+      "id": "outbox-lag",
+      "owner": "Senior 2",
+      "sli_source": "liqi_database_outbox_oldest_pending_seconds",
+      "measurement_window": "15m",
+      "missing_data": "alert-and-bad",
+      "objective": { "kind": "gauge", "operator": "<=", "value": 5, "unit": "seconds" },
+      "alert": { "warning": ">5s for 10m", "critical": ">30s for 10m", "severity": "SEV2" },
+      "runbook": "operations/runbooks/outbox-lag-v0.md",
+      "degraded_mode": "Delay noncritical projections/notifications; preserve bounded authoritative claims and terminal evidence."
+    },
+    {
+      "id": "worker-terminal-failure-rate",
+      "owner": "Senior 3",
+      "sli_source": "terminal worker failures / claimed work items excluding operator cancellation",
+      "measurement_window": "1h",
+      "missing_data": "bad",
+      "objective": { "kind": "ratio", "operator": "<=", "value": 0.001, "unit": "ratio" },
+      "alert": { "warning": ">0.1% for 1h", "critical": ">1% for 30m or safety work blocked", "severity": "SEV2" },
+      "runbook": "operations/runbooks/worker-terminal-failure-v0.md",
+      "degraded_mode": "Pause failing work class, retain durable events and continue independent critical queues."
+    },
+    {
+      "id": "database-connection-saturation",
+      "owner": "Senior 2",
+      "sli_source": "liqi_database_connection_saturation_ratio and PgBouncer waiting clients",
+      "measurement_window": "15m",
+      "missing_data": "alert-and-bad",
+      "objective": { "kind": "gauge", "operator": "<=", "value": 0.8, "unit": "ratio" },
+      "alert": { "warning": ">0.8 for 10m", "critical": ">0.9 for 5m with waiting clients", "severity": "SEV2" },
+      "runbook": "operations/runbooks/database-saturation-v0.md",
+      "degraded_mode": "Reject new noncritical work and reduce worker concurrency; never let workers consume API headroom."
+    },
+    {
+      "id": "backup-age",
+      "owner": "Senior 2",
+      "sli_source": "recovery-status-v0 backup.completed_at",
+      "measurement_window": "24h",
+      "missing_data": "block-promotion",
+      "objective": { "kind": "freshness", "operator": "<=", "value": 86400, "unit": "seconds" },
+      "alert": { "warning": ">18h", "critical": ">24h", "severity": "SEV1" },
+      "runbook": "operations/runbooks/recovery-evidence-stale-v0.md",
+      "degraded_mode": "Block promotion and data-destructive maintenance until encrypted off-host backup succeeds."
+    },
+    {
+      "id": "wal-archive-lag",
+      "owner": "Senior 2",
+      "sli_source": "recovery-status-v0 wal_archive.lag_seconds",
+      "measurement_window": "15m",
+      "missing_data": "block-promotion",
+      "objective": { "kind": "gauge", "operator": "<=", "value": 300, "unit": "seconds" },
+      "alert": { "warning": ">180s for 10m", "critical": ">300s for 5m", "severity": "SEV1" },
+      "runbook": "operations/runbooks/recovery-evidence-stale-v0.md",
+      "degraded_mode": "Block promotion and investigate archive destination, credentials and disk pressure."
+    },
+    {
+      "id": "restore-verification-freshness",
+      "owner": "Senior 2",
+      "sli_source": "recovery-status-v0 restore_verification.verified_at",
+      "measurement_window": "30d",
+      "missing_data": "block-promotion",
+      "objective": { "kind": "freshness", "operator": "<=", "value": 2592000, "unit": "seconds" },
+      "alert": { "warning": ">21d", "critical": ">30d", "severity": "SEV1" },
+      "runbook": "operations/runbooks/recovery-evidence-stale-v0.md",
+      "degraded_mode": "Block production promotion and perform an isolated restore drill."
+    },
+    {
+      "id": "disk-exhaustion-forecast",
+      "owner": "Senior 1",
+      "sli_source": "linear forecast from host filesystem available bytes and bounded growth rate",
+      "measurement_window": "6h",
+      "missing_data": "alert-and-bad",
+      "objective": { "kind": "forecast", "operator": ">", "value": 7, "unit": "days" },
+      "alert": { "warning": "forecast <7d", "critical": "forecast <3d or free disk <10%", "severity": "SEV2" },
+      "runbook": "operations/runbooks/disk-capacity-v0.md",
+      "degraded_mode": "Stop nonessential logs/artifact retention and reject growth-producing work before database disk safety is threatened."
+    }
+  ],
+  "correctness_events": [
+    {
+      "id": "authorization-security-violation",
+      "owner": "Senior 3",
+      "tolerance": "zero",
+      "budget": 0,
+      "sli_source": "confirmed authorization bypass, secret disclosure, cross-tenant read/write or fail-open policy event",
+      "missing_data": "alert-and-bad",
+      "alert": { "threshold": ">0", "severity": "SEV0" },
+      "runbook": "operations/runbooks/security-correctness-event-v0.md",
+      "degraded_mode": "Fail closed, revoke affected access, preserve evidence and enter incident response; never trade correctness for availability."
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/slo-catalog-v0.schema.json",
+  "title": "LIQI Platform working SLO catalog V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "classification", "window_days", "slos", "correctness_events"],
+  "properties": {
+    "schema_version": { "const": "slo-catalog-v0" },
+    "classification": { "const": "working-objectives-not-external-sla" },
+    "window_days": { "type": "integer", "minimum": 7, "maximum": 90 },
+    "slos": {
+      "type": "array",
+      "minItems": 10,
+      "items": { "$ref": "#/$defs/slo" }
+    },
+    "correctness_events": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/correctness" }
+    }
+  },
+  "$defs": {
+    "common": {
+      "type": "object",
+      "required": ["id", "owner", "sli_source", "measurement_window", "missing_data", "alert", "runbook", "degraded_mode"]
+    },
+    "slo": {
+      "allOf": [
+        { "$ref": "#/$defs/common" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "owner", "sli_source", "measurement_window", "missing_data", "objective", "alert", "runbook", "degraded_mode"],
+          "properties": {
+            "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$" },
+            "owner": { "type": "string", "enum": ["Senior 1", "Senior 2", "Senior 3", "Senior 4"] },
+            "sli_source": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "measurement_window": { "type": "string", "enum": ["5m", "15m", "1h", "6h", "24h", "7d", "28d", "30d"] },
+            "missing_data": { "type": "string", "enum": ["bad", "block-promotion", "alert-and-bad"] },
+            "objective": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "operator", "value", "unit"],
+              "properties": {
+                "kind": { "type": "string", "enum": ["ratio", "percentile", "gauge", "freshness", "forecast"] },
+                "operator": { "type": "string", "enum": [">=", "<=", ">"] },
+                "value": { "type": "number" },
+                "unit": { "type": "string", "enum": ["ratio", "seconds", "days", "percent"] },
+                "percentile": { "type": "string", "enum": ["p95", "p99"] }
+              },
+              "allOf": [
+                {
+                  "if": { "properties": { "kind": { "const": "percentile" } }, "required": ["kind"] },
+                  "then": { "required": ["percentile"] }
+                }
+              ]
+            },
+            "alert": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["warning", "critical", "severity"],
+              "properties": {
+                "warning": { "type": "string", "minLength": 1, "maxLength": 256 },
+                "critical": { "type": "string", "minLength": 1, "maxLength": 256 },
+                "severity": { "type": "string", "enum": ["SEV1", "SEV2", "SEV3"] }
+              }
+            },
+            "runbook": { "type": "string", "pattern": "^operations/runbooks/[a-z0-9-]+-v0\\.md$" },
+            "degraded_mode": { "type": "string", "minLength": 1, "maxLength": 500 }
+          }
+        }
+      ]
+    },
+    "correctness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "owner", "tolerance", "budget", "sli_source", "missing_data", "alert", "runbook", "degraded_mode"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$" },
+        "owner": { "type": "string", "enum": ["Senior 1", "Senior 2", "Senior 3", "Senior 4"] },
+        "tolerance": { "const": "zero" },
+        "budget": { "const": 0 },
+        "sli_source": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "missing_data": { "const": "alert-and-bad" },
+        "alert": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["threshold", "severity"],
+          "properties": {
+            "threshold": { "const": ">0" },
+            "severity": { "enum": ["SEV0", "SEV1"] }
+          }
+        },
+        "runbook": { "type": "string", "pattern": "^operations/runbooks/[a-z0-9-]+-v0\\.md$" },
+        "degraded_mode": { "type": "string", "minLength": 1, "maxLength": 500 }
+      }
+    }
+  }
+}
