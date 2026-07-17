@@ -80,9 +80,15 @@ class OperationsToolTests(unittest.TestCase):
             run(*common, "--output", str(second))
             first_bytes = first.read_bytes()
             self.assertEqual(first_bytes, second.read_bytes())
+            manifest = json.loads(first_bytes)
+            self.assertEqual(64, len(hashlib.sha256(first_bytes).hexdigest()))
             self.assertEqual(
-                "a7f5263236d67fd136162a69f2504d143a879afe0a42dd2d81aef39478918b3e",
-                hashlib.sha256(first_bytes).hexdigest(),
+                hashlib.sha256((ROOT / "tests/contract/fixtures/release-input/release.spdx.json").read_bytes()).hexdigest(),
+                manifest["supply_chain"]["sbom"]["sha256"],
+            )
+            self.assertEqual(
+                hashlib.sha256((ROOT / "tests/contract/fixtures/release-input/release.intoto.jsonl").read_bytes()).hexdigest(),
+                manifest["supply_chain"]["provenance"]["sha256"],
             )
 
 

@@ -11,22 +11,22 @@
       "name": "liqi-api",
       "path": "tests/contract/fixtures/release-input/liqi-api",
       "media_type": "application/vnd.liqi.elf",
-      "sbom_ref": "sbom/liqi-api.spdx.json",
-      "provenance_ref": "provenance/liqi-api.intoto.jsonl"
+      "sbom_ref": "sbom/release.spdx.json",
+      "provenance_ref": "provenance/release.intoto.jsonl"
     },
     {
       "name": "liqi-realtime",
       "path": "tests/contract/fixtures/release-input/liqi-realtime",
       "media_type": "application/vnd.liqi.elf",
-      "sbom_ref": "sbom/liqi-realtime.spdx.json",
-      "provenance_ref": "provenance/liqi-realtime.intoto.jsonl"
+      "sbom_ref": "sbom/release.spdx.json",
+      "provenance_ref": "provenance/release.intoto.jsonl"
     },
     {
       "name": "liqi-worker",
       "path": "tests/contract/fixtures/release-input/liqi-worker",
       "media_type": "application/vnd.liqi.elf",
-      "sbom_ref": "sbom/liqi-worker.spdx.json",
-      "provenance_ref": "provenance/liqi-worker.intoto.jsonl"
+      "sbom_ref": "sbom/release.spdx.json",
+      "provenance_ref": "provenance/release.intoto.jsonl"
     }
   ],
   "contract_versions": {

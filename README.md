@@ -58,6 +58,7 @@ python scripts/operations/validate_provider_compatibility.py --output .artifacts
 python scripts/operations/collect_provider_capacity.py --output .artifacts/provider-capacity.json --allow-blocked
 python scripts/operations/validate_ci_workflows.py
 python scripts/operations/scan_repository_secrets.py
+python scripts/release/validate_supply_chain_evidence.py --manifest <manifest.json> --sbom <release.spdx.json> --provenance <release.intoto.jsonl> --output <result.json>
 python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 

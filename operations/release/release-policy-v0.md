@@ -18,6 +18,14 @@ Every runnable artifact requires:
 
 Attestation establishes source/build provenance; it does not assert that an artifact is vulnerability-free.
 
+Before staging, run:
+
+```bash
+python scripts/release/validate_supply_chain_evidence.py   --manifest <release-manifest.json>   --sbom <release.spdx.json>   --provenance <release.intoto.jsonl>   --output <supply-chain-result.json>
+```
+
+The command validates SPDX/SLSA subject content and source Git SHA. A signed attestation is still required to authenticate the builder.
+
 ## Cost and mutation
 
 - `paid` or `unknown` infrastructure cannot activate without explicit owner approval.
