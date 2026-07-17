@@ -22,6 +22,7 @@ PAIRS = (
     ("capacity-budget-v0.schema.json", "../capacity/infrastructure.valid.json"),
     ("health-gate-target-v0.schema.json", "../../../integration/fixtures/health-gate-target.valid.json"),
     ("recovery-status-v0.schema.json", "../../../integration/fixtures/recovery-status.valid.json"),
+    ("slo-catalog-v0.schema.json", "../../../../operations/slo/slo-catalog-v0.json"),
 )
 
 
