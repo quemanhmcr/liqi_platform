@@ -19,7 +19,7 @@ class SecurityPolicyTests(unittest.TestCase):
             key = base / "leak.txt"
             key.write_text("-----BEGIN " + "PRIVATE KEY-----\nnot-a-real-key\n", encoding="utf-8")
             dsn = base / "dsn.txt"
-            dsn.write_text("postgresql://user:actual-secret@localhost/liqi\n", encoding="utf-8")
+            dsn.write_text("postgresql://user:" + "actual-secret@localhost/liqi\n", encoding="utf-8")
             failures = scan_paths([key, dsn])
             self.assertTrue(any("private key material" in failure for failure in failures))
             self.assertTrue(any("PostgreSQL DSN" in failure for failure in failures))
