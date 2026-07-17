@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -26,6 +27,7 @@ except ModuleNotFoundError:  # direct script execution
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_REGISTRY = ROOT / "operations" / "integration" / "provider-gates-v0.json"
 RESULT_SCHEMA = ROOT / "contracts" / "operations" / "integration-result-v0.schema.json"
+ENV_PLACEHOLDER = re.compile(r"\{env:([A-Z][A-Z0-9_]{1,63})\}")
 def now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -42,6 +44,21 @@ def safe_path(relative: str) -> Path:
 
 def git_sha() -> str:
     return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+
+
+def expand_argv(parts: list[str], output_path: Path) -> tuple[list[str], str]:
+    actual: list[str] = []
+    displayed: list[str] = []
+    for part in parts:
+        resolved = part.replace("{output}", str(output_path))
+        display = part.replace("{output}", output_path.name)
+        for name in ENV_PLACEHOLDER.findall(part):
+            value = os.environ.get(name, "")
+            resolved = resolved.replace(f"{{env:{name}}}", value)
+            display = display.replace(f"{{env:{name}}}", f"<env:{name}>")
+        actual.append(resolved)
+        displayed.append(display)
+    return actual, " ".join(displayed)
 
 
 def check_result(gate: dict[str, Any], status: str, command: str, exit_code: int | None,
@@ -81,8 +98,8 @@ def main() -> int:
     for gate in registry["gates"]:
         if args.stage not in gate["stages"]:
             continue
-        argv = [part.replace("{output}", str(evidence_dir / f"{gate['id']}.json")) for part in gate["argv"]]
-        command = " ".join(argv)
+        gate_output = evidence_dir / f"{gate['id']}.json"
+        argv, command = expand_argv(gate["argv"], gate_output)
         missing_paths = [path for path in gate["required_paths"] if not safe_path(path).exists()]
         missing_env = [name for name in gate.get("required_environment", []) if not os.environ.get(name)]
         blocked_reason: str | None = None

@@ -1,44 +1,69 @@
 {
   "schema_version": "provider-gates-v0",
-  "registry_version": "0.1.0",
+  "registry_version": "0.2.0",
   "gates": [
     {
-      "id": "oci-host-contract-source",
+      "id": "oci-infrastructure-source",
       "owner": "Senior 1",
-      "seam": "contracts/platform/oci-host-v0.schema.json and provider semantic validator",
-      "stages": ["source", "integration", "promotion"],
+      "seam": "infrastructure/validation/validate_infrastructure.py --with-tofu",
+      "stages": [
+        "source",
+        "integration",
+        "promotion"
+      ],
       "provider_state": "available",
       "mutation_class": "read-only",
       "required_paths": [
         "contracts/platform/oci-host-v0.schema.json",
         "contracts/platform/oci-host-v0.example.json",
-        "infrastructure/validation/validate_oci_host_contract.py"
+        "infrastructure/validation/validate_infrastructure.py",
+        "infrastructure/validation/validate_oci_host_contract.py",
+        "infrastructure/opentofu/environments/development/versions.tf"
       ],
-      "argv": ["python", "infrastructure/validation/validate_oci_host_contract.py"],
-      "timeout_seconds": 120,
+      "argv": [
+        "python",
+        "infrastructure/validation/validate_infrastructure.py",
+        "--with-tofu"
+      ],
+      "timeout_seconds": 600,
       "result_mode": "exit-code",
       "failure_class": "contract",
-      "action_required": "Senior 1 must restore the published OCI host contract or validator; Senior 4 will not reproduce infrastructure validation."
+      "action_required": "Senior 1 owns OCI source, cost, security, output, cloud-init and OpenTofu validation failures; Senior 4 invokes the published command without reproducing its logic."
     },
     {
       "id": "oci-plan-read-only",
       "owner": "Senior 1",
       "seam": "read-only OpenTofu plan validation, drift detection and complete cost classification",
-      "stages": ["integration", "promotion"],
-      "provider_state": "pending-provider",
+      "stages": [
+        "promotion"
+      ],
+      "provider_state": "available",
       "mutation_class": "read-only",
-      "required_paths": ["infrastructure/validation/validate_oci_plan.py"],
-      "argv": ["python", "infrastructure/validation/validate_oci_plan.py", "--output", "{output}"],
+      "required_paths": [
+        "infrastructure/validation/validate_oci_plan.py"
+      ],
+      "argv": [
+        "python",
+        "infrastructure/validation/validate_oci_plan.py",
+        "{env:LIQI_OCI_PLAN_JSON}"
+      ],
       "timeout_seconds": 300,
-      "result_mode": "json-file",
+      "result_mode": "exit-code",
       "failure_class": "configuration",
-      "action_required": "Senior 1 must publish a read-only plan/drift/cost validator that writes a secret-free machine-readable result."
+      "action_required": "Senior 1 owns the reviewed tofu show -json plan validator. Supply LIQI_OCI_PLAN_JSON from a protected plan artifact; Senior 4 does not generate or repair the plan.",
+      "required_environment": [
+        "LIQI_OCI_PLAN_JSON"
+      ]
     },
     {
       "id": "database-source",
       "owner": "Senior 2",
       "seam": "database/tests/run-source-validation.sh",
-      "stages": ["source", "integration", "promotion"],
+      "stages": [
+        "source",
+        "integration",
+        "promotion"
+      ],
       "provider_state": "available",
       "mutation_class": "read-only",
       "required_paths": [
@@ -46,7 +71,10 @@
         "contracts/platform/database-v0.schema.json",
         "contracts/platform/database-v0.example.json"
       ],
-      "argv": ["bash", "database/tests/run-source-validation.sh"],
+      "argv": [
+        "bash",
+        "database/tests/run-source-validation.sh"
+      ],
       "timeout_seconds": 180,
       "result_mode": "exit-code",
       "failure_class": "contract",
@@ -56,12 +84,22 @@
       "id": "database-integration",
       "owner": "Senior 2",
       "seam": "database/tests/integration/run_database_tests.sh on disposable PostgreSQL 17",
-      "stages": ["integration", "promotion"],
+      "stages": [
+        "integration",
+        "promotion"
+      ],
       "provider_state": "available",
       "mutation_class": "disposable-database",
-      "required_paths": ["database/tests/integration/run_database_tests.sh"],
-      "argv": ["bash", "database/tests/integration/run_database_tests.sh"],
-      "required_environment": ["LIQI_TEST_DATABASE"],
+      "required_paths": [
+        "database/tests/integration/run_database_tests.sh"
+      ],
+      "argv": [
+        "bash",
+        "database/tests/integration/run_database_tests.sh"
+      ],
+      "required_environment": [
+        "LIQI_TEST_DATABASE"
+      ],
       "timeout_seconds": 900,
       "result_mode": "exit-code",
       "failure_class": "runtime",
@@ -71,11 +109,20 @@
       "id": "database-recovery-signals",
       "owner": "Senior 2",
       "seam": "backup age, WAL archive lag and isolated restore verification result",
-      "stages": ["promotion"],
+      "stages": [
+        "promotion"
+      ],
       "provider_state": "pending-provider",
       "mutation_class": "read-only",
-      "required_paths": ["database/bin/recovery-status.sh"],
-      "argv": ["bash", "database/bin/recovery-status.sh", "--output", "{output}"],
+      "required_paths": [
+        "database/bin/recovery-status.sh"
+      ],
+      "argv": [
+        "bash",
+        "database/bin/recovery-status.sh",
+        "--output",
+        "{output}"
+      ],
       "timeout_seconds": 180,
       "result_mode": "json-file",
       "failure_class": "recovery",
@@ -85,11 +132,24 @@
       "id": "runtime-format-source",
       "owner": "Senior 3",
       "seam": "root Cargo workspace formatting contract",
-      "stages": ["source", "integration", "promotion"],
+      "stages": [
+        "source",
+        "integration",
+        "promotion"
+      ],
       "provider_state": "pending-provider",
       "mutation_class": "read-only",
-      "required_paths": ["Cargo.toml", "rust-toolchain.toml"],
-      "argv": ["cargo", "fmt", "--all", "--", "--check"],
+      "required_paths": [
+        "Cargo.toml",
+        "rust-toolchain.toml"
+      ],
+      "argv": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
       "timeout_seconds": 180,
       "result_mode": "exit-code",
       "failure_class": "contract",
@@ -99,11 +159,27 @@
       "id": "runtime-clippy-source",
       "owner": "Senior 3",
       "seam": "root Cargo workspace lint contract",
-      "stages": ["source", "integration", "promotion"],
+      "stages": [
+        "source",
+        "integration",
+        "promotion"
+      ],
       "provider_state": "pending-provider",
       "mutation_class": "read-only",
-      "required_paths": ["Cargo.toml", "rust-toolchain.toml"],
-      "argv": ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
+      "required_paths": [
+        "Cargo.toml",
+        "rust-toolchain.toml"
+      ],
+      "argv": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
       "timeout_seconds": 900,
       "result_mode": "exit-code",
       "failure_class": "runtime",
@@ -113,11 +189,24 @@
       "id": "runtime-contract-tests",
       "owner": "Senior 3",
       "seam": "runtime, OpenAPI, realtime, error and configuration contract tests",
-      "stages": ["source", "integration", "promotion"],
+      "stages": [
+        "source",
+        "integration",
+        "promotion"
+      ],
       "provider_state": "pending-provider",
       "mutation_class": "read-only",
-      "required_paths": ["Cargo.toml", "rust-toolchain.toml"],
-      "argv": ["cargo", "test", "--workspace", "--all-targets", "--locked"],
+      "required_paths": [
+        "Cargo.toml",
+        "rust-toolchain.toml"
+      ],
+      "argv": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--all-targets",
+        "--locked"
+      ],
       "timeout_seconds": 1200,
       "result_mode": "exit-code",
       "failure_class": "runtime",
@@ -127,12 +216,30 @@
       "id": "runtime-platform-probe",
       "owner": "Senior 3",
       "seam": "platform probe with durable command, outbox terminal effect and release ID observation",
-      "stages": ["integration", "promotion"],
+      "stages": [
+        "integration",
+        "promotion"
+      ],
       "provider_state": "pending-provider",
       "mutation_class": "disposable-database",
-      "required_paths": ["Cargo.toml", "services/admin-cli/Cargo.toml"],
-      "argv": ["cargo", "run", "--locked", "-p", "liqi-admin-cli", "--", "platform-probe", "--output", "{output}"],
-      "required_environment": ["LIQI_TEST_DATABASE"],
+      "required_paths": [
+        "Cargo.toml",
+        "services/admin-cli/Cargo.toml"
+      ],
+      "argv": [
+        "cargo",
+        "run",
+        "--locked",
+        "-p",
+        "liqi-admin-cli",
+        "--",
+        "platform-probe",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [
+        "LIQI_TEST_DATABASE"
+      ],
       "timeout_seconds": 300,
       "result_mode": "json-file",
       "failure_class": "runtime",
