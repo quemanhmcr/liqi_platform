@@ -1,0 +1,30 @@
+{
+  "$schema": "./database-backup-status-v0.schema.json",
+  "schemaVersion": "database-backup-status-v0",
+  "recoveryReady": true,
+  "reasons": [],
+  "latestBackup": {
+    "label": "20260717-030000F",
+    "type": "full",
+    "ageSeconds": 120
+  },
+  "archive": {
+    "archivedCount": 4,
+    "failedCount": 0,
+    "lastArchivedWal": "000000010000000000000002",
+    "lastArchivedAt": "2026-07-17T03:04:30Z",
+    "lastFailedWal": null,
+    "lastFailedAt": null,
+    "secondsSinceLastArchive": 120
+  },
+  "migrationVersion": 4,
+  "probe": {
+    "probeId": "10000000-0000-4000-8000-000000000002",
+    "eventId": "10000000-0000-4000-8000-000000000003",
+    "probeStatus": "completed",
+    "outboxState": "succeeded",
+    "effectCount": 1,
+    "completedAt": "2026-07-17T02:59:59Z"
+  },
+  "observedAt": "2026-07-17T03:06:30Z"
+}

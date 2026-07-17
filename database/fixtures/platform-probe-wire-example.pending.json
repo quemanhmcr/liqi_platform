@@ -1,0 +1,5 @@
+{
+  "owner": "Senior 3",
+  "status": "placeholder-not-a-wire-contract",
+  "removalCondition": "Replace with the accepted Senior 3 wire event example, then invoke database/tests/contract/validate_wire_mapping.py."
+}

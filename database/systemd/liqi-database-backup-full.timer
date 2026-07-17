@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly LIQI PostgreSQL full backup
+
+[Timer]
+OnCalendar=Sun *-*-* 02:00:00 UTC
+RandomizedDelaySec=5m
+Persistent=true
+Unit=liqi-database-backup@full.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/platform/database-restore-result-v0.schema.json",
+  "title": "LIQI Database Restore Verification Result V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "restoreId",
+    "startedAt",
+    "finishedAt",
+    "durationSeconds",
+    "backupLabel",
+    "backupMetadataSha256",
+    "target",
+    "success",
+    "checks",
+    "workingTargets",
+    "operatorAction"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "database-restore-result-v0"
+    },
+    "restoreId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finishedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "durationSeconds": {
+      "type": "number",
+      "minimum": 0
+    },
+    "backupLabel": {
+      "type": "string",
+      "minLength": 1
+    },
+    "backupMetadataSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "database",
+        "pgData",
+        "socketDirectory",
+        "port",
+        "isolated",
+        "archiveMode"
+      ],
+      "properties": {
+        "database": {
+          "const": "liqi"
+        },
+        "pgData": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "socketDirectory": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535
+        },
+        "isolated": {
+          "const": true
+        },
+        "archiveMode": {
+          "const": "off"
+        }
+      }
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "passed",
+          "expected",
+          "actual"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "backup-metadata-checksum",
+              "backup-metadata-schema",
+              "postgres-major",
+              "migration-version",
+              "migration-manifest-checksum",
+              "migration-row-checksums",
+              "probe-state",
+              "probe-outbox-terminal-state",
+              "probe-terminal-effect",
+              "failed-migration-runs",
+              "probe-identity",
+              "probe-event-identity",
+              "recovery-promoted",
+              "restore-archive-disabled",
+              "restore-network-isolated"
+            ]
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "expected": {},
+          "actual": {},
+          "detail": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "workingTargets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rpo",
+        "rto",
+        "rtoMet",
+        "rpoObservedSeconds",
+        "rtoObservedSeconds"
+      ],
+      "properties": {
+        "rpo": {
+          "const": "5m"
+        },
+        "rto": {
+          "const": "60m"
+        },
+        "rtoMet": {
+          "type": "boolean"
+        },
+        "rpoObservedSeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rtoObservedSeconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "operatorAction": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "database": "liqi",
+  "postgresqlVersion": "17.10",
+  "postgresqlMajor": 17,
+  "migrationVersion": 4,
+  "failedMigrationRuns": 0,
+  "probe": {
+    "probeId": "10000000-0000-4000-8000-000000000002",
+    "eventId": "10000000-0000-4000-8000-000000000003",
+    "probeStatus": "completed",
+    "outboxState": "succeeded",
+    "effectCount": 1,
+    "completedAt": "2026-07-17T02:59:59Z"
+  }
+}

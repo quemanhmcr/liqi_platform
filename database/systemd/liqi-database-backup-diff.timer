@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily LIQI PostgreSQL differential backup
+
+[Timer]
+OnCalendar=Mon..Sat *-*-* 02:00:00 UTC
+RandomizedDelaySec=5m
+Persistent=true
+Unit=liqi-database-backup@diff.service
+
+[Install]
+WantedBy=timers.target
