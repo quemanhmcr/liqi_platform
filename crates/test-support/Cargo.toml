@@ -1,0 +1,29 @@
+[package]
+name = "liqi-test-support"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+dev-fakes = []
+
+[dependencies]
+async-trait.workspace = true
+liqi-application = { path = "../application" }
+liqi-protocol = { path = "../protocol" }
+serde_json.workspace = true
+time.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true
+
+[[test]]
+name = "platform_probe"
+path = "tests/platform_probe.rs"
+required-features = ["dev-fakes"]

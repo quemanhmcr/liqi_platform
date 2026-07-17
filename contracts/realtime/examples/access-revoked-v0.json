@@ -1,0 +1,11 @@
+{
+  "protocolVersion": "0",
+  "messageId": "018f3d7d-09b1-7a36-b1d8-b8f915c62a44",
+  "connectionId": "018f3d7d-09b1-7a36-b1d8-b8f915c62a32",
+  "sentAt": "2026-07-17T12:00:03Z",
+  "kind": "access_revoked",
+  "payload": {
+    "subscriptionId": "018f3d7d-09b1-7a36-b1d8-b8f915c62a41",
+    "reasonCode": "PLATFORM_ACCESS_REVOKED"
+  }
+}

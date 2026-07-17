@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "0",
+  "codes": [
+    { "code": "PLATFORM_INVALID_REQUEST", "httpStatus": 400, "retryable": false },
+    { "code": "PLATFORM_UNAUTHORIZED", "httpStatus": 401, "retryable": false },
+    { "code": "PLATFORM_ACCESS_REVOKED", "httpStatus": 403, "retryable": false },
+    { "code": "PLATFORM_NOT_FOUND", "httpStatus": 404, "retryable": false },
+    { "code": "PLATFORM_CONFLICT", "httpStatus": 409, "retryable": false },
+    { "code": "PLATFORM_BODY_TOO_LARGE", "httpStatus": 413, "retryable": false },
+    { "code": "PLATFORM_CONCURRENCY_LIMITED", "httpStatus": 429, "retryable": true },
+    { "code": "PLATFORM_PROTOCOL_UNSUPPORTED", "httpStatus": 426, "retryable": false },
+    { "code": "PLATFORM_DEADLINE_EXCEEDED", "httpStatus": 504, "retryable": true },
+    { "code": "PLATFORM_NOT_READY", "httpStatus": 503, "retryable": true },
+    { "code": "PLATFORM_DEPENDENCY_UNAVAILABLE", "httpStatus": 503, "retryable": true },
+    { "code": "PLATFORM_SECRET_UNAVAILABLE", "httpStatus": 503, "retryable": false },
+    { "code": "PLATFORM_SLOW_CONSUMER", "httpStatus": 429, "retryable": true },
+    { "code": "PLATFORM_INTERNAL", "httpStatus": 500, "retryable": false }
+  ]
+}
