@@ -1,0 +1,28 @@
+{
+  "schema_version": "recovery-status-v0",
+  "owner": "Senior 2",
+  "environment": "staging",
+  "database": {
+    "authority_version": "database-authority-v0",
+    "migration_version": "00000000000000"
+  },
+  "backup": {
+    "completed_at": "2026-07-16T23:00:00Z",
+    "off_host": true,
+    "encrypted": true,
+    "evidence_ref": "evidence://backup/fixture"
+  },
+  "wal_archive": {
+    "last_archived_at": "2026-07-16T23:59:30Z",
+    "lag_seconds": 30,
+    "evidence_ref": "evidence://wal/fixture"
+  },
+  "restore_verification": {
+    "status": "passed",
+    "verified_at": "2026-07-10T00:00:00Z",
+    "rpo_observed_seconds": 120,
+    "rto_observed_seconds": 1800,
+    "source_backup_ref": "evidence://backup/fixture",
+    "evidence_ref": "evidence://restore/fixture"
+  }
+}
