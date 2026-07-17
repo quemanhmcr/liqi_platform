@@ -602,7 +602,7 @@ struct ArtifactInterface {
 }
 
 impl ValidationManifest {
-    const fn v0() -> Self {
+    fn v0() -> Self {
         Self {
             schema_version: "liqi.platform.runtime-validation/v0",
             contract_command: "cargo +1.97.1 run --locked -p liqi-platform-tool -- validate-contracts --root .",
@@ -620,7 +620,7 @@ impl ValidationManifest {
 }
 
 impl ArtifactInterface {
-    const fn new(name: &'static str, default_port: u16) -> Self {
+    fn new(name: &'static str, default_port: u16) -> Self {
         let metadata_command = match name {
             "liqi-api" => "liqi-api --config /etc/liqi/api.json --print-artifact-metadata",
             "liqi-realtime" => {
