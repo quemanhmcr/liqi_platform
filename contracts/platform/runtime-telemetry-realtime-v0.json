@@ -1,0 +1,205 @@
+{
+  "schema_version": "telemetry-v0",
+  "resource_attributes": [
+    "service.namespace",
+    "service.name",
+    "service.version",
+    "deployment.environment.name",
+    "liqi.release.id"
+  ],
+  "health": {
+    "liveness": {
+      "path": "/health/live",
+      "success_status": 200,
+      "timeout_ms": 500
+    },
+    "readiness": {
+      "path": "/health/ready",
+      "success_status": 200,
+      "timeout_ms": 1000
+    },
+    "platform_probe": {
+      "path": "/health/platform",
+      "success_status": 200,
+      "timeout_ms": 2000
+    },
+    "shutdown_deadline_seconds": 15
+  },
+  "structured_logs": {
+    "format": "json-lines",
+    "required_fields": [
+      "timestamp",
+      "severity",
+      "service.name",
+      "liqi.release.id",
+      "trace_id",
+      "request_id",
+      "operation",
+      "result.class",
+      "error.class"
+    ],
+    "maximum_event_bytes": 16384
+  },
+  "traces": {
+    "propagation": "w3c-trace-context",
+    "required_span_attributes": [
+      "service.name",
+      "liqi.release.id",
+      "operation",
+      "result.class"
+    ],
+    "sampling": {
+      "strategy": "parent-based-ratio",
+      "maximum_ratio": 0.1
+    }
+  },
+  "cardinality_policy": {
+    "maximum_route_values": 64,
+    "forbidden_labels": [
+      "user.id",
+      "player.id",
+      "conversation.id",
+      "session.id",
+      "request_id",
+      "trace_id",
+      "email",
+      "ip.address",
+      "device.id",
+      "message.id"
+    ]
+  },
+  "redaction_policy": {
+    "deny_fields": [
+      "authorization",
+      "cookie",
+      "password",
+      "token",
+      "secret",
+      "private_key",
+      "message.body",
+      "media.signed_url",
+      "access_token",
+      "refresh_token"
+    ],
+    "replacement": "[REDACTED]"
+  },
+  "service": {
+    "namespace": "liqi-platform",
+    "name": "liqi-realtime",
+    "owner": "Senior 3"
+  },
+  "metrics": [
+    {
+      "name": "liqi.runtime.requests.accepted",
+      "instrument": "counter",
+      "unit": "1",
+      "labels": [
+        "service.name"
+      ],
+      "owner": "Senior 3",
+      "required": true
+    },
+    {
+      "name": "liqi.runtime.requests.rejected",
+      "instrument": "counter",
+      "unit": "1",
+      "labels": [
+        "service.name"
+      ],
+      "owner": "Senior 3",
+      "required": true
+    },
+    {
+      "name": "liqi.runtime.requests.in_flight",
+      "instrument": "gauge",
+      "unit": "1",
+      "labels": [
+        "service.name"
+      ],
+      "owner": "Senior 3",
+      "required": true
+    },
+    {
+      "name": "liqi.runtime.request.duration",
+      "instrument": "histogram",
+      "unit": "s",
+      "labels": [
+        "service.name"
+      ],
+      "owner": "Senior 3",
+      "required": true,
+      "explicit_bucket_boundaries": [
+        0.005,
+        0.01,
+        0.025,
+        0.05,
+        0.075,
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        1,
+        2.5,
+        5,
+        7.5,
+        10
+      ]
+    },
+    {
+      "name": "liqi.realtime.connections",
+      "instrument": "gauge",
+      "unit": "1",
+      "labels": [
+        "service.name"
+      ],
+      "owner": "Senior 3",
+      "required": true
+    },
+    {
+      "name": "liqi.realtime.subscriptions.rejected",
+      "instrument": "counter",
+      "unit": "1",
+      "labels": [
+        "service.name"
+      ],
+      "owner": "Senior 3",
+      "required": true
+    },
+    {
+      "name": "liqi.realtime.slow_consumer.disconnects",
+      "instrument": "counter",
+      "unit": "1",
+      "labels": [
+        "service.name"
+      ],
+      "owner": "Senior 3",
+      "required": true
+    },
+    {
+      "name": "liqi.realtime.delivery.duration",
+      "instrument": "histogram",
+      "unit": "s",
+      "labels": [
+        "service.name"
+      ],
+      "owner": "Senior 3",
+      "required": true,
+      "explicit_bucket_boundaries": [
+        0.005,
+        0.01,
+        0.025,
+        0.05,
+        0.075,
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        1,
+        2.5,
+        5,
+        7.5,
+        10
+      ]
+    }
+  ]
+}

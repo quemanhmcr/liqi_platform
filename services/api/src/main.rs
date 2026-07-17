@@ -38,7 +38,11 @@ async fn main() -> Result<(), MainError> {
         &args.config_path,
         ServiceName::LiqiApi,
     )?);
-    let metadata = ArtifactMetadata::current(ARTIFACT, &config.service.version);
+    let metadata = ArtifactMetadata::current(
+        ARTIFACT,
+        &config.service.version,
+        config.environment.as_str(),
+    );
     if args.print_artifact_metadata {
         write_json_stdout(&metadata)?;
         return Ok(());
@@ -74,6 +78,7 @@ async fn main() -> Result<(), MainError> {
         .route("/platform/v0/probes", post(create_probe))
         .layer(DefaultBodyLimit::max(config.limits.max_request_body_bytes))
         .layer(Extension(probe))
+        .layer(Extension(Arc::clone(&metrics)))
         .route_layer(middleware::from_fn_with_state(
             Arc::clone(&operational),
             platform_request_middleware,
@@ -83,7 +88,16 @@ async fn main() -> Result<(), MainError> {
         .layer(CatchPanicLayer::new());
     let listen = config.service.listen.socket_addr()?;
     let listener = TcpListener::bind(listen).await?;
-    info!(address = %listen, "LIQI API runtime listening");
+    info!(
+        service.name = ARTIFACT,
+        liqi.release.id = %config.service.version,
+        deployment.environment.name = config.environment.as_str(),
+        operation = "runtime.listen",
+        result.class = "success",
+        error.class = "none",
+        address = %listen,
+        "LIQI API runtime listening"
+    );
     let result = serve_with_shutdown(listener, router, health, control.clone()).await;
     control.begin_shutdown();
     drain_background(readiness_task, control.shutdown_deadline()).await;
@@ -97,6 +111,7 @@ async fn main() -> Result<(), MainError> {
 
 async fn create_probe(
     Extension(application): Extension<Arc<PlatformProbeApplication>>,
+    Extension(metrics): Extension<Arc<RuntimeMetrics>>,
     Extension(context): Extension<RequestContext>,
     Extension(cancellation): Extension<RequestCancellation>,
     payload: Result<Json<CreateProbeRequest>, JsonRejection>,
@@ -120,7 +135,10 @@ async fn create_probe(
         .create(request, context.clone(), cancellation.0)
         .await
     {
-        Ok(response) => (StatusCode::ACCEPTED, Json(response)).into_response(),
+        Ok(response) => {
+            metrics.probe_committed();
+            (StatusCode::ACCEPTED, Json(response)).into_response()
+        }
         Err(error) => safe_error_response(error, &context),
     }
 }

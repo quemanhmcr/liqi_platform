@@ -13,18 +13,13 @@ use opentelemetry_sdk::{
     propagation::TraceContextPropagator,
     trace::{Sampler, SdkTracerProvider},
 };
-use std::{
-    fmt::Write as _,
-    sync::atomic::{AtomicU64, Ordering},
-    time::Duration,
-};
+use std::time::Duration;
 use thiserror::Error;
 use tracing::Span;
 use tracing_opentelemetry::OpenTelemetrySpanExt as _;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt as _, util::SubscriberInitExt as _};
 
 const OTLP_EXPORT_TIMEOUT: Duration = Duration::from_secs(5);
-const METRICS_RENDER_MAX_BYTES: usize = 65_536;
 
 #[derive(Debug)]
 pub struct TelemetryGuard {
@@ -70,11 +65,10 @@ pub fn initialize(config: &RuntimeConfig) -> Result<TelemetryGuard, TelemetryErr
         let resource = Resource::builder()
             .with_service_name(config.service.name.artifact_name().to_owned())
             .with_attributes([
-                KeyValue::new(
-                    "deployment.environment.name",
-                    format!("{:?}", config.environment).to_ascii_lowercase(),
-                ),
+                KeyValue::new("service.namespace", "liqi-platform"),
+                KeyValue::new("deployment.environment.name", config.environment.as_str()),
                 KeyValue::new("service.version", config.service.version.clone()),
+                KeyValue::new("liqi.release.id", config.service.version.clone()),
             ])
             .build();
         let sampler = Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
@@ -116,140 +110,9 @@ pub fn attach_remote_parent(span: &Span, headers: &HeaderMap) {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct RuntimeMetrics {
-    accepted_requests: AtomicU64,
-    rejected_requests: AtomicU64,
-    in_flight_requests: AtomicU64,
-    deadline_exceeded: AtomicU64,
-    realtime_connections: AtomicU64,
-    realtime_slow_consumer_disconnects: AtomicU64,
-    worker_claimed: AtomicU64,
-    worker_retried: AtomicU64,
-}
+mod metrics;
 
-impl RuntimeMetrics {
-    pub fn request_accepted(&self) {
-        self.accepted_requests.fetch_add(1, Ordering::Relaxed);
-        self.in_flight_requests.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn request_finished(&self) {
-        let _ =
-            self.in_flight_requests
-                .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
-                    Some(current.saturating_sub(1))
-                });
-    }
-
-    pub fn request_rejected(&self) {
-        self.rejected_requests.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn deadline_exceeded(&self) {
-        self.deadline_exceeded.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn realtime_connected(&self) {
-        self.realtime_connections.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn realtime_disconnected(&self) {
-        let _ = self.realtime_connections.fetch_update(
-            Ordering::Relaxed,
-            Ordering::Relaxed,
-            |current| Some(current.saturating_sub(1)),
-        );
-    }
-
-    pub fn slow_consumer_disconnected(&self) {
-        self.realtime_slow_consumer_disconnects
-            .fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn worker_claimed(&self, count: usize) {
-        self.worker_claimed
-            .fetch_add(count.try_into().unwrap_or(u64::MAX), Ordering::Relaxed);
-    }
-
-    pub fn worker_retried(&self, count: usize) {
-        self.worker_retried
-            .fetch_add(count.try_into().unwrap_or(u64::MAX), Ordering::Relaxed);
-    }
-
-    #[must_use]
-    pub fn render_prometheus(&self, service: &str) -> String {
-        let safe_service: String = service
-            .chars()
-            .filter(|character| character.is_ascii_alphanumeric() || *character == '-')
-            .take(64)
-            .collect();
-        let mut output = String::with_capacity(2048);
-        append_counter(
-            &mut output,
-            "liqi_runtime_requests_accepted_total",
-            &safe_service,
-            self.accepted_requests.load(Ordering::Relaxed),
-        );
-        append_counter(
-            &mut output,
-            "liqi_runtime_requests_rejected_total",
-            &safe_service,
-            self.rejected_requests.load(Ordering::Relaxed),
-        );
-        append_gauge(
-            &mut output,
-            "liqi_runtime_requests_in_flight",
-            &safe_service,
-            self.in_flight_requests.load(Ordering::Relaxed),
-        );
-        append_counter(
-            &mut output,
-            "liqi_runtime_deadline_exceeded_total",
-            &safe_service,
-            self.deadline_exceeded.load(Ordering::Relaxed),
-        );
-        append_gauge(
-            &mut output,
-            "liqi_realtime_connections",
-            &safe_service,
-            self.realtime_connections.load(Ordering::Relaxed),
-        );
-        append_counter(
-            &mut output,
-            "liqi_realtime_slow_consumer_disconnects_total",
-            &safe_service,
-            self.realtime_slow_consumer_disconnects
-                .load(Ordering::Relaxed),
-        );
-        append_counter(
-            &mut output,
-            "liqi_worker_claimed_total",
-            &safe_service,
-            self.worker_claimed.load(Ordering::Relaxed),
-        );
-        append_counter(
-            &mut output,
-            "liqi_worker_retried_total",
-            &safe_service,
-            self.worker_retried.load(Ordering::Relaxed),
-        );
-        if output.len() > METRICS_RENDER_MAX_BYTES {
-            output.truncate(METRICS_RENDER_MAX_BYTES);
-        }
-        output
-    }
-}
-
-fn append_counter(output: &mut String, metric: &str, service: &str, value: u64) {
-    let _ = writeln!(output, "# TYPE {metric} counter");
-    let _ = writeln!(output, "{metric}{{service=\"{service}\"}} {value}");
-}
-
-fn append_gauge(output: &mut String, metric: &str, service: &str, value: u64) {
-    let _ = writeln!(output, "# TYPE {metric} gauge");
-    let _ = writeln!(output, "{metric}{{service=\"{service}\"}} {value}");
-}
+pub use metrics::RuntimeMetrics;
 
 #[derive(Debug, Error)]
 pub enum TelemetryError {
@@ -263,23 +126,6 @@ pub enum TelemetryError {
     SubscriberAlreadyInitialized,
     #[error("telemetry provider did not shut down cleanly")]
     Shutdown,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn metrics_are_bounded_and_do_not_contain_secret_fields() {
-        let metrics = RuntimeMetrics::default();
-        metrics.request_accepted();
-        metrics.request_finished();
-        let rendered = metrics.render_prometheus("liqi-api");
-        assert!(rendered.len() <= METRICS_RENDER_MAX_BYTES);
-        assert!(!rendered.contains("secret"));
-        assert!(!rendered.contains("password"));
-        assert!(!rendered.contains("token"));
-    }
 }
 
 #[cfg(test)]

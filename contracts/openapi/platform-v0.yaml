@@ -37,6 +37,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+  /health/platform:
+    get:
+      operationId: getPlatformHealth
+      summary: Application-layer dependency health used by provider capability checks
+      description: This is not end-to-end promotion evidence; platform-probe-result-v0 remains authoritative for promotion.
+      responses:
+        '200':
+          description: Required application dependencies are ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: A required application provider seam is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
   /metrics:
     get:
       operationId: getRuntimeMetrics
@@ -134,10 +152,12 @@ components:
     ArtifactMetadata:
       type: object
       additionalProperties: false
-      required: [artifact, version, rustToolchain, contractVersions]
+      required: [artifact, version, releaseId, environment, rustToolchain, contractVersions]
       properties:
         artifact: { enum: [liqi-api, liqi-realtime, liqi-worker] }
         version: { type: string, maxLength: 64 }
+        releaseId: { type: string, maxLength: 64 }
+        environment: { enum: [local, development, test, staging, production] }
         sourceRevision: { type: [string, 'null'], maxLength: 64 }
         builtAt: { type: [string, 'null'], format: date-time }
         rustToolchain: { const: "1.97.1" }
