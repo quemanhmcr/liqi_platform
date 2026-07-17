@@ -180,7 +180,7 @@ async fn realtime_upgrade(
 
 fn persistence_provider(
     config: &RuntimeConfig,
-    password: SecretString,
+    database_secret: SecretString,
 ) -> Result<
     (
         Arc<dyn PlatformPersistence>,
@@ -196,11 +196,14 @@ fn persistence_provider(
             | liqi_configuration::Environment::Test
     ) && config.feature_enabled("persistence.fake")
     {
-        drop(password);
+        drop(database_secret);
         let store = Arc::new(liqi_test_support::FakePlatformStore::ready());
         return Ok((store.clone(), store));
     }
-    let store = Arc::new(PostgresAuthorityStore::connect_lazy(config, password)?);
+    let store = Arc::new(PostgresAuthorityStore::connect_lazy(
+        config,
+        database_secret,
+    )?);
     Ok((store.clone(), store))
 }
 

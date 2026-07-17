@@ -46,7 +46,7 @@ impl std::fmt::Debug for PostgresAuthorityStore {
 impl PostgresAuthorityStore {
     pub fn connect_lazy(
         config: &RuntimeConfig,
-        password: SecretString,
+        database_secret: SecretString,
     ) -> Result<Self, PostgresAdapterError> {
         let database = &config.database;
         let options = PgConnectOptions::new()
@@ -54,7 +54,7 @@ impl PostgresAuthorityStore {
             .port(database.endpoint.port)
             .database(&database.database_name)
             .username(database.role.as_str())
-            .password(password.expose_secret())
+            .password(database_secret.expose_secret())
             .application_name(config.service.name.artifact_name())
             .ssl_mode(PgSslMode::Disable)
             .statement_cache_capacity(0);

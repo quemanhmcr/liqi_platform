@@ -145,7 +145,7 @@ async fn create_probe(
 
 fn persistence_provider(
     config: &RuntimeConfig,
-    password: SecretString,
+    database_secret: SecretString,
 ) -> Result<Arc<dyn PlatformPersistence>, PostgresAdapterError> {
     #[cfg(feature = "dev-fakes")]
     if matches!(
@@ -155,7 +155,7 @@ fn persistence_provider(
             | liqi_configuration::Environment::Test
     ) && config.feature_enabled("persistence.fake")
     {
-        drop(password);
+        drop(database_secret);
         return Ok(Arc::new(liqi_test_support::FakePlatformStore::ready()));
     }
     Ok(Arc::new(PostgresAuthorityStore::connect_lazy(
