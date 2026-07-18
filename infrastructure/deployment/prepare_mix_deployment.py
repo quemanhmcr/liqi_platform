@@ -132,19 +132,56 @@ def database_ready(contract: dict[str, Any], readiness: dict[str, Any], runtime:
     return required
 
 
-def verify_native(manifest: Path, provider_git_sha: str) -> dict[str, Any]:
+def load_native_provider(manifest: Path, provider_git_sha: str) -> dict[str, Any]:
     document = load(manifest)
-    validate(ROOT / "contracts/native/native-artifact-v1.schema.json", document, f"native manifest {manifest}")
+    validate(ROOT / "contracts/native/native-artifact-v1.schema.json", document, f"native provider manifest {manifest}")
     if document["source_revision"] != provider_git_sha or document["target_triple"] != "aarch64-unknown-linux-gnu":
         raise RuntimeError("native source revision or target does not match release")
-    result = subprocess.run(
-        [sys.executable, str(ROOT / "native/scripts/verify_artifact.py"), "--manifest", str(manifest)],
-        cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, timeout=300,
-    )
-    if result.returncode:
-        raise RuntimeError("Senior 3 native verification failed: " + (result.stderr or result.stdout or "unknown")[-4096:])
     return document
 
+
+def derive_public_trust(private_key: Path, key_id: str, directory: Path) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    public_key = directory / f"{key_id}.pem"
+    result = subprocess.run(
+        ["openssl", "pkey", "-in", str(private_key), "-pubout", "-out", str(public_key)],
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, timeout=30,
+    )
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip() or "cannot derive deployment public key")
+    os.chmod(public_key, 0o600)
+    return directory
+
+
+def resolve_reference_file(filename: str, expected_sha: str, roots: list[Path]) -> Path:
+    candidates: list[Path] = []
+    for root in roots:
+        candidate = safe_child(root.resolve(), filename).resolve()
+        if candidate.is_file():
+            if digest(candidate) != expected_sha:
+                raise RuntimeError(f"referenced file checksum mismatch: {candidate}")
+            candidates.append(candidate)
+    if not candidates:
+        raise FileNotFoundError(f"referenced file is missing: {filename}")
+    identities = {(item.stat().st_size, digest(item)) for item in candidates}
+    if len(identities) != 1:
+        raise RuntimeError(f"ambiguous referenced file: {filename}")
+    return candidates[0]
+
+
+def verify_native_handoff(provider_manifest: Path, deployment_manifest: Path, trust_dir: Path) -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "native/scripts/verify_deployment_manifest.py"),
+            "--native-manifest", str(provider_manifest),
+            "--deployment-manifest", str(deployment_manifest),
+            "--trust-dir", str(trust_dir),
+        ],
+        cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, timeout=600,
+    )
+    if result.returncode:
+        raise RuntimeError("Senior 3 native deployment handoff failed: " + (result.stderr or result.stdout or "unknown")[-4096:])
 
 def verify_rollback(descriptor_path: Path, release_id: str, required_migration: int) -> dict[str, Any]:
     descriptor = load(descriptor_path)
@@ -229,41 +266,61 @@ def main() -> int:
     rollback_copy = copy_exact(args.rollback_target_descriptor.resolve(), output_dir, seen)
 
     supplied_native: dict[str, tuple[Path, dict[str, Any]]] = {}
+    native_roots = [provider_base]
     for manifest_path in args.native_manifest:
-        native = verify_native(manifest_path.resolve(), git_sha)
-        artifact_id = native["artifact"]
-        if artifact_id in supplied_native:
-            raise RuntimeError(f"duplicate native manifest for {artifact_id}")
-        supplied_native[artifact_id] = (manifest_path.resolve(), native)
+        resolved = manifest_path.resolve()
+        native = load_native_provider(resolved, git_sha)
+        artifact_sha = native["artifact_sha256"]
+        if artifact_sha in supplied_native:
+            raise RuntimeError(f"duplicate native provider artifact SHA: {artifact_sha}")
+        supplied_native[artifact_sha] = (resolved, native)
+        native_roots.append(resolved.parent)
 
     native_entries = []
-    provider_native_ids = set()
-    for reference in provider["native_artifacts"]:
-        artifact_id = reference["artifact_id"]
-        provider_native_ids.add(artifact_id)
-        if artifact_id not in supplied_native:
-            raise RuntimeError(f"Mix manifest references missing native artifact {artifact_id}")
-        manifest_path, native = supplied_native[artifact_id]
-        if manifest_path.name != reference["manifest_filename"] or digest(manifest_path) != reference["manifest_sha256"]:
-            raise RuntimeError(f"Mix/native manifest identity mismatch for {artifact_id}")
-        native_base = manifest_path.parent
-        manifest_copy = copy_exact(manifest_path, output_dir, seen)
-        for relative in (native["artifact_path"], native["sbom"]["path"], native["provenance"]["path"], native["signature"]["bundle_path"]):
-            source = (native_base / relative).resolve()
-            try:
-                source.relative_to(native_base)
-            except ValueError as error:
-                raise RuntimeError(f"native file escapes manifest directory: {relative}") from error
-            copy_exact(source, output_dir, seen, relative)
-        native_entries.append({
-            "artifact_id": artifact_id,
-            "manifest_filename": manifest_copy.name,
-            "manifest_sha256": digest(manifest_copy),
-            "install_relative_path": reference["install_relative_path"],
-            "required": reference["required"],
-        })
-    if set(supplied_native) != provider_native_ids:
-        raise RuntimeError("supplied native manifests do not exactly match the signed Mix manifest")
+    used_provider_shas: set[str] = set()
+    with tempfile.TemporaryDirectory(prefix="liqi-native-deployment-trust-") as trust_temp:
+        native_trust = derive_public_trust(args.deployment_signing_key.resolve(), args.deployment_key_id, Path(trust_temp))
+        for reference in provider["native_artifacts"]:
+            deployment_path = resolve_reference_file(reference["manifest_filename"], reference["manifest_sha256"], native_roots)
+            deployment = load(deployment_path)
+            validate(ROOT / "contracts/deployment/native-artifact-v1.schema.json", deployment, f"native deployment manifest {deployment_path}")
+            if deployment["artifact_id"] != reference["artifact_id"] or deployment["git_sha"] != git_sha:
+                raise RuntimeError("Mix/native deployment identity mismatch")
+            signature_contract = deployment["artifact"]["signature"]
+            if signature_contract["key_id"] != args.deployment_key_id:
+                raise RuntimeError("native deployment artifact uses a different deployment authorization key")
+            artifact_sha = deployment["artifact"]["sha256"]
+            if artifact_sha not in supplied_native:
+                raise RuntimeError(f"native deployment manifest has no matching Sigstore provider manifest: {artifact_sha}")
+            native_path, native = supplied_native[artifact_sha]
+            verify_native_handoff(native_path, deployment_path, native_trust)
+            used_provider_shas.add(artifact_sha)
+
+            native_copy = copy_exact(native_path, output_dir, seen)
+            deployment_copy = copy_exact(deployment_path, output_dir, seen, reference["manifest_filename"])
+            native_base = native_path.parent
+            for relative in (native["artifact_path"], native["sbom"]["path"], native["provenance"]["path"], native["signature"]["bundle_path"]):
+                source = (native_base / relative).resolve()
+                try:
+                    source.relative_to(native_base)
+                except ValueError as error:
+                    raise RuntimeError(f"native file escapes provider manifest directory: {relative}") from error
+                copy_exact(source, output_dir, seen, relative)
+            signature_source = safe_child(deployment_path.parent, signature_contract["signature_filename"])
+            if not signature_source.is_file() or digest(signature_source) != signature_contract["signature_sha256"]:
+                raise RuntimeError("native deployment signature identity mismatch")
+            copy_exact(signature_source, output_dir, seen)
+            native_entries.append({
+                "artifact_id": deployment["artifact_id"],
+                "provider_manifest_filename": native_copy.name,
+                "provider_manifest_sha256": digest(native_copy),
+                "deployment_manifest_filename": deployment_copy.name,
+                "deployment_manifest_sha256": digest(deployment_copy),
+                "install_relative_path": deployment["artifact"]["install_relative_path"],
+                "required": reference["required"],
+            })
+    if set(supplied_native) != used_provider_shas:
+        raise RuntimeError("supplied native provider manifests do not exactly match the signed Mix manifest")
     if runtime["native"]["mode"] == "required" and not native_entries:
         raise RuntimeError("runtime requires native artifacts but the Mix manifest declares none")
 

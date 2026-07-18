@@ -19,6 +19,7 @@ PAIRS = [
     ("contracts/deployment/release-target-v1.schema.json", "contracts/deployment/release-target-v1.example.json"),
     ("contracts/deployment/installed-release-v1.schema.json", "contracts/deployment/installed-release-v1.example.json"),
     ("contracts/deployment/native-artifact-v1.schema.json", "contracts/deployment/native-artifact-v1.example.json"),
+    ("contracts/deployment/native-authorization-result-v1.schema.json", "contracts/deployment/native-authorization-result-v1.example.json"),
     ("contracts/deployment/activation-v1.schema.json", "contracts/deployment/activation-v1.example.json"),
     ("contracts/deployment/rollback-v1.schema.json", "contracts/deployment/rollback-v1.example.json"),
     ("contracts/deployment/live-endpoint-v1.schema.json", "contracts/deployment/live-endpoint-v1.example.json"),

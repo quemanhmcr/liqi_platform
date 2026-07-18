@@ -186,40 +186,69 @@ def database_version(contract_doc: dict[str, Any], readiness: dict[str, Any], ru
     return required
 
 
-def native_verifier(explicit: Path | None) -> Path:
-    candidates = [explicit, ROOT / "native/scripts/verify_artifact.py", Path("/usr/local/lib/liqi-native/native/scripts/verify_artifact.py")]
+def native_handoff_verifier(explicit: Path | None) -> Path:
+    candidates = [
+        explicit,
+        ROOT / "native/scripts/verify_deployment_manifest.py",
+        Path("/usr/local/lib/liqi-native/native/scripts/verify_deployment_manifest.py"),
+    ]
     for candidate in candidates:
         if candidate is not None and candidate.is_file():
             return candidate
-    raise RuntimeError("Senior 3 native verifier is unavailable")
+    raise RuntimeError("Senior 3 native deployment handoff verifier is unavailable")
 
 
-def verify_native(base: Path, entry: dict[str, Any], release_git_sha: str, staged: Path, final_release: Path, verifier: Path) -> dict[str, Any]:
-    manifest_path = package_file(base, entry["manifest_filename"], entry["manifest_sha256"])
-    manifest = load(manifest_path)
-    validate("native-artifact-v1.schema.json", manifest, "native manifest", "native")
-    if manifest["artifact"] != entry["artifact_id"] or manifest["source_revision"] != release_git_sha:
-        raise RuntimeError("native artifact identity/source mismatch")
-    result = subprocess.run([sys.executable, str(verifier), "--manifest", str(manifest_path)], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, timeout=300)
+def verify_native(
+    base: Path,
+    entry: dict[str, Any],
+    release_git_sha: str,
+    staged: Path,
+    final_release: Path,
+    verifier: Path,
+    trust_dir: Path,
+) -> dict[str, Any]:
+    provider_path = package_file(base, entry["provider_manifest_filename"], entry["provider_manifest_sha256"])
+    deployment_path = package_file(base, entry["deployment_manifest_filename"], entry["deployment_manifest_sha256"])
+    provider = load(provider_path)
+    deployment = load(deployment_path)
+    validate("native-artifact-v1.schema.json", provider, "native provider manifest", "native")
+    validate("native-artifact-v1.schema.json", deployment, "native deployment manifest", "deployment")
+    if not (
+        deployment["artifact_id"] == entry["artifact_id"]
+        and deployment["git_sha"] == release_git_sha
+        and provider["source_revision"] == release_git_sha
+        and provider["artifact_sha256"] == deployment["artifact"]["sha256"]
+        and deployment["artifact"]["install_relative_path"] == entry["install_relative_path"]
+    ):
+        raise RuntimeError("native provider/deployment/wrapper identity mismatch")
+    result = subprocess.run(
+        [
+            sys.executable, str(verifier),
+            "--native-manifest", str(provider_path),
+            "--deployment-manifest", str(deployment_path),
+            "--trust-dir", str(trust_dir),
+        ],
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, timeout=600,
+    )
     if result.returncode:
-        raise RuntimeError("Senior 3 native verification failed: " + (result.stderr or result.stdout or "unknown")[-4096:])
-    source = manifest_path.parent.joinpath(*safe_relative(manifest["artifact_path"]).parts)
-    if not source.is_file() or source.stat().st_size != manifest["artifact_size_bytes"] or digest(source) != manifest["artifact_sha256"]:
+        raise RuntimeError("Senior 3 native deployment handoff failed: " + (result.stderr or result.stdout or "unknown")[-4096:])
+    source = provider_path.parent.joinpath(*safe_relative(provider["artifact_path"]).parts)
+    if not source.is_file() or source.stat().st_size != provider["artifact_size_bytes"] or digest(source) != provider["artifact_sha256"]:
         raise RuntimeError("native shared object checksum/size mismatch")
-    install = safe_relative(entry["install_relative_path"])
+    install = safe_relative(deployment["artifact"]["install_relative_path"])
     target = staged.joinpath(*install.parts)
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, target)
     os.chmod(target, 0o644)
     return {
-        "artifact_id": manifest["artifact"],
-        "manifest_sha256": entry["manifest_sha256"],
-        "artifact_sha256": manifest["artifact_sha256"],
+        "artifact_id": deployment["artifact_id"],
+        "provider_manifest_sha256": entry["provider_manifest_sha256"],
+        "deployment_manifest_sha256": entry["deployment_manifest_sha256"],
+        "artifact_sha256": provider["artifact_sha256"],
         "install_path": str(final_release.joinpath(*install.parts)),
         "provider_verification_status": "passed",
         "load_probe_status": "pending-activation",
     }
-
 
 def immutable_tree(path: Path) -> None:
     import grp
@@ -244,7 +273,8 @@ def main() -> int:
     parser.add_argument("--artifact-dir", required=True, type=Path)
     parser.add_argument("--deployment-trust-dir", required=True, type=Path)
     parser.add_argument("--provider-trust-dir", required=True, type=Path)
-    parser.add_argument("--native-verifier", type=Path)
+    parser.add_argument("--native-handoff-verifier", type=Path)
+    parser.add_argument("--native-trust-dir", type=Path, default=Path("/etc/liqi/trust"))
     parser.add_argument("--release-root", type=Path, default=Path("/opt/liqi/releases"))
     parser.add_argument("--runtime-config-root", type=Path, default=Path("/etc/liqi/runtime/releases"))
     parser.add_argument("--recovery-root", type=Path, default=Path("/var/lib/liqi/recovery"))
@@ -311,8 +341,11 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix=f"liqi-stage-{release_id}-") as directory:
         staged = Path(directory) / release_id; staged.mkdir()
         extract_release(archive, staged); verify_commands(staged, provider)
-        verifier = native_verifier(args.native_verifier) if wrapper["native_artifacts"] else None
-        native_results = [verify_native(args.artifact_dir, entry, git_sha, staged, release_path, verifier) for entry in wrapper["native_artifacts"]]
+        verifier = native_handoff_verifier(args.native_handoff_verifier) if wrapper["native_artifacts"] else None
+        native_results = [
+            verify_native(args.artifact_dir, entry, git_sha, staged, release_path, verifier, args.native_trust_dir)
+            for entry in wrapper["native_artifacts"]
+        ]
         shutil.copyfile(provider_path, staged / "deployment-manifest.json")
         shutil.copyfile(args.deployment_wrapper, staged / "deployment-wrapper.json")
         os.chmod(staged / "deployment-manifest.json", 0o644); os.chmod(staged / "deployment-wrapper.json", 0o644)

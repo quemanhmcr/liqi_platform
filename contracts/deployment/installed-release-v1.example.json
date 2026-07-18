@@ -5,7 +5,17 @@
   "release_path": "/opt/liqi/releases/liqi-v1-example",
   "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-  "native_artifacts": [],
+  "native_artifacts": [
+    {
+      "artifact_id": "liqi-sequence-diff-nif-v1",
+      "provider_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "deployment_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "install_path": "/opt/liqi/releases/liqi-v1-example/lib/liqi_native-1.0.0/priv/native/libliqi_sequence_diff_nif.so",
+      "provider_verification_status": "passed",
+      "load_probe_status": "pending-activation"
+    }
+  ],
   "descriptor_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "status": "planned",
   "approval_reference": null,

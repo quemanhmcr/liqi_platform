@@ -114,6 +114,7 @@ PROVIDER_CONTRACT_FILES = (
     "contracts/database/database-runtime-v1.schema.json",
     "contracts/database/migration-readiness-v1.schema.json",
     "contracts/native/native-artifact-v1.schema.json",
+    "contracts/deployment/native-artifact-v1.schema.json",
 )
 
 NATIVE_SOURCE_ROOTS = (
@@ -131,8 +132,10 @@ def provider_files() -> tuple[tuple[str, str, int, str, str], ...]:
             target = "/usr/local/share/liqi/contracts/runtime/" + source.name
         elif repository_path.startswith("contracts/database/"):
             target = "/usr/local/lib/liqi-database/contracts/database/" + source.name
-        else:
+        elif repository_path.startswith("contracts/native/"):
             target = "/usr/local/lib/liqi-native/contracts/native/" + source.name
+        else:
+            target = "/usr/local/lib/liqi-native/contracts/deployment/" + source.name
         records.append((repository_path, target, 0o644, "root", "root"))
     for relative_root in NATIVE_SOURCE_ROOTS:
         for source in sorted((ROOT / relative_root).rglob("*")):

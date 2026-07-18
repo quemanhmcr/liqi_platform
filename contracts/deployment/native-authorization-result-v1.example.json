@@ -1,0 +1,24 @@
+{
+  "schema_version": "liqi.deployment.native-authorization-result/v1",
+  "status": "authorized",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "release_id": "liqi-v1-example",
+  "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "provider_manifest": {
+    "filename": "native-artifact-liqi-v1-example.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "deployment_manifest": {
+    "filename": "native-deployment-liqi-v1-example.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "signature": {
+    "filename": "libliqi_sequence_diff_nif.so.sig",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "key_id": "deployment-signing-v1",
+  "authorization_reference": "artifact-approval-example",
+  "observed_at": "2026-07-18T00:00:00Z",
+  "artifact_bytes_changed": false,
+  "oci_mutation_performed": false
+}

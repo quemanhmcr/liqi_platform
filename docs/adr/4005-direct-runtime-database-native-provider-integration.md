@@ -4,7 +4,7 @@
 - Date: 2026-07-18
 - Owner: Senior 4
 - Consumers: Senior 1, Senior 2, Senior 3, Senior 5
-- Integrated provider graph: `15e2dd5a263decb91308a0d1783c4610bd7dc62d`
+- Integrated provider/readiness graph: `276dc9de16f507b784c85cdf8421b11471e4ccf1`
 
 ## Context
 
@@ -34,10 +34,10 @@ Senior 1's signed Mix manifest remains byte-for-byte unchanged. Senior 4 creates
 - passed runtime artifact evidence;
 - exact runtime config;
 - accepted database contract and write-ready migration result;
-- exact Senior 3 native manifests and immutable install paths;
+- exact Senior 3 Sigstore provider manifests, Ed25519 deployment manifests and immutable install paths;
 - exact retained rollback descriptor.
 
-The wrapper and all referenced files form a self-contained staging package. The host verifies both Senior 1 and Senior 4 Ed25519 trust roots and delegates native verification to Senior 3's verifier. There is no permissive signature fallback and no NIF load outside the Senior 1 runtime lifecycle.
+The wrapper and all referenced files form a self-contained staging package. The host verifies Senior 1 release signatures, the Senior 4 wrapper signature and the Senior 3 complete native handoff. The handoff preserves the original Sigstore/SBOM/provenance identity and separately verifies the offline Ed25519 install authorization over the same artifact bytes. There is no permissive signature fallback and no NIF load outside the Senior 1 runtime lifecycle.
 
 The BEAM unit selects `/etc/liqi/runtime/current.json`, exports the standard `CREDENTIALS_DIRECTORY`, and requires exactly:
 
@@ -48,14 +48,16 @@ The BEAM unit selects `/etc/liqi/runtime/current.json`, exports the standard `CR
 
 Caddy is rendered from validated runtime config rather than hardcoding port or socket path. It forwards protected headers without logging values. Cutover proves HTTPS redirect, TLS liveness and an authenticated WebSocket upgrade; full durable/resume/native walking-skeleton evidence remains the Senior 1 live platform probe composed by Senior 5.
 
-## Compatibility adapter
+## Native deployment adapter
 
-The final signed Mix manifest already emits the immutable Senior 3 artifact install mapping. The production preparation/staging path therefore consumes that mapping directly; it does not accept an operator-supplied competing path.
+`native/scripts/prepare_deployment_manifest.py` is the provider-owned bridge between the Senior 3 Sigstore manifest and Senior 4's offline host authorization. Its `liqi.deployment.native-artifact/v1` output is a production input, not a duplicate artifact authority: both manifests must bind the same source revision, target, ABI, artifact checksum and size.
 
-`contracts/deployment/native-artifact-v1.schema.json` is retained as a deprecated compatibility record for the already-published seam, but it is not a production input. Senior 3 remains the authority for ABI, scheduler, signature, provenance and artifact identity.
+The signed Mix manifest references the deployment manifest checksum. Senior 4's wrapper additionally binds the original provider manifest checksum. Preparation and host staging both call `native/scripts/verify_deployment_manifest.py`; the host installs only the deployment-manifest path and leaves the load probe pending until BEAM activation.
 
-Removal owner: Senior 4. Remove the deprecated schema after Senior 5 and any external consumer stop registering it for one release window.
+`infrastructure/deployment/authorize_native_artifact.py` is the protected build-time provider for the offline authorization. It first verifies the Senior 3 Sigstore artifact, signs the unchanged `.so` bytes with the Senior 4 Ed25519 deployment key, invokes the Senior 3 adapter and full verifier, and emits `native-authorization-result-v1`. The command performs no OCI mutation and never installs or loads the NIF.
+
+The adapter can be removed only through a versioned contract that preserves both Sigstore provenance and offline host authorization. Senior 3 owns provider identity and safety fields; Senior 4 owns the protected deployment signing key and immutable host installation.
 
 ## Trade-offs
 
-The deployment package is more verbose and uses two signatures, but each signature has one owner and one purpose. The extra wrapper prevents build, database, native and rollback evidence from drifting without modifying provider-owned artifacts. Artifact and live capability remain evidence-pending until approved ARM64 build, OCI staging, activation, endpoint and rollback drills execute.
+The deployment package is more verbose and uses multiple signatures, but each signature has one owner and one purpose. The extra wrapper prevents build, database, native and rollback evidence from drifting without modifying provider-owned artifacts. Artifact and live capability remain evidence-pending until approved ARM64 build, OCI staging, activation, endpoint and rollback drills execute.

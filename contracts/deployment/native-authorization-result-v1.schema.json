@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liqi.example/contracts/deployment/native-authorization-result-v1.schema.json",
+  "title": "LIQI native deployment authorization result V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "git_sha",
+    "release_id",
+    "artifact_sha256",
+    "provider_manifest",
+    "deployment_manifest",
+    "signature",
+    "key_id",
+    "authorization_reference",
+    "observed_at",
+    "artifact_bytes_changed",
+    "oci_mutation_performed"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "liqi.deployment.native-authorization-result/v1"
+    },
+    "status": {
+      "const": "authorized"
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "release_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "artifact_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "provider_manifest": {
+      "$ref": "#/$defs/file"
+    },
+    "deployment_manifest": {
+      "$ref": "#/$defs/file"
+    },
+    "signature": {
+      "$ref": "#/$defs/file"
+    },
+    "key_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$"
+    },
+    "authorization_reference": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 256
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "artifact_bytes_changed": {
+      "const": false
+    },
+    "oci_mutation_performed": {
+      "const": false
+    }
+  },
+  "$defs": {
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "filename",
+        "sha256"
+      ],
+      "properties": {
+        "filename": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

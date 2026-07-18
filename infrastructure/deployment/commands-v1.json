@@ -73,6 +73,28 @@
       "output": "signed host bundle, manifest and signature"
     },
     {
+      "id": "authorize-native-artifact",
+      "command": [
+        "python",
+        "infrastructure/deployment/authorize_native_artifact.py",
+        "--native-manifest",
+        "<Senior-3-native-artifact-v1.json>",
+        "--deployment-key-id",
+        "<deployment-key-id>",
+        "--deployment-signing-key",
+        "<private-key-file>",
+        "--authorization-reference",
+        "<artifact-authorization-reference>",
+        "--output-dir",
+        "<native-deployment-output-dir>",
+        "--output-result",
+        "<native-authorization-result-v1.json>"
+      ],
+      "working_directory": "repository-root",
+      "mutation": "build-only",
+      "output": "native-authorization-result-v1"
+    },
+    {
       "id": "prepare-mix-deployment",
       "command": [
         "python",
@@ -116,6 +138,8 @@
         "<Senior-4-public-key-dir>",
         "--provider-trust-dir",
         "<Senior-1-public-key-dir>",
+        "--native-trust-dir",
+        "<Senior-4-native-public-key-dir>",
         "--output",
         "<installed-release-v1.json>"
       ],

@@ -148,8 +148,10 @@
         "additionalProperties": false,
         "required": [
           "artifact_id",
-          "manifest_filename",
-          "manifest_sha256",
+          "provider_manifest_filename",
+          "provider_manifest_sha256",
+          "deployment_manifest_filename",
+          "deployment_manifest_sha256",
           "install_relative_path",
           "required"
         ],
@@ -158,11 +160,19 @@
             "type": "string",
             "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
           },
-          "manifest_filename": {
+          "provider_manifest_filename": {
             "type": "string",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,191}\\.json$"
           },
-          "manifest_sha256": {
+          "provider_manifest_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "deployment_manifest_filename": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,191}\\.json$"
+          },
+          "deployment_manifest_sha256": {
             "type": "string",
             "pattern": "^[0-9a-f]{64}$"
           },

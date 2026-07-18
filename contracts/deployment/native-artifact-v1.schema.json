@@ -15,10 +15,7 @@
     "artifact",
     "load",
     "safety",
-    "created_at",
-    "compatibility_adapter",
-    "provider_contract",
-    "removal_condition"
+    "created_at"
   ],
   "properties": {
     "schema_version": {
@@ -191,17 +188,6 @@
     "created_at": {
       "type": "string",
       "format": "date-time"
-    },
-    "compatibility_adapter": {
-      "const": true
-    },
-    "provider_contract": {
-      "const": "contracts/native/native-artifact-v1.schema.json"
-    },
-    "removal_condition": {
-      "type": "string",
-      "minLength": 20,
-      "maxLength": 512
     }
   }
 }

@@ -169,13 +169,19 @@ def validate_static_policy() -> None:
         if token not in caddy_live:
             raise AssertionError(f"live Caddy template missing {token}")
     provider_requirements = {
+        INFRA / "deployment/authorize_native_artifact.py": (
+            "native/scripts/prepare_deployment_manifest.py",
+            "native/scripts/verify_deployment_manifest.py",
+            "native-authorization-result-v1.schema.json",
+        ),
         INFRA / "deployment/prepare_mix_deployment.py": (
             "contracts/runtime/runtime-artifact-result-v1.schema.json",
             "contracts/database/migration-readiness-v1.schema.json",
             "contracts/native/native-artifact-v1.schema.json",
+            "native/scripts/verify_deployment_manifest.py",
         ),
         INFRA / "deployment/stage_mix_release.py": (
-            "native/scripts/verify_artifact.py",
+            "native/scripts/verify_deployment_manifest.py",
             "runtime-config-v1.schema.json",
             "migration-readiness-v1.schema.json",
         ),
@@ -185,16 +191,19 @@ def validate_static_policy() -> None:
         for token in required_tokens:
             if token not in provider_text:
                 raise AssertionError(f"{provider_path} does not consume committed provider seam {token}")
-    duplicate_native = json.loads((ROOT / "contracts/deployment/native-artifact-v1.schema.json").read_text(encoding="utf-8"))
-    if duplicate_native["properties"]["compatibility_adapter"]["const"] is not True:
-        raise AssertionError("deployment native contract must remain an explicit compatibility adapter")
+    deployment_native = json.loads((ROOT / "contracts/deployment/native-artifact-v1.schema.json").read_text(encoding="utf-8"))
+    expected_native_fields = {"schema_version", "artifact_id", "git_sha", "artifact", "load", "safety"}
+    if not expected_native_fields.issubset(set(deployment_native.get("required", []))):
+        raise AssertionError("deployment native handoff schema is missing provider-owned adapter fields")
 
     bundle_targets = {record[1] for record in __import__("infrastructure.deployment.build_host_bundle", fromlist=["FILES"]).FILES}
     for target in (
         "/usr/local/lib/liqi-native/native/scripts/verify_artifact.py",
+        "/usr/local/lib/liqi-native/native/scripts/verify_deployment_manifest.py",
         "/usr/local/share/liqi/contracts/runtime/runtime-config-v1.schema.json",
         "/usr/local/lib/liqi-database/contracts/database/migration-readiness-v1.schema.json",
         "/usr/local/lib/liqi-native/contracts/native/native-artifact-v1.schema.json",
+        "/usr/local/lib/liqi-native/contracts/deployment/native-artifact-v1.schema.json",
         "/usr/local/libexec/liqi-configure-database-credentials",
         "/etc/systemd/system/liqi-database-credentials.service",
         "/usr/local/share/liqi/contracts/deployment/mix-deployment-v1.schema.json",

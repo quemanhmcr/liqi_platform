@@ -27,7 +27,17 @@
     "filename": "migration-readiness-v1.json",
     "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
   },
-  "native_artifacts": [],
+  "native_artifacts": [
+    {
+      "artifact_id": "liqi-sequence-diff-nif-v1",
+      "provider_manifest_filename": "native-artifact-liqi-v1-example.json",
+      "provider_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "deployment_manifest_filename": "native-deployment-liqi-v1-example.json",
+      "deployment_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "install_relative_path": "lib/liqi_native-1.0.0/priv/native/libliqi_sequence_diff_nif.so",
+      "required": false
+    }
+  ],
   "rollback_target": {
     "release_id": "liqi-v0-example",
     "descriptor_filename": "liqi-v0-example.release-target.json",
