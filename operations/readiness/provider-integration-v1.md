@@ -15,13 +15,14 @@ A provider JSON result is authoritative after schema/SHA/release validation. `st
 
 ```text
 Senior 1 runtime:        15e2dd5a263decb91308a0d1783c4610bd7dc62d
-Senior 2 database:       168f6b3be66ff36eac4b4944f8d6940b6d2026ce
+Senior 2 database base:  168f6b3be66ff36eac4b4944f8d6940b6d2026ce
+Recovery provider:       2fd2db659335f740ac4d95a9065bd09be0f3f6ec
 Senior 3 native:         ca71a1be6914a33db22544802f704084f3346af5
 Senior 4 infrastructure: ca99b7d14816cd051fce15a54accdeb17276096d
 Native Windows adapter:  e9201d742765f4b1c544e60648e0a719eab91c8e
 ```
 
-The source, disposable runtime/database integration, native safety and release/native artifact verifier commands are available. Database recovery remains `pending-provider-publication`. Runtime live probe and infrastructure plan/host/rollback evidence remain exact-release live blockers.
+The source, disposable runtime/database integration, native safety, release/native artifact verifier and isolated database recovery commands are available. Recovery remains blocked until the exact-release provider runs against the independent repository with approved PITR inputs and emits passed live evidence. Runtime live probe and infrastructure plan/host/rollback evidence remain exact-release live blockers.
 
 ## Evidence and mutation rule
 

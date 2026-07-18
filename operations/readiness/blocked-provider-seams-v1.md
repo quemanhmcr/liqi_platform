@@ -7,7 +7,7 @@ The committed runtime, database, native and infrastructure provider graph is int
 | Provider | Exact provider commit | Integrated command | Evidence state |
 |---|---|---|---|
 | Senior 1 | `15e2dd5a263decb91308a0d1783c4610bd7dc62d` | BEAM source, disposable PostgreSQL integration, signed release verifier, platform probe | Source and disposable integration can pass; Linux ARM64 release and live endpoint evidence pending. |
-| Senior 2 | `168f6b3be66ff36eac4b4944f8d6940b6d2026ce` | PostgreSQL contracts and disposable pgTAP integration | Source and disposable integration available; isolated restore/PITR command unpublished. |
+| Senior 2 | `2fd2db659335f740ac4d95a9065bd09be0f3f6ec` | PostgreSQL contracts, independent pgBackRest repository and isolated restore/PITR provider | Command publication complete; exact-release approved live recovery evidence pending. |
 | Senior 3 | `ca71a1be6914a33db22544802f704084f3346af5` | Rust source, native safety result, complete deployment-manifest verifier | Command publication complete; passed Linux/A1 safety and signed ARM64 artifact inputs pending. |
 | Senior 4 | `ca99b7d14816cd051fce15a54accdeb17276096d` | OCI source/contracts and committed deployment/rollback controls | Source passes without mutation; reviewed live plan, deployed host and rollback exercise evidence pending. |
 
@@ -16,12 +16,13 @@ Senior 1 commit `e9201d742765f4b1c544e60648e0a719eab91c8e` supplies the fail-saf
 ## Remaining owner seams
 
 ```text
-Blocked seam:
+Blocked evidence:
 Provider: Senior 2
 Consumer: Senior 5
-Missing contract: approved isolated restore/PITR wrapper producing recovery-result-v1
-Why current work cannot safely continue: disposable migrations and pgTAP tests do not prove backup freshness, RPO, RTO, invariant checks or cleanup after a restore.
-Minimal provider output required: exact-release isolated restore evidence with explicit approval; never restore over live.
+Available command: database/bin/run-restore-drill-v1.sh
+Missing evidence: exact-release approved isolated restore/PITR result from the independent pgBackRest repository, including migration 8, BEAM read-only probe, RPO/RTO and cleanup proof.
+Why current work cannot safely continue: command publication does not prove the live backup/WAL chain or retained V0 compatibility.
+Minimal provider output required: passed recovery-result-v1 for the exact composite SHA and release; never restore over live.
 ```
 
 ```text

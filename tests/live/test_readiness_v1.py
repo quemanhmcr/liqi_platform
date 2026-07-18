@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -46,6 +47,7 @@ class ReadinessV1Tests(unittest.TestCase):
    'deployment-artifact':'ca99b7d14816cd051fce15a54accdeb17276096d',
    'infrastructure-source':'ca99b7d14816cd051fce15a54accdeb17276096d',
    'infrastructure-plan':'ca99b7d14816cd051fce15a54accdeb17276096d',
+   'database-recovery':'2fd2db659335f740ac4d95a9065bd09be0f3f6ec',
   }
   for ident,commit in integrated.items():
    self.assertEqual('available',gates[ident]['provider_state'])
@@ -53,8 +55,18 @@ class ReadinessV1Tests(unittest.TestCase):
   for ident in ('runtime-live-probe','host-readiness','rollback-evidence'):
    self.assertEqual('pending-live-evidence',gates[ident]['provider_state'])
    self.assertIsNotNone(gates[ident]['provider_commit'])
-  self.assertEqual('pending-provider-publication',gates['database-recovery']['provider_state'])
-  self.assertIsNone(gates['database-recovery']['provider_commit'])
+
+ def test_available_database_recovery_stays_blocked_without_protected_live_inputs(self):
+  registry=json.loads((ROOT/'operations/readiness/provider-gates-v1.json').read_text(encoding='utf-8'))
+  gate=next(item for item in registry['gates'] if item['id']=='database-recovery')
+  with tempfile.TemporaryDirectory() as tmp:
+   root=Path(tmp);registry_path=root/'registry.json';out=root/'checkpoint.json'
+   registry_path.write_text(json.dumps({'schema_version':'provider-gates-v1','registry_version':'test','gates':[gate]}),encoding='utf-8')
+   result=subprocess.run([PYTHON,'operations/bin/run_provider_gates_v1.py','--registry',str(registry_path),'--stage','promotion','--output',str(out),'--evidence-dir',str(root/'evidence'),'--allow-blocked'],cwd=ROOT,text=True,capture_output=True,check=False,env={key:value for key,value in os.environ.items() if not key.startswith('LIQI_')})
+   self.assertEqual(0,result.returncode,result.stderr)
+   doc=json.loads(out.read_text());self.assertEqual('blocked',doc['status'])
+   self.assertEqual('PROVIDER_INPUT_MISSING',doc['blockers'][0]['code'])
+   self.assertFalse((root/'evidence/database-recovery.json').exists())
 
  def test_unpublished_provider_seams_are_blocked_with_owners(self):
   registry=json.loads((ROOT/'operations/readiness/provider-gates-v1.json').read_text(encoding='utf-8'))

@@ -1,6 +1,6 @@
 {
   "schema_version": "provider-gates-v1",
-  "registry_version": "1.3.0",
+  "registry_version": "1.4.0",
   "gates": [
     {
       "id": "runtime-source",
@@ -187,10 +187,19 @@
         "live-staging",
         "promotion"
       ],
-      "provider_state": "pending-provider-publication",
+      "provider_state": "available",
       "mutation_class": "isolated-restore",
       "required_paths": [
-        "database/bin/run-restore-drill-v1.sh"
+        "database/bin/run-restore-drill-v1.sh",
+        "database/tools/run_restore_drill_v1.py",
+        "database/recovery/prepare-restore-exercise.sh",
+        "database/recovery/restore-exercise.sh",
+        "database/recovery/verify-restore-exercise.sh",
+        "database/recovery/cleanup-restore-exercise.sh",
+        "beam/bin/database-restore-probe",
+        "beam/apps/liqi_persistence/lib/liqi_persistence/restore_probe.ex",
+        "contracts/database/restore-beam-probe-v1.schema.json",
+        "contracts/readiness/recovery-result-v1.schema.json"
       ],
       "argv": [
         "bash",
@@ -204,13 +213,25 @@
       ],
       "required_environment": [
         "LIQI_RELEASE_ID",
-        "LIQI_RESTORE_APPROVAL_REF"
+        "LIQI_RESTORE_APPROVAL_REF",
+        "LIQI_RECOVERY_ENVIRONMENT",
+        "LIQI_RECOVERY_BACKUP_REF",
+        "LIQI_RECOVERY_TARGET_ROOT",
+        "LIQI_RECOVERY_TARGET_DATABASE",
+        "LIQI_RECOVERY_SOURCE_DATABASE_ID",
+        "LIQI_RESTORE_TARGET_TIME",
+        "LIQI_RECOVERY_RELEASE_BIN",
+        "LIQI_RUNTIME_CONFIG_PATH",
+        "LIQI_DATABASE_API_PASSWORD_FILE",
+        "LIQI_BACKUP_STATUS_FILE",
+        "LIQI_BACKUP_STATUS_CHECKSUM_FILE",
+        "LIQI_V0_ROLLBACK_COMPATIBILITY"
       ],
       "timeout_seconds": 7200,
       "result_schema": "contracts/readiness/recovery-result-v1.schema.json",
-      "action_required": "Publish the approved isolated restore/PITR wrapper and recovery-result-v1 evidence; never restore over live and never treat backup freshness as restore proof.",
-      "provider_branch": "v1/durable-data-work",
-      "provider_commit": null
+      "action_required": "Materialize an exact-SHA signed release, independent pgBackRest backup/WAL evidence, protected database credential, V0 rollback compatibility evidence and reviewed PITR target. Execute only with --allow-isolated-restore and the approved restore reference; never restore over live or treat backup freshness as restore proof.",
+      "provider_branch": "v1/oci-bootstrap-live-closeout",
+      "provider_commit": "2fd2db659335f740ac4d95a9065bd09be0f3f6ec"
     },
     {
       "id": "native-source",
