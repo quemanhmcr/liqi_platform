@@ -85,6 +85,34 @@ def expand(parts: list[str], output: Path) -> tuple[list[str], str]:
     return actual, " ".join(displayed)
 
 
+def classify_provider_outcome(returncode: int, document_status: str | None) -> tuple[str, str | None, str | None]:
+    if document_status == "blocked":
+        return (
+            "blocked",
+            "PROVIDER_GATE_BLOCKED",
+            f"provider emitted blocked evidence and exited {returncode}",
+        )
+    if document_status == "failed":
+        return (
+            "failed",
+            "PROVIDER_GATE_FAILED",
+            f"provider emitted failed evidence and exited {returncode}",
+        )
+    if document_status == "passed" and returncode != 0:
+        return (
+            "failed",
+            "PROVIDER_RESULT_EXIT_MISMATCH",
+            f"provider emitted passed evidence but exited {returncode}",
+        )
+    if returncode != 0:
+        return (
+            "failed",
+            "PROVIDER_GATE_FAILED",
+            f"provider command exited {returncode}",
+        )
+    return "passed", None, None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
@@ -168,10 +196,8 @@ def main() -> int:
             duration_ms = round((time.monotonic() - started) * 1000)
             log_path.write_text(redact(f"COMMAND\n{displayed}\nDURATION_MS\n{duration_ms}\nSTDOUT\n{completed.stdout}\nSTDERR\n{completed.stderr}"), encoding="utf-8", newline="\n")
             log_ref = relative_ref(log_path)
-            if completed.returncode != 0:
-                add_result(gate, "failed", log_ref, "PROVIDER_GATE_FAILED", f"provider command exited {completed.returncode}; see {log_ref}")
-                continue
             output_ref = log_ref
+            document_status: str | None = None
             result_schema = gate.get("result_schema")
             if result_schema:
                 try:
@@ -184,11 +210,16 @@ def main() -> int:
                     if schema_errors:
                         raise ValueError("; ".join(schema_errors))
                     output_ref = relative_ref(gate_output)
+                    observed_status = document.get("status")
+                    document_status = observed_status if isinstance(observed_status, str) else None
                 except (OSError, json.JSONDecodeError, ValueError) as exc:
                     log_path.write_text(log_path.read_text(encoding="utf-8") + f"\nRESULT_VALIDATION\n{redact(str(exc))}\n", encoding="utf-8", newline="\n")
                     add_result(gate, "failed", log_ref, "PROVIDER_RESULT_INVALID", str(exc))
                     continue
-            add_result(gate, "passed", output_ref)
+            status, code, message = classify_provider_outcome(completed.returncode, document_status)
+            if message:
+                message = f"{message}; see {output_ref}"
+            add_result(gate, status, output_ref, code, message)
         except (RuntimeError, subprocess.TimeoutExpired, OSError) as exc:
             log_path.write_text(redact(str(exc)) + "\n", encoding="utf-8", newline="\n")
             add_result(gate, "failed", relative_ref(log_path), "PROVIDER_GATE_EXECUTION_FAILED", str(exc))
