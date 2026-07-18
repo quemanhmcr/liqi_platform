@@ -10,6 +10,7 @@ if [[ -f "$ROOT_DIR/contracts/platform/oci-host-v0.example.json" ]]; then
 fi
 PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tools/recovery_contract.py" validate-contracts
 PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tests/static/validate_database_source.py"
+PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tests/static/validate_beam_provider_source.py"
 if [[ -f "$ROOT_DIR/contracts/events/examples/platform-probe-requested-v0.json" ]]; then
   PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tests/contract/validate_wire_mapping.py" \
     "$ROOT_DIR/contracts/events/examples/platform-probe-requested-v0.json"
