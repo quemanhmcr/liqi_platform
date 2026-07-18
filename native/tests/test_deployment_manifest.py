@@ -15,6 +15,11 @@ SPEC = importlib.util.spec_from_file_location("prepare_deployment_manifest", MOD
 assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+VERIFY_PATH = ROOT / "native" / "scripts" / "verify_deployment_manifest.py"
+VERIFY_SPEC = importlib.util.spec_from_file_location("verify_deployment_manifest", VERIFY_PATH)
+assert VERIFY_SPEC and VERIFY_SPEC.loader
+VERIFY = importlib.util.module_from_spec(VERIFY_SPEC)
+VERIFY_SPEC.loader.exec_module(VERIFY)
 
 
 class DeploymentManifestTest(unittest.TestCase):
@@ -45,6 +50,19 @@ class DeploymentManifestTest(unittest.TestCase):
                 result["artifact"]["install_relative_path"],
             )
             self.assertEqual(["bin/liqi_platform", "eval"], result["load"]["probe_command"][:2])
+            self.assertEqual([], VERIFY.binding_failures(provider, result))
+
+    def test_cross_binding_rejects_distribution_rpc(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            artifact = root / "libliqi_sequence_diff_nif.so"
+            signature = root / "libliqi_sequence_diff_nif.so.sig"
+            artifact.write_bytes(b"artifact")
+            signature.write_bytes(b"signature")
+            provider = self.provider_manifest(artifact)
+            deployment = MODULE.deployment_document(provider, artifact, signature, "native-signing-v1")
+            deployment["load"]["probe_command"] = ["bin/liqi_platform", "rpc", "bad"]
+            self.assertIn("distribution-free", "; ".join(VERIFY.binding_failures(provider, deployment)))
 
     def test_rejects_artifact_identity_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

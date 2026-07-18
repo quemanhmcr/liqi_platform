@@ -110,6 +110,15 @@ python native/scripts/prepare_deployment_manifest.py \
 
 The adapter requires both the Sigstore provenance verification and the offline deployment signature. Both manifests carry the same source revision and artifact SHA-256. See `docs/adr/3002-native-deployment-trust-adapter-v1.md`.
 
+Verify the complete handoff before Senior 4 stages the Mix release:
+
+```bash
+python native/scripts/verify_deployment_manifest.py \
+  --native-manifest "$LIQI_NATIVE_OUTPUT_DIR/native-artifact-$LIQI_RELEASE_ID.json" \
+  --deployment-manifest "$LIQI_NATIVE_OUTPUT_DIR/liqi-sequence-diff-nif-v1.deployment.json" \
+  --trust-dir '<approved-public-key-directory>'
+```
+
 Install the verified shared object at:
 
 ```text
