@@ -8,8 +8,8 @@ This is a machine-reviewable integration checkpoint, not a substitute implementa
 |---|---|---|---|
 | Senior 1 | `9a95350c516baa0b6e079685e1dcab1a49799bdf` | `MIX_ENV=test mix compile --warnings-as-errors && MIX_ENV=test mix test --seed 0 && mix hex.audit && python scripts/operations/validate_contracts.py` | Source walking skeleton only; disposable PostgreSQL integration, release artifact verification and live platform probe command are not published. |
 | Senior 2 | `ac759bb3435ef4633265d8eab75bd26768c0aac9` | `python database/tests/contract/validate_v1_contracts.py` | Source contracts only; disposable PostgreSQL integration and approved isolated restore result are not published. |
-| Senior 3 | `7478e31a4de48e278f0d08885bfaab56d5d88762` | `bash native/tests/run-source-validation.sh --rust-only` | Source/Rust safety is available after integration; full Elixir, fuzz-duration, A1 latency and scheduler evidence remain pending. |
-| Senior 3 | `7478e31a4de48e278f0d08885bfaab56d5d88762` | `python native/scripts/verify_artifact.py --manifest <path>` | Verifier exists; signed ARM64 artifact, SBOM, provenance and Sigstore bundle must be produced by the approved provider flow. |
+| Senior 3 | `61c892a00d6d74351e70317935823e7e3fee41dc` | `bash native/tests/run-source-validation.sh --rust-only`; `bash native/scripts/run-v1-safety-gates.sh --output <path>` | Source and safety provider commands are integrated. Full safety evidence still requires pinned Linux OTP/Elixir/Rust plus bounded cargo-fuzz. |
+| Senior 3 | `61c892a00d6d74351e70317935823e7e3fee41dc` | `python native/scripts/verify_deployment_manifest.py --native-manifest <path> --deployment-manifest <path> --trust-dir <path>` | Complete provider-to-deployment verifier is integrated. Signed ARM64 bytes, SBOM, provenance, Sigstore bundle, Ed25519 signature and A1 evidence remain exact-release inputs. |
 | Senior 4 | `2be16b0ff7159ad0827194c0f72f5a540245a085` | `python infrastructure/validation/validate_v1_contracts.py` | Source contracts explicitly remain `engineering-complete-evidence-pending`; plan, host, activation and rollback evidence are not published. |
 
 ## Still missing provider publication
