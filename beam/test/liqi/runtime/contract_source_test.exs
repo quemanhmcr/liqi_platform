@@ -84,13 +84,17 @@ defmodule Liqi.Runtime.ContractSourceTest do
 
     assert File.exists?("beam/scripts/validate-v1-source.sh")
     assert File.exists?("beam/scripts/run-v1-integration.sh")
+    refute File.exists?("beam/scripts/prepare_disposable_database.py")
     assert File.exists?("beam/scripts/verify-v1-release.sh")
     assert File.exists?("docs/adr/1001-v1-provider-contract-mismatches.md")
 
     source_gate = File.read!("beam/scripts/validate-v1-source.sh")
     assert source_gate =~ "mix deps.get --locked"
-    assert source_gate =~ "shutil.rmtree('_build/test'"
+    assert source_gate =~ "LIQI_SOURCE_MIX_BUILD_PATH"
+    assert source_gate =~ "export MIX_BUILD_PATH"
+    assert source_gate =~ "shutil.rmtree(sys.argv[1]"
     refute source_gate =~ "deps.clean --all"
+    refute source_gate =~ "mix deps.compile"
 
     for path <- [
           "contracts/runtime/runtime-source-result-v1.schema.json",
