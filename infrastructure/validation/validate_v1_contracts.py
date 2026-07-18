@@ -12,7 +12,10 @@ PAIRS = [
     ("contracts/infrastructure/host-runtime-v1.schema.json", "contracts/infrastructure/host-runtime-v1.example.json"),
     ("contracts/infrastructure/secret-mapping-v1.schema.json", "contracts/infrastructure/secret-mapping-v1.example.json"),
     ("contracts/infrastructure/host-bundle-v1.schema.json", "contracts/infrastructure/host-bundle-v1.example.json"),
+    ("contracts/infrastructure/database-credentials-v1.schema.json", "contracts/infrastructure/database-credentials-v1.example.json"),
     ("contracts/deployment/mix-release-v1.schema.json", "contracts/deployment/mix-release-v1.example.json"),
+    ("contracts/deployment/mix-deployment-v1.schema.json", "contracts/deployment/mix-deployment-v1.example.json"),
+    ("contracts/deployment/v0-rollback-compatibility-v1.schema.json", "contracts/deployment/v0-rollback-compatibility-v1.example.json"),
     ("contracts/deployment/release-target-v1.schema.json", "contracts/deployment/release-target-v1.example.json"),
     ("contracts/deployment/installed-release-v1.schema.json", "contracts/deployment/installed-release-v1.example.json"),
     ("contracts/deployment/native-artifact-v1.schema.json", "contracts/deployment/native-artifact-v1.example.json"),
@@ -54,7 +57,7 @@ def main() -> int:
 
     release = examples["contracts/deployment/mix-release-v1.example.json"]
     db = release["database_compatibility"]
-    if not (db["minimum_migration"] <= db["rollback_safe_through"] <= db["maximum_migration"]):
+    if not (db["rollback_safe_through"] <= db["minimum_migration"] <= db["maximum_migration"]):
         failures.append("release database compatibility range is invalid")
     if release["installation"]["release_directory"] != f"/opt/liqi/releases/{release['release_id']}":
         failures.append("release directory must be derived exactly from release_id")

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liqi.example/contracts/deployment/v0-rollback-compatibility-v1.schema.json",
+  "title": "LIQI V0 rollback compatibility evidence V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "database_provider_git_sha",
+    "v0_release_id",
+    "from_migration",
+    "to_migration",
+    "v0_functions_retained",
+    "source_result_sha256",
+    "observed_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "liqi.deployment.v0-rollback-compatibility/v1"
+    },
+    "status": {
+      "const": "passed"
+    },
+    "database_provider_git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "v0_release_id": {
+      "type": "string",
+      "pattern": "^liqi-v0-[a-z0-9._-]+$"
+    },
+    "from_migration": {
+      "const": 4
+    },
+    "to_migration": {
+      "const": 8
+    },
+    "v0_functions_retained": {
+      "const": true
+    },
+    "source_result_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

@@ -77,7 +77,7 @@ def validate_manifest(document: object, bundle_id: str, key_id: str) -> dict[str
     if not isinstance(artifact, dict) or not SHA256.fullmatch(str(artifact.get("sha256", ""))):
         raise RuntimeError("invalid host bundle artifact identity")
     files = document.get("files")
-    if not isinstance(files, list) or not (10 <= len(files) <= 128):
+    if not isinstance(files, list) or not (10 <= len(files) <= 160):
         raise RuntimeError("invalid host bundle file inventory")
     targets: set[str] = set()
     sources: set[str] = set()
@@ -224,6 +224,8 @@ def main() -> int:
         units = [
             "/etc/systemd/system/liqi-beam.service",
             "/etc/systemd/system/liqi-secrets.service",
+            "/etc/systemd/system/liqi-database-credentials.service",
+            "/etc/systemd/system/pgbouncer.service.d/liqi.conf",
             "/etc/systemd/system/liqi-host-readiness.service",
             "/etc/systemd/system/caddy.service",
         ]

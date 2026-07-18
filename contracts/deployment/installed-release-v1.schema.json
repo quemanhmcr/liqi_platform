@@ -9,6 +9,8 @@
     "release_id",
     "git_sha",
     "release_path",
+    "runtime_config_sha256",
+    "runtime_config_path",
     "manifest_sha256",
     "artifact_sha256",
     "native_artifacts",
@@ -53,7 +55,8 @@
           "manifest_sha256",
           "artifact_sha256",
           "install_path",
-          "load_probe_status"
+          "load_probe_status",
+          "provider_verification_status"
         ],
         "properties": {
           "artifact_id": {
@@ -73,9 +76,12 @@
           },
           "load_probe_status": {
             "enum": [
-              "planned",
+              "pending-activation",
               "passed"
             ]
+          },
+          "provider_verification_status": {
+            "const": "passed"
           }
         }
       }
@@ -104,6 +110,14 @@
     },
     "mutation_performed": {
       "type": "boolean"
+    },
+    "runtime_config_path": {
+      "type": "string",
+      "pattern": "^/etc/liqi/runtime/releases/"
+    },
+    "runtime_config_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     }
   }
 }
