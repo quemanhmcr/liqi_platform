@@ -2,6 +2,11 @@
   "version": "1",
   "errors": [
     {
+      "code": "auth.unauthorized",
+      "httpStatus": 401,
+      "retryable": false
+    },
+    {
       "code": "validation.failed",
       "httpStatus": 400,
       "retryable": false
@@ -23,6 +28,11 @@
     },
     {
       "code": "capacity.database",
+      "httpStatus": 429,
+      "retryable": true
+    },
+    {
+      "code": "capacity.native",
       "httpStatus": 429,
       "retryable": true
     },

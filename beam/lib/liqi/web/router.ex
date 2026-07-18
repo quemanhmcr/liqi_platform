@@ -16,5 +16,6 @@ defmodule Liqi.Web.Router do
     get("/metadata", MetadataController, :show)
     get("/metrics", MetricsController, :show)
     post("/probes", ProbeController, :create)
+    post("/probes/native", NativeProbeController, :create)
   end
 end

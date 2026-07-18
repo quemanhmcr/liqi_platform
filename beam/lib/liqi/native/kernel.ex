@@ -54,6 +54,79 @@ defmodule Liqi.Native.Kernel do
 
   def sequence_diff(_, _, _), do: {:error, :invalid_input}
 
+  @spec diagnostic([non_neg_integer()], non_neg_integer(), non_neg_integer()) ::
+          {:ok, map()} | {:error, term()}
+  def diagnostic(sequences, expected_first, expected_last)
+      when is_list(sequences) and length(sequences) <= 2_048 and is_integer(expected_first) and
+             is_integer(expected_last) and expected_first >= 0 and expected_last >= expected_first do
+    with {:ok, config} <- Liqi.Runtime.Config.load(),
+         observed <- encode_sequences(sequences),
+         result <-
+           Liqi.Runtime.Budgets.with_permit(:native, fn ->
+             configured =
+               Liqi.Native.SequenceDiff.compact(
+                 expected_first,
+                 expected_last,
+                 observed,
+                 policy(config.native_mode)
+               )
+
+             reference =
+               Liqi.Native.SequenceDiff.compact(
+                 expected_first,
+                 expected_last,
+                 observed,
+                 :reference
+               )
+
+             diagnostic_result(configured, reference, config.native_mode)
+           end) do
+      case result do
+        {:error, :capacity} -> {:error, :native_capacity}
+        other -> other
+      end
+    end
+  rescue
+    ArgumentError -> {:error, :invalid_sequence}
+  end
+
+  def diagnostic(_, _, _), do: {:error, :invalid_input}
+
+  defp diagnostic_result(
+         {:ok, configured_result, configured_execution},
+         {:ok, reference_result, _reference_execution},
+         mode
+       ) do
+    parity = configured_result == reference_result
+    readiness = Liqi.Native.SequenceDiff.readiness(policy(mode))
+
+    {:ok,
+     %{
+       kernel: "compact_sequence_diff",
+       kernelVersion: "1",
+       parity: parity,
+       configured: %{
+         implementation: Atom.to_string(configured_execution.implementation),
+         fallback: configured_execution.fallback,
+         fallbackReason: configured_execution.fallback_reason,
+         result: configured_result
+       },
+       reference: %{result: reference_result},
+       readiness: %{
+         ready: readiness.ready,
+         required: readiness.required,
+         nativeAvailable: readiness.native_available,
+         reason: readiness.reason
+       }
+     }}
+  end
+
+  defp diagnostic_result({:error, error, execution}, _reference, _mode),
+    do: {:error, {:native_kernel, error.code, error.retryable, execution.implementation}}
+
+  defp diagnostic_result(_configured, {:error, error, _execution}, _mode),
+    do: {:error, {:reference_kernel, error.code}}
+
   defp encode_sequences(sequences) do
     Enum.reduce(sequences, <<>>, fn sequence, encoded ->
       if is_integer(sequence) and sequence >= 0 and sequence <= 18_446_744_073_709_551_615 do

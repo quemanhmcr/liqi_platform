@@ -32,6 +32,7 @@ defmodule Liqi.Web.PlatformProbeE2ETest do
 
     conn =
       build_conn()
+      |> put_req_header("x-liqi-probe-token", "liqi-test-probe-token")
       |> put_req_header("idempotency-key", "probe-#{probe_id}")
       |> post("/platform/v1/probes", %{"clientProbeId" => probe_id})
 
@@ -41,6 +42,7 @@ defmodule Liqi.Web.PlatformProbeE2ETest do
 
     duplicate =
       build_conn()
+      |> put_req_header("x-liqi-probe-token", "liqi-test-probe-token")
       |> put_req_header("idempotency-key", "probe-#{probe_id}")
       |> post("/platform/v1/probes", %{"clientProbeId" => probe_id})
 

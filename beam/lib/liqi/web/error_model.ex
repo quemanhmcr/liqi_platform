@@ -3,10 +3,12 @@ defmodule Liqi.Web.ErrorModel do
   import Plug.Conn, only: [get_req_header: 2]
 
   @messages %{
+    "auth.unauthorized" => "Authentication is required for this platform probe.",
     "validation.failed" => "The request is invalid.",
     "deadline.exceeded" => "The request deadline was exceeded.",
     "capacity.endpoint" => "The endpoint is at capacity.",
     "capacity.database" => "The database admission budget is exhausted.",
+    "capacity.native" => "The native call admission budget is exhausted.",
     "runtime.draining" => "The runtime is draining.",
     "runtime.unavailable" => "The runtime is temporarily unavailable.",
     "database.unavailable" => "The durable authority is unavailable.",

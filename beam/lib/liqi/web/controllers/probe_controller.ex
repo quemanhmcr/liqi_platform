@@ -6,7 +6,8 @@ defmodule Liqi.Web.ProbeController do
     timeout_ms = request_timeout(conn)
     idempotency_key = List.first(get_req_header(conn, "idempotency-key"))
 
-    with true <- Liqi.Runtime.Id.valid_uuid?(probe_id),
+    with :ok <- Liqi.Runtime.ProbeAuth.authorize_conn(conn),
+         true <- Liqi.Runtime.Id.valid_uuid?(probe_id),
          true <- valid_idempotency_key?(idempotency_key),
          {:ok, envelope} <-
            Liqi.Runtime.Envelope.new(
@@ -34,6 +35,9 @@ defmodule Liqi.Web.ProbeController do
         actorKey: "platform-probe:#{probe_id}"
       })
     else
+      {:error, :unauthorized} ->
+        render_error(conn, 401, "auth.unauthorized")
+
       false ->
         render_error(conn, 400, "validation.failed")
 
@@ -60,7 +64,12 @@ defmodule Liqi.Web.ProbeController do
     end
   end
 
-  def create(conn, _params), do: render_error(conn, 400, "validation.failed")
+  def create(conn, _params) do
+    case Liqi.Runtime.ProbeAuth.authorize_conn(conn) do
+      :ok -> render_error(conn, 400, "validation.failed")
+      {:error, :unauthorized} -> render_error(conn, 401, "auth.unauthorized")
+    end
+  end
 
   defp valid_idempotency_key?(value) when is_binary(value), do: byte_size(value) in 1..128
   defp valid_idempotency_key?(_), do: false

@@ -44,6 +44,9 @@
   "telemetry": {
     "endpoint": "http://127.0.0.1:4318"
   },
+  "security": {
+    "probeTokenRef": "systemd-credential://platform-probe-token"
+  },
   "shutdown": {
     "deadlineMs": 20000,
     "drainTokenRef": "systemd-credential://drain-token"

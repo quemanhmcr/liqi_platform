@@ -37,10 +37,45 @@ defmodule Liqi.Runtime.ContractSourceTest do
     refute dispatcher =~ "enqueue_outbox"
   end
 
+  test "operator probe authorization is explicit on HTTP and WebSocket seams" do
+    openapi = File.read!("contracts/openapi/platform-v1.yaml")
+    realtime = File.read!("contracts/realtime/gateway-v1.schema.json")
+
+    assert openapi =~ "ProbeToken"
+    assert openapi =~ "x-liqi-probe-token"
+    assert openapi =~ "/platform/v1/probes/native"
+    assert realtime =~ "x-liqi-probe-token"
+    assert realtime =~ "queryParametersForbidden"
+  end
+
   test "test fake is not a production default" do
     config = File.read!("beam/config/config.exs")
     prod = File.read!("beam/config/prod.exs")
     assert config =~ "persistence_adapter: Liqi.Persistence.PostgresV1"
     refute prod =~ "Liqi.Persistence.Fake"
+  end
+
+  test "release provider commands are direct, versioned, and fail closed" do
+    assert File.read!("rel/overlays/bin/liqi-health") == File.read!("beam/scripts/health.sh")
+    assert File.read!("rel/overlays/bin/liqi-drain") == File.read!("beam/scripts/drain.sh")
+
+    assert File.exists?("beam/scripts/validate-v1-source.sh")
+    assert File.exists?("beam/scripts/run-v1-integration.sh")
+    assert File.exists?("beam/scripts/verify-v1-release.sh")
+    assert File.exists?("docs/adr/1001-v1-provider-contract-mismatches.md")
+
+    source_gate = File.read!("beam/scripts/validate-v1-source.sh")
+    assert source_gate =~ "mix deps.get --locked"
+    assert source_gate =~ "shutil.rmtree('_build/test'"
+    refute source_gate =~ "deps.clean --all"
+
+    for path <- [
+          "contracts/runtime/runtime-source-result-v1.schema.json",
+          "contracts/runtime/runtime-integration-result-v1.schema.json",
+          "contracts/runtime/runtime-artifact-result-v1.schema.json",
+          "beam/release/mix-release-provider-v1.example.json"
+        ] do
+      assert {:ok, _} = path |> File.read!() |> Jason.decode()
+    end
   end
 end

@@ -3,7 +3,7 @@ defmodule Liqi.Web.DrainController do
 
   def create(conn, _params) do
     with {:ok, config} <- Liqi.Runtime.Config.load(),
-         {:ok, expected} <- Liqi.Persistence.SecretResolver.resolve_value(config.drain_token_ref),
+         {:ok, expected} <- Liqi.Runtime.SecretRef.resolve_value(config.drain_token_ref),
          provided when is_binary(provided) <- List.first(get_req_header(conn, "x-liqi-drain-token")),
          true <- secure_equal?(provided, expected),
          :ok <- Liqi.Runtime.Drain.begin() do

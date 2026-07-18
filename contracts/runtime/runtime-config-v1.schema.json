@@ -17,6 +17,7 @@
     "realtime",
     "native",
     "telemetry",
+    "security",
     "shutdown",
     "oban",
     "features"
@@ -311,6 +312,20 @@
         },
         "outboxWorker": {
           "type": "boolean"
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probeTokenRef"
+      ],
+      "properties": {
+        "probeTokenRef": {
+          "type": "string",
+          "pattern": "^(file|systemd-credential|oci-vault)://[^\\s]+$",
+          "maxLength": 2048
         }
       }
     }

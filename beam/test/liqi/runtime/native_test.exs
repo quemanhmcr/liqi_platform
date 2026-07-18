@@ -1,5 +1,6 @@
 defmodule Liqi.Runtime.NativeTest do
   use ExUnit.Case, async: false
+  import ExUnit.CaptureLog
 
   test "provider reference returns compact missing ranges" do
     old = Application.get_env(:liqi_platform, :runtime_config)
@@ -41,22 +42,24 @@ defmodule Liqi.Runtime.NativeTest do
       }
     )
 
-    assert :ok = Liqi.Native.Kernel.readiness()
-    assert {:ok, []} = Liqi.Native.Kernel.sequence_diff([1, 2], 0, 2)
+    capture_log(fn ->
+      assert :ok = Liqi.Native.Kernel.readiness()
+      assert {:ok, []} = Liqi.Native.Kernel.sequence_diff([1, 2], 0, 2)
 
-    Application.put_env(
-      :liqi_platform,
-      :runtime_config,
-      %Liqi.Runtime.Config{
-        environment: "test",
-        release_id: "test",
-        service_identity: "liqi-platform",
-        native_mode: :required
-      }
-    )
+      Application.put_env(
+        :liqi_platform,
+        :runtime_config,
+        %Liqi.Runtime.Config{
+          environment: "test",
+          release_id: "test",
+          service_identity: "liqi-platform",
+          native_mode: :required
+        }
+      )
 
-    assert {:error, {:native_unavailable, "NATIVE_UNAVAILABLE"}} =
-             Liqi.Native.Kernel.readiness()
+      assert {:error, {:native_unavailable, "NATIVE_UNAVAILABLE"}} =
+               Liqi.Native.Kernel.readiness()
+    end)
   end
 
   defp restore(nil), do: Application.delete_env(:liqi_platform, :runtime_config)

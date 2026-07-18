@@ -30,6 +30,7 @@ defmodule Liqi.Runtime.Config do
             telemetry_endpoint: nil,
             shutdown_deadline_ms: 20_000,
             drain_token_ref: nil,
+            probe_token_ref: nil,
             handoff_poll_interval_ms: 50,
             handoff_batch_size: 64,
             oban_concurrency: 4,
@@ -95,6 +96,7 @@ defmodule Liqi.Runtime.Config do
       telemetry_endpoint: value(map, ["telemetry", "endpoint"], nil),
       shutdown_deadline_ms: value(map, ["shutdown", "deadlineMs"], 20_000),
       drain_token_ref: value(map, ["shutdown", "drainTokenRef"], nil),
+      probe_token_ref: value(map, ["security", "probeTokenRef"], nil),
       oban_concurrency: value(map, ["oban", "concurrency"], 4),
       persistence_enabled: value(map, ["features", "persistence"], version == "1"),
       dispatcher_enabled: value(map, ["features", "realtimeDispatcher"], version == "1"),
@@ -139,6 +141,7 @@ defmodule Liqi.Runtime.Config do
       telemetry_endpoint: System.get_env("LIQI_TELEMETRY_ENDPOINT"),
       shutdown_deadline_ms: int_env("LIQI_SHUTDOWN_DEADLINE_MS", 20_000),
       drain_token_ref: System.get_env("LIQI_DRAIN_TOKEN_REF"),
+      probe_token_ref: System.get_env("LIQI_PROBE_TOKEN_REF"),
       oban_concurrency: int_env("LIQI_OBAN_CONCURRENCY", 4),
       persistence_enabled: bool_env("LIQI_START_PERSISTENCE", false),
       dispatcher_enabled: bool_env("LIQI_START_REALTIME_DISPATCHER", false),
@@ -198,6 +201,9 @@ defmodule Liqi.Runtime.Config do
 
       config.environment == "production" and not secret_ref?(config.drain_token_ref) ->
         {:error, :drain_token_reference_required}
+
+      config.environment == "production" and not secret_ref?(config.probe_token_ref) ->
+        {:error, :probe_token_reference_required}
 
       true ->
         {:ok, config}
