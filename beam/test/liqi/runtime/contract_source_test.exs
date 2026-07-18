@@ -84,7 +84,8 @@ defmodule Liqi.Runtime.ContractSourceTest do
 
     assert File.exists?("beam/scripts/validate-v1-source.sh")
     assert File.exists?("beam/scripts/run-v1-integration.sh")
-    refute File.exists?("beam/scripts/prepare_disposable_database.py")
+    assert File.exists?("beam/scripts/run_v1_integration.py")
+    assert File.exists?("beam/scripts/prepare_disposable_database.py")
     assert File.exists?("beam/scripts/verify-v1-release.sh")
     assert File.exists?("docs/adr/1001-v1-provider-contract-mismatches.md")
 
