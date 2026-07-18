@@ -1,0 +1,18 @@
+{
+  "schema_version": "cutover-policy-v1",
+  "phases": [
+    "shadow",
+    "internal-only",
+    "canary-route",
+    "limited-client-cohort",
+    "broader-cohort",
+    "v1-default",
+    "v0-rollback-window"
+  ],
+  "minimum_observation_seconds_per_promoted_phase": 1800,
+  "rollback_required_before_canary": true,
+  "v0_retained_through_window": true,
+  "big_bang_forbidden": true,
+  "simultaneous_runtime_policy": "Use dual runtime only when the aggregated 3 OCPU/20 GiB/180 GiB provider ceilings and mandatory reserves remain satisfied; otherwise use short overlap plus drain and resume-aware switch.",
+  "required_result_schema": "contracts/readiness/cutover-result-v1.schema.json"
+}

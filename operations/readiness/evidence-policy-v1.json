@@ -1,0 +1,97 @@
+{
+  "schema_version": "evidence-policy-v1",
+  "exact_binding_required": true,
+  "synthetic_evidence_allowed_for_final_verdict": false,
+  "blocked_is_passed": false,
+  "evidence": [
+    {
+      "kind": "capacity",
+      "schema": "contracts/readiness/capacity-result-v1.schema.json",
+      "provider_owner": "Senior 5",
+      "assurance_owner": "Senior 5",
+      "max_age_seconds": 86400
+    },
+    {
+      "kind": "platform-probe",
+      "schema": "contracts/readiness/live-platform-probe-v1.schema.json",
+      "provider_owner": "Senior 1",
+      "assurance_owner": "Senior 5",
+      "max_age_seconds": 3600
+    },
+    {
+      "kind": "load",
+      "schema": "contracts/readiness/load-result-v1.schema.json",
+      "provider_owner": "Senior 5",
+      "assurance_owner": "Senior 5",
+      "max_age_seconds": 86400
+    },
+    {
+      "kind": "reconnect",
+      "schema": "contracts/readiness/reconnect-storm-v1.schema.json",
+      "provider_owner": "Senior 5",
+      "assurance_owner": "Senior 5",
+      "max_age_seconds": 86400
+    },
+    {
+      "kind": "recovery",
+      "schema": "contracts/readiness/recovery-result-v1.schema.json",
+      "provider_owner": "Senior 2",
+      "assurance_owner": "Senior 5",
+      "max_age_seconds": 604800
+    },
+    {
+      "kind": "resilience",
+      "schema": "contracts/readiness/resilience-suite-result-v1.schema.json",
+      "provider_owner": "Senior 5",
+      "assurance_owner": "Senior 5",
+      "max_age_seconds": 604800
+    },
+    {
+      "kind": "security",
+      "schema": "contracts/readiness/security-result-v1.schema.json",
+      "provider_owner": "Senior 5",
+      "assurance_owner": "Senior 5",
+      "max_age_seconds": 86400
+    },
+    {
+      "kind": "cutover",
+      "schema": "contracts/readiness/cutover-result-v1.schema.json",
+      "provider_owner": "Senior 5",
+      "assurance_owner": "Senior 5",
+      "max_age_seconds": 3600
+    },
+    {
+      "kind": "rollback",
+      "schema": "contracts/readiness/rollback-result-v1.schema.json",
+      "provider_owner": "Senior 4",
+      "assurance_owner": "Senior 5",
+      "max_age_seconds": 604800
+    }
+  ],
+  "supporting_evidence": [
+    {
+      "kind": "compatibility",
+      "schema": "contracts/readiness/compatibility-result-v1.schema.json",
+      "max_age_seconds": 86400
+    },
+    {
+      "kind": "checkpoint",
+      "schema": "contracts/readiness/checkpoint-result-v1.schema.json",
+      "required_names": [
+        "source",
+        "integration",
+        "artifact",
+        "live-staging",
+        "promotion",
+        "cutover",
+        "post-cutover"
+      ],
+      "max_age_seconds": 86400
+    },
+    {
+      "kind": "oci-mutations",
+      "schema": "contracts/readiness/oci-mutation-log-v1.schema.json",
+      "max_age_seconds": 86400
+    }
+  ]
+}

@@ -1,0 +1,491 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/readiness/cutover-result-v1.schema.json",
+  "title": "LIQI traffic cutover result V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evidence_mode",
+    "git_sha",
+    "release_id",
+    "environment",
+    "cutover_id",
+    "phase",
+    "previous_phase",
+    "started_at",
+    "completed_at",
+    "status",
+    "traffic",
+    "preconditions",
+    "rollback",
+    "observation",
+    "correctness_events",
+    "evidence_bundle",
+    "approval",
+    "failures"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "cutover-result-v1"
+    },
+    "evidence_mode": {
+      "enum": [
+        "live",
+        "synthetic"
+      ]
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "environment": {
+      "const": "production"
+    },
+    "cutover_id": {
+      "type": "string",
+      "pattern": "^cutover-v1-[a-z0-9._-]{3,64}$"
+    },
+    "phase": {
+      "enum": [
+        "shadow",
+        "internal-only",
+        "canary-route",
+        "limited-client-cohort",
+        "broader-cohort",
+        "v1-default",
+        "v0-rollback-window"
+      ]
+    },
+    "previous_phase": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 64
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked",
+        "failed"
+      ]
+    },
+    "traffic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route",
+        "cohort",
+        "percent",
+        "session_drain_used",
+        "resume_aware_reconnect"
+      ],
+      "properties": {
+        "route": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "cohort": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "session_drain_used": {
+          "type": "boolean"
+        },
+        "resume_aware_reconnect": {
+          "type": "boolean"
+        }
+      }
+    },
+    "preconditions": {
+      "type": "array",
+      "minItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "status",
+          "evidence_ref"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "source",
+              "integration",
+              "artifact",
+              "live-staging",
+              "capacity",
+              "load-floor",
+              "reconnect-storm",
+              "recovery",
+              "security",
+              "rollback",
+              "approved-plan",
+              "exact-release-binding"
+            ]
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "blocked",
+              "failed"
+            ]
+          },
+          "evidence_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "target_release_id",
+        "result_ref"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "passed",
+            "blocked",
+            "failed"
+          ]
+        },
+        "target_release_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "result_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "duration_seconds",
+        "slo_status",
+        "api_errors",
+        "realtime_latency_p99_ms",
+        "resume_success_ratio",
+        "db_pool_wait_p99_ms",
+        "outbox_age_p99_ms",
+        "beam_run_queue_p99",
+        "native_p99_us",
+        "memory_growth_mib",
+        "disk_free_gib",
+        "security_events"
+      ],
+      "properties": {
+        "duration_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "slo_status": {
+          "enum": [
+            "passed",
+            "blocked",
+            "failed"
+          ]
+        },
+        "api_errors": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "realtime_latency_p99_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "resume_success_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "db_pool_wait_p99_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "outbox_age_p99_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "beam_run_queue_p99": {
+          "type": "number",
+          "minimum": 0
+        },
+        "native_p99_us": {
+          "type": "number",
+          "minimum": 0
+        },
+        "memory_growth_mib": {
+          "type": "number"
+        },
+        "disk_free_gib": {
+          "type": "number",
+          "minimum": 0
+        },
+        "security_events": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "correctness_events": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authorization_bypass",
+        "secret_exposure",
+        "duplicate_durable_identity",
+        "event_before_commit",
+        "durable_event_loss"
+      ],
+      "properties": {
+        "authorization_bypass": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "secret_exposure": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duplicate_durable_identity": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "event_before_commit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "durable_event_loss": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "evidence_bundle": {
+      "type": "array",
+      "minItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "status",
+          "git_sha",
+          "release_id",
+          "sha256",
+          "ref"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "platform-probe",
+              "load",
+              "reconnect",
+              "recovery",
+              "security",
+              "rollback",
+              "capacity",
+              "artifact",
+              "oci-plan"
+            ]
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "blocked",
+              "failed"
+            ]
+          },
+          "git_sha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "release_id": {
+            "type": "string",
+            "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approved",
+        "approved_by",
+        "approval_ref"
+      ],
+      "properties": {
+        "approved": {
+          "type": "boolean"
+        },
+        "approved_by": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "approval_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 512
+        }
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence_mode": {
+            "const": "live"
+          },
+          "traffic": {
+            "properties": {
+              "resume_aware_reconnect": {
+                "const": true
+              }
+            }
+          },
+          "preconditions": {
+            "items": {
+              "properties": {
+                "status": {
+                  "const": "passed"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            }
+          },
+          "rollback": {
+            "properties": {
+              "status": {
+                "const": "passed"
+              }
+            }
+          },
+          "observation": {
+            "properties": {
+              "duration_seconds": {
+                "minimum": 1800
+              },
+              "slo_status": {
+                "const": "passed"
+              },
+              "security_events": {
+                "const": 0
+              },
+              "disk_free_gib": {
+                "minimum": 20
+              }
+            }
+          },
+          "correctness_events": {
+            "properties": {
+              "authorization_bypass": {
+                "const": 0
+              },
+              "secret_exposure": {
+                "const": 0
+              },
+              "duplicate_durable_identity": {
+                "const": 0
+              },
+              "event_before_commit": {
+                "const": 0
+              },
+              "durable_event_loss": {
+                "const": 0
+              }
+            }
+          },
+          "evidence_bundle": {
+            "items": {
+              "properties": {
+                "status": {
+                  "const": "passed"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            }
+          },
+          "approval": {
+            "properties": {
+              "approved": {
+                "const": true
+              }
+            }
+          },
+          "failures": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
+}
