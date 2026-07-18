@@ -21,6 +21,4 @@ defmodule Liqi.Persistence.Adapter do
             ) :: {:ok, String.t()} | {:error, term()}
   @callback read_handoff(after_cursor :: non_neg_integer(), batch_size :: pos_integer()) ::
               {:ok, [map()]} | {:error, term()}
-  @callback observe_probe(probe_id :: String.t(), event_id :: String.t()) ::
-              {:ok, map()} | {:error, term()}
 end
