@@ -12,7 +12,9 @@ defmodule LiqiPersistence.RestoreProbe do
     required_migration = 8
 
     unless Regex.match?(~r/^[0-9a-f]{40}$/, git_sha), do: raise("invalid source Git SHA")
-    unless Regex.match?(~r/^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$/, release_id), do: raise("invalid release ID")
+
+    unless Regex.match?(~r/^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$/, release_id),
+      do: raise("invalid release ID")
 
     {:ok, _} = Application.ensure_all_started(:ecto_sql)
     {:ok, repo} = CommandRepo.start_link([])

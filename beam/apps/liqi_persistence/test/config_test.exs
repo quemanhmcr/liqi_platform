@@ -13,8 +13,14 @@ defmodule LiqiPersistence.ConfigTest do
     previous_password = System.get_env("LIQI_DATABASE_API_PASSWORD_FILE")
 
     on_exit(fn ->
-      if previous_socket, do: System.put_env("LIQI_DATABASE_SOCKET_DIR", previous_socket), else: System.delete_env("LIQI_DATABASE_SOCKET_DIR")
-      if previous_password, do: System.put_env("LIQI_DATABASE_API_PASSWORD_FILE", previous_password), else: System.delete_env("LIQI_DATABASE_API_PASSWORD_FILE")
+      if previous_socket,
+        do: System.put_env("LIQI_DATABASE_SOCKET_DIR", previous_socket),
+        else: System.delete_env("LIQI_DATABASE_SOCKET_DIR")
+
+      if previous_password,
+        do: System.put_env("LIQI_DATABASE_API_PASSWORD_FILE", previous_password),
+        else: System.delete_env("LIQI_DATABASE_API_PASSWORD_FILE")
+
       File.rm(path)
     end)
 
@@ -27,5 +33,4 @@ defmodule LiqiPersistence.ConfigTest do
     assert options[:username] == "liqi_api"
     assert options[:pool_size] == 12
   end
-
 end
