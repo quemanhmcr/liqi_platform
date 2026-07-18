@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 027
+
+if [[ "$(uname -m)" != "aarch64" ]]; then
+  echo "LIQI V1 runtime packages require aarch64" >&2
+  exit 1
+fi
+if ! grep -q '^PLATFORM_ID="platform:el9"' /etc/os-release; then
+  echo "LIQI V1 runtime packages require an Enterprise Linux 9 compatible image" >&2
+  exit 1
+fi
+
+readonly PGDG_REPO_URL='https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-aarch64/pgdg-redhat-repo-42.0-64.rhel9PGDG.noarch.rpm'
+readonly CADDY_VERSION='2.11.3'
+readonly CADDY_URL="https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_arm64.tar.gz"
+readonly CADDY_SHA512='bd06996e1612cf5e9770dc7134313067ef3fdfde43b1a2196004906006de779372dcf7a0e7c7fb0890c23791179f12be4625f1b6e666a2abf37e8aff4c3a1826'
+readonly OTEL_VERSION='0.156.0'
+readonly OTEL_URL="https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${OTEL_VERSION}/otelcol_${OTEL_VERSION}_linux_arm64.rpm"
+readonly OTEL_SHA256='c32b61c2ab0819312483425bf4a937c18bd1849704c89da909bc9bcd2cdf4c63'
+readonly WORKDIR='/var/tmp/liqi-runtime-install'
+readonly EVIDENCE='/var/lib/liqi/recovery/host-package-evidence-v1.json'
+
+install -d -m 0750 "$WORKDIR" /var/lib/liqi/recovery
+
+dnf -y install \
+  ca-certificates curl jq openssl tar gzip xz \
+  xfsprogs util-linux firewalld policycoreutils-python-utils \
+  oraclelinux-developer-release-el9 python3-jsonschema
+
+dnf -y install python39-oci-cli
+
+dnf -y install "$PGDG_REPO_URL"
+dnf -qy module disable postgresql || true
+dnf -y install   postgresql17-17.10   postgresql17-server-17.10   postgresql17-contrib-17.10   pgbouncer-1.25.2   pgbackrest-2.58.0
+
+if getent group liqi >/dev/null; then
+  [[ "$(getent group liqi | cut -d: -f3)" == "2200" ]]
+else
+  groupadd --system --gid 2200 liqi
+fi
+ensure_service_user() {
+  local name="$1" uid="$2"
+  if id "$name" >/dev/null 2>&1; then
+    [[ "$(id -u "$name")" == "$uid" && "$(id -gn "$name")" == "liqi" ]]
+  else
+    useradd --system --uid "$uid" --gid liqi --home-dir /nonexistent --shell /usr/sbin/nologin "$name"
+  fi
+}
+ensure_service_user liqi-deploy 2205
+ensure_service_user liqi-api 2210
+ensure_service_user liqi-realtime 2211
+ensure_service_user liqi-worker 2212
+ensure_service_user liqi-beam 2220
+if ! getent group caddy >/dev/null; then
+  groupadd --system caddy
+fi
+if ! id caddy >/dev/null 2>&1; then
+  useradd --system --gid caddy --home-dir /var/lib/caddy --shell /usr/sbin/nologin caddy
+fi
+
+/usr/local/libexec/liqi-prepare-data-volume
+
+curl --proto '=https' --tlsv1.2 --fail --location --retry 3 "$CADDY_URL" -o "$WORKDIR/caddy.tar.gz"
+printf '%s  %s\n' "$CADDY_SHA512" "$WORKDIR/caddy.tar.gz" | sha512sum --check --strict
+mkdir -p "$WORKDIR/caddy"
+tar --extract --gzip --file "$WORKDIR/caddy.tar.gz" --directory "$WORKDIR/caddy" --no-same-owner caddy
+install -o root -g root -m 0755 "$WORKDIR/caddy/caddy" /usr/bin/caddy
+[[ "$(/usr/bin/caddy version | cut -d' ' -f1)" == "v${CADDY_VERSION}" ]]
+
+curl --proto '=https' --tlsv1.2 --fail --location --retry 3 "$OTEL_URL" -o "$WORKDIR/otelcol.rpm"
+printf '%s  %s\n' "$OTEL_SHA256" "$WORKDIR/otelcol.rpm" | sha256sum --check --strict
+rpm --upgrade --replacepkgs "$WORKDIR/otelcol.rpm"
+
+install -d -o caddy -g caddy -m 0750 /var/lib/caddy /var/log/caddy /run/caddy
+install -d -o root -g liqi -m 0750 \
+  /opt/liqi /opt/liqi/releases /etc/liqi /etc/liqi/runtime /etc/liqi/secrets /etc/liqi/trust \
+  /run/liqi /run/liqi/secrets /run/liqi/secrets/beam /run/liqi/secrets/liqi-api /run/liqi/secrets/liqi-realtime /run/liqi/secrets/liqi-worker
+install -d -o postgres -g postgres -m 0700 /var/lib/liqi/postgresql
+install -d -o root -g liqi -m 0750 /var/lib/liqi/recovery
+
+systemctl disable --now postgresql-17.service pgbouncer.service >/dev/null 2>&1 || true
+/usr/bin/caddy validate --config /etc/caddy/Caddyfile
+/usr/bin/otelcol validate --config /etc/otelcol/config.yaml
+
+python3 - "$EVIDENCE" <<'PY'
+import json
+import platform
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+def run(*argv: str) -> str:
+    return subprocess.check_output(argv, text=True, stderr=subprocess.STDOUT).strip()
+
+packages = {}
+for name in ("postgresql17", "postgresql17-server", "postgresql17-contrib", "pgbouncer", "pgbackrest", "python39-oci-cli", "otelcol"):
+    packages[name] = run("rpm", "-q", "--qf", "%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}", name)
+
+doc = {
+    "schema_version": "liqi.infrastructure.host-package-evidence/v1",
+    "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    "architecture": platform.machine(),
+    "packages": packages,
+    "binaries": {
+        "caddy": run("/usr/bin/caddy", "version").split()[0],
+        "oci": run("/usr/bin/oci", "--version"),
+        "postgres": run("/usr/pgsql-17/bin/postgres", "--version"),
+        "pgbouncer": run("/usr/bin/pgbouncer", "--version").splitlines()[0],
+        "otelcol": run("/usr/bin/otelcol", "--version").splitlines()[0],
+    },
+}
+path = Path(sys.argv[1])
+tmp = path.with_suffix(".tmp")
+tmp.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+tmp.chmod(0o640)
+tmp.replace(path)
+PY
+
+rm -rf "$WORKDIR"

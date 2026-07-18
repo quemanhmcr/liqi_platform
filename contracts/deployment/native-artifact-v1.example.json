@@ -15,7 +15,8 @@
       "algorithm": "ed25519",
       "key_id": "native-signing-v1",
       "signature_filename": "libliqi_native_example.so.sig",
-      "signature_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "signature_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "signed_payload": "artifact-bytes"
     }
   },
   "load": {

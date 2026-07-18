@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+"""Emit fail-closed V1 host readiness evidence without changing host state."""
+from __future__ import annotations
+import argparse
+import json
+import os
+import re
+import stat
+import subprocess
+from datetime import datetime, timezone
+from pathlib import Path
+
+SERVICES = (
+    "liqi-beam.service",
+    "postgresql-17.service",
+    "pgbouncer.service",
+    "caddy.service",
+    "otelcol.service",
+)
+REQUIRED_ACTIVE = set(SERVICES) - {"liqi-beam.service"}
+FILESYSTEM = {
+    "release_root": "/opt/liqi/releases",
+    "current_symlink": "/opt/liqi/current",
+    "runtime_config_root": "/etc/liqi/runtime",
+    "secret_reference_root": "/etc/liqi/secrets",
+    "postgresql_root": "/var/lib/liqi/postgresql",
+    "recovery_root": "/var/lib/liqi/recovery",
+    "run_root": "/run/liqi",
+}
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--source-git-sha", default=os.environ.get("LIQI_INFRASTRUCTURE_GIT_SHA", "0" * 40))
+    return parser.parse_args()
+
+
+def command(*argv: str) -> tuple[int, str]:
+    result = subprocess.run(argv, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False, timeout=20)
+    return result.returncode, result.stdout.strip()
+
+
+def service_state(unit: str) -> dict[str, object]:
+    enabled_rc, enabled_out = command("systemctl", "is-enabled", unit)
+    active_rc, active_out = command("systemctl", "is-active", unit)
+    sub_rc, sub_out = command("systemctl", "show", "--property=SubState", "--value", unit)
+    return {
+        "unit": unit,
+        "enabled": enabled_rc == 0 and enabled_out == "enabled",
+        "active": active_rc == 0 and active_out == "active",
+        "substate": sub_out if sub_rc == 0 and sub_out else active_out or "unknown",
+    }
+
+
+def public_tcp_ports() -> list[int]:
+    rc, output = command("ss", "-H", "-lnt")
+    if rc != 0:
+        return []
+    ports: set[int] = set()
+    for line in output.splitlines():
+        fields = line.split()
+        if len(fields) < 4:
+            continue
+        address = fields[3]
+        host, _, port_text = address.rpartition(":")
+        host = host.strip("[]")
+        if host in {"127.0.0.1", "::1"}:
+            continue
+        if port_text.isdigit():
+            ports.add(int(port_text))
+    return sorted(ports)
+
+
+def release_id() -> str | None:
+    manifest = Path("/opt/liqi/current/deployment-manifest.json")
+    if not manifest.is_file():
+        return None
+    try:
+        value = json.loads(manifest.read_text(encoding="utf-8")).get("release_id")
+    except (OSError, json.JSONDecodeError):
+        return None
+    return value if isinstance(value, str) else None
+
+
+def main() -> int:
+    args = parse_args()
+    checks: list[dict[str, str]] = []
+    failed = False
+
+    sha_ok = bool(re.fullmatch(r"[0-9a-f]{40}", args.source_git_sha))
+    checks.append({"name": "source-git-sha", "status": "passed" if sha_ok else "failed", "detail": args.source_git_sha})
+    failed |= not sha_ok
+
+    for name, raw_path in FILESYSTEM.items():
+        path = Path(raw_path)
+        exists = path.is_symlink() if name == "current_symlink" else path.is_dir()
+        required = name != "current_symlink"
+        status = "passed" if exists or not required else "failed"
+        checks.append({"name": f"filesystem-{name.replace('_', '-')}", "status": status, "detail": raw_path})
+        failed |= required and not exists
+
+    package_evidence = Path("/var/lib/liqi/recovery/host-package-evidence-v1.json")
+    package_ok = package_evidence.is_file()
+    checks.append({"name": "package-evidence", "status": "passed" if package_ok else "failed", "detail": str(package_evidence)})
+    failed |= not package_ok
+
+    services = [service_state(unit) for unit in SERVICES]
+    for item in services:
+        if item["unit"] in REQUIRED_ACTIVE and not (item["enabled"] and item["active"]):
+            failed = True
+
+    selinux_rc, selinux_out = command("getenforce")
+    selinux_enforcing = selinux_rc == 0 and selinux_out == "Enforcing"
+    checks.append({"name": "selinux", "status": "passed" if selinux_enforcing else "failed", "detail": selinux_out or "unknown"})
+    failed |= not selinux_enforcing
+
+    ssh_rc, ssh_out = command("systemctl", "is-enabled", "sshd.service")
+    root_login_disabled = password_ssh_disabled = ssh_rc != 0 or ssh_out in {"disabled", "masked"}
+    checks.append({"name": "ssh-disabled", "status": "passed" if root_login_disabled else "failed", "detail": ssh_out or "not-enabled"})
+    failed |= not root_login_disabled
+
+    ports = public_tcp_ports()
+    ports_ok = set(ports).issubset({80, 443}) and 80 in ports
+    checks.append({"name": "public-listeners", "status": "passed" if ports_ok else "failed", "detail": json.dumps(ports)})
+    failed |= not ports_ok
+
+    world_writable: list[str] = []
+    for raw_path in ("/opt/liqi", "/etc/liqi", "/var/lib/liqi", "/run/liqi"):
+        path = Path(raw_path)
+        try:
+            mode = stat.S_IMODE(path.stat().st_mode)
+        except OSError:
+            continue
+        if mode & stat.S_IWOTH:
+            world_writable.append(raw_path)
+    failed |= bool(world_writable)
+
+    persistent_plaintext = [str(path) for path in Path("/etc/liqi/secrets").glob("*") if path.is_file() and path.suffix != ".json"]
+    failed |= bool(persistent_plaintext)
+
+    reserve_preserved = False
+    try:
+        memory_max = Path("/sys/fs/cgroup/liqi-platform.slice/memory.max").read_text().strip()
+        cpu_max = Path("/sys/fs/cgroup/liqi-platform.slice/cpu.max").read_text().strip().split()
+        reserve_preserved = memory_max == str(20 * 1024**3) and len(cpu_max) == 2
+    except OSError:
+        pass
+    checks.append({"name": "platform-capacity-bound", "status": "passed" if reserve_preserved else "failed", "detail": "CPUQuota=300%, MemoryMax=20G, swap=0 required"})
+    failed |= not reserve_preserved
+
+    document = {
+        "schema_version": "liqi.infrastructure.host-runtime/v1",
+        "release_id": release_id(),
+        "git_sha": args.source_git_sha,
+        "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "status": "not-ready" if failed else "ready",
+        "filesystem": FILESYSTEM,
+        "services": services,
+        "capacity": {
+            "parent_cpu_quota_percent": 300,
+            "parent_memory_max_mib": 20480,
+            "swap_capacity_mib": 0,
+            "reserve_preserved": reserve_preserved,
+        },
+        "security": {
+            "selinux_enforcing": selinux_enforcing,
+            "root_login_disabled": root_login_disabled,
+            "password_ssh_disabled": password_ssh_disabled,
+            "public_tcp_ports": ports,
+            "world_writable_runtime_paths": world_writable,
+            "plaintext_secret_files": persistent_plaintext,
+        },
+        "checks": checks,
+        "evidence_class": "live-read-only",
+    }
+
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = args.output.with_suffix(args.output.suffix + ".tmp")
+    temporary.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.chmod(temporary, 0o640)
+    temporary.replace(args.output)
+    print(json.dumps({"status": document["status"], "output": str(args.output)}))
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

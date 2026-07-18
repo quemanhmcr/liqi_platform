@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liqi.example/contracts/deployment/installed-release-v1.schema.json",
+  "title": "LIQI installed release evidence V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "release_id",
+    "git_sha",
+    "release_path",
+    "manifest_sha256",
+    "artifact_sha256",
+    "native_artifacts",
+    "descriptor_sha256",
+    "status",
+    "approval_reference",
+    "installed_at",
+    "mutation_performed"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "liqi.deployment.installed-release/v1"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "release_path": {
+      "type": "string",
+      "pattern": "^/opt/liqi/releases/"
+    },
+    "manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifact_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "native_artifacts": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "artifact_id",
+          "manifest_sha256",
+          "artifact_sha256",
+          "install_path",
+          "load_probe_status"
+        ],
+        "properties": {
+          "artifact_id": {
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "artifact_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "install_path": {
+            "type": "string",
+            "pattern": "^/opt/liqi/releases/"
+          },
+          "load_probe_status": {
+            "enum": [
+              "planned",
+              "passed"
+            ]
+          }
+        }
+      }
+    },
+    "descriptor_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "status": {
+      "enum": [
+        "planned",
+        "staged",
+        "failed"
+      ]
+    },
+    "approval_reference": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 256
+    },
+    "installed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "mutation_performed": {
+      "type": "boolean"
+    }
+  }
+}

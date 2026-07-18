@@ -11,11 +11,13 @@
     "version",
     "git_sha",
     "target_triple",
+    "manifest_signature",
     "artifact",
     "runtime",
     "configuration",
     "database_compatibility",
     "native_artifacts",
+    "rollback_target_release_id",
     "installation",
     "created_at"
   ],
@@ -72,7 +74,8 @@
             "algorithm",
             "key_id",
             "signature_filename",
-            "signature_sha256"
+            "signature_sha256",
+            "signed_payload"
           ],
           "properties": {
             "algorithm": {
@@ -89,6 +92,9 @@
             "signature_sha256": {
               "type": "string",
               "pattern": "^[0-9a-f]{64}$"
+            },
+            "signed_payload": {
+              "const": "artifact-bytes"
             }
           }
         }
@@ -283,6 +289,36 @@
     "created_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "manifest_signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "key_id",
+        "signature_filename",
+        "signed_payload"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "ed25519"
+        },
+        "key_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$"
+        },
+        "signature_filename": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\\.json\\.sig$"
+        },
+        "signed_payload": {
+          "const": "exact-manifest-bytes"
+        }
+      }
+    },
+    "rollback_target_release_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
     }
   }
 }

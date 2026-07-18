@@ -1,0 +1,24 @@
+#cloud-config
+preserve_hostname: false
+hostname: liqi-v1-live
+fqdn: liqi-v1-live.internal
+manage_etc_hosts: true
+package_update: false
+package_upgrade: false
+ssh_pwauth: false
+disable_root: true
+
+write_files:
+%{ for file in files ~}
+  - path: ${file.path}
+    owner: ${file.owner}
+    permissions: '${file.permissions}'
+    encoding: b64
+    content: ${base64encode(file.content)}
+%{ endfor ~}
+
+runcmd:
+  - [bash, -lc, 'LIQI_INFRASTRUCTURE_GIT_SHA=${source_git_sha} /usr/local/libexec/liqi-bootstrap-host']
+  - [bash, -lc, 'cloud-init status --long > /var/lib/liqi/recovery/cloud-init-status.txt || true']
+
+final_message: 'LIQI V1 baseline host bootstrap completed. Runtime bundle installation, database configuration, release staging, activation and traffic remain separately approval-gated.'

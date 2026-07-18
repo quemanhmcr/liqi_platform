@@ -1,0 +1,45 @@
+{
+  "schema_version": "liqi.deployment.release-target/v1",
+  "release_id": "liqi-v1-example",
+  "runtime_generation": "beam-v1",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "release_path": "/opt/liqi/releases/liqi-v1-example",
+  "source_manifest": {
+    "schema_version": "liqi.deployment.mix-release/v1",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "retained_path": "/var/lib/liqi/recovery/release-inputs/liqi-v1-example.json"
+  },
+  "services": [
+    {
+      "unit": "liqi-beam.service",
+      "start_order": 1,
+      "stop_timeout_seconds": 90
+    }
+  ],
+  "drain": {
+    "argv": [
+      "/usr/local/libexec/liqi-release-command",
+      "drain"
+    ],
+    "timeout_seconds": 60
+  },
+  "health": {
+    "argv": [
+      "/usr/local/libexec/liqi-release-command",
+      "health"
+    ],
+    "timeout_seconds": 60
+  },
+  "database_compatibility": {
+    "minimum_migration": 4,
+    "maximum_migration": 4,
+    "rollback_safe_through": 4,
+    "database_rollback_allowed": false
+  },
+  "rollback_target_release_id": "liqi-v0-example",
+  "configuration_paths": [
+    "/etc/liqi/runtime",
+    "/run/liqi/secrets/beam"
+  ],
+  "created_at": "2026-07-18T00:00:00Z"
+}

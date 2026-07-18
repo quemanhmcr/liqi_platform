@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+"""Execute validated Mix release lifecycle argv without shell evaluation."""
+from __future__ import annotations
+import argparse
+import json
+import os
+import subprocess
+from pathlib import Path
+
+CURRENT = Path("/opt/liqi/current")
+MANIFEST_NAME = "deployment-manifest.json"
+ALLOWED = {"preflight", "start", "stop", "drain", "health"}
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("action", choices=sorted(ALLOWED))
+    return parser.parse_args()
+
+
+def load_manifest() -> tuple[Path, dict[str, object]]:
+    if not CURRENT.is_symlink():
+        raise SystemExit("/opt/liqi/current is not an activation symlink")
+    release = CURRENT.resolve(strict=True)
+    release_root = Path("/opt/liqi/releases").resolve(strict=True)
+    if release.parent != release_root:
+        raise SystemExit("current release escapes /opt/liqi/releases")
+    manifest_path = release / MANIFEST_NAME
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("schema_version") != "liqi.deployment.mix-release/v1":
+        raise SystemExit("unsupported installed release manifest")
+    if manifest.get("installation", {}).get("release_directory") != str(release):
+        raise SystemExit("installed release directory does not match manifest")
+    return release, manifest
+
+
+def validated_argv(release: Path, manifest: dict[str, object], action: str) -> list[str]:
+    commands = manifest.get("runtime", {}).get("commands", {})
+    argv = commands.get(action)
+    if not isinstance(argv, list) or not argv or not all(isinstance(item, str) and item for item in argv):
+        raise SystemExit(f"missing validated argv for {action}")
+    executable = Path(argv[0])
+    if executable.is_absolute() or ".." in executable.parts:
+        raise SystemExit("release command executable must be a safe relative path")
+    resolved = (release / executable).resolve(strict=True)
+    if release not in resolved.parents:
+        raise SystemExit("release command executable escapes release directory")
+    if not os.access(resolved, os.X_OK):
+        raise SystemExit("release command executable is not executable")
+    return [str(resolved), *argv[1:]]
+
+
+def main() -> int:
+    args = parse_args()
+    release, manifest = load_manifest()
+    for action in ("start", "stop", "drain", "health"):
+        validated_argv(release, manifest, action)
+    if args.action == "preflight":
+        return 0
+    argv = validated_argv(release, manifest, args.action)
+    runtime = manifest["runtime"]
+    if args.action == "start":
+        os.chdir(release)
+        os.execv(argv[0], argv)
+    timeout_key = "drain_timeout_seconds" if args.action == "drain" else "health_timeout_seconds"
+    timeout = int(runtime.get(timeout_key, 60))
+    result = subprocess.run(argv, cwd=release, check=False, timeout=timeout)
+    return result.returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

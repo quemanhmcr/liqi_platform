@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 027
+
+: "${LIQI_INFRASTRUCTURE_GIT_SHA:?LIQI_INFRASTRUCTURE_GIT_SHA is required}"
+[[ "$LIQI_INFRASTRUCTURE_GIT_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+  echo "LIQI_INFRASTRUCTURE_GIT_SHA must be a lowercase Git SHA" >&2
+  exit 1
+}
+[[ "$(uname -m)" == "aarch64" ]] || {
+  echo "LIQI V1 host requires aarch64" >&2
+  exit 1
+}
+grep -q '^PLATFORM_ID="platform:el9"' /etc/os-release || {
+  echo "LIQI V1 host requires an Enterprise Linux 9 compatible image" >&2
+  exit 1
+}
+
+dnf -y install \
+  ca-certificates curl jq openssl tar gzip xz \
+  xfsprogs util-linux firewalld policycoreutils-python-utils \
+  oraclelinux-developer-release-el9
+dnf -y install python39-oci-cli
+
+ensure_group() {
+  local name="$1" gid="$2"
+  if getent group "$name" >/dev/null; then
+    [[ "$(getent group "$name" | cut -d: -f3)" == "$gid" ]]
+  else
+    groupadd --system --gid "$gid" "$name"
+  fi
+}
+
+ensure_user() {
+  local name="$1" uid="$2"
+  if id "$name" >/dev/null 2>&1; then
+    [[ "$(id -u "$name")" == "$uid" ]]
+    [[ "$(id -gn "$name")" == "liqi" ]]
+  else
+    useradd --system --uid "$uid" --gid liqi --home-dir /nonexistent --shell /usr/sbin/nologin "$name"
+  fi
+}
+
+ensure_group liqi 2200
+ensure_user liqi-deploy 2205
+ensure_user liqi-api 2210
+ensure_user liqi-realtime 2211
+ensure_user liqi-worker 2212
+ensure_user liqi-beam 2220
+
+install -d -o root -g liqi -m 0750 /opt/liqi /opt/liqi/releases /etc/liqi /etc/liqi/runtime /etc/liqi/secrets /etc/liqi/trust
+install -d -o root -g liqi -m 0750 /run/liqi /run/liqi/secrets /run/liqi/secrets/beam /run/liqi/secrets/liqi-api /run/liqi/secrets/liqi-realtime /run/liqi/secrets/liqi-worker
+
+/usr/local/libexec/liqi-prepare-data-volume
+
+systemctl mask --now sshd.service sshd.socket >/dev/null 2>&1 || true
+systemctl enable --now firewalld.service
+firewall-cmd --permanent --remove-service=ssh >/dev/null 2>&1 || true
+firewall-cmd --permanent --add-service=http
+firewall-cmd --permanent --add-service=https
+firewall-cmd --reload
+
+install -d -o root -g liqi -m 0750 /var/lib/liqi/recovery
+python3 - "$LIQI_INFRASTRUCTURE_GIT_SHA" <<'PY'
+import json
+import platform
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+def output(*argv: str) -> str:
+    return subprocess.check_output(argv, text=True, stderr=subprocess.STDOUT).strip()
+
+doc = {
+    "schema_version": "liqi.infrastructure.host-bootstrap-evidence/v1",
+    "git_sha": sys.argv[1],
+    "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    "architecture": platform.machine(),
+    "oci_cli": output("/usr/bin/oci", "--version"),
+    "data_mount": output("findmnt", "--noheadings", "--output", "SOURCE,FSTYPE,OPTIONS", "/var/lib/liqi"),
+    "ssh_enabled": subprocess.run(["systemctl", "is-enabled", "sshd.service"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0,
+    "public_firewall_services": sorted(output("firewall-cmd", "--list-services").split()),
+    "runtime_installation": "pending-approved-host-bundle",
+}
+path = Path("/var/lib/liqi/recovery/host-bootstrap-evidence-v1.json")
+tmp = path.with_suffix(".tmp")
+tmp.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+tmp.chmod(0o640)
+tmp.replace(path)
+PY

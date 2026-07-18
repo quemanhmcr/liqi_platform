@@ -1,0 +1,58 @@
+{
+	admin off
+	persist_config off
+	email ${acme_email}
+	servers {
+		timeouts {
+			read_header 10s
+			read_body 30s
+			idle 5m
+		}
+		max_header_size 32KB
+		0rtt off
+	}
+}
+
+${hostname} {
+	log {
+		format json
+	}
+
+	@admin path /admin /admin/* /debug /debug/* /metrics
+	respond @admin 404
+
+	request_body {
+		max_size 1MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+		-Server
+	}
+
+	@public_liveness path /health/live
+	handle @public_liveness {
+		reverse_proxy 127.0.0.1:4000 {
+			transport http {
+				dial_timeout 2s
+				response_header_timeout 3s
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:4000 {
+			transport http {
+				dial_timeout 3s
+				response_header_timeout 30s
+				keepalive 30s
+				keepalive_idle_conns_per_host 64
+				max_conns_per_host 4096
+			}
+			stream_close_delay 5m
+		}
+	}
+}

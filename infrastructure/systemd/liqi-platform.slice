@@ -1,0 +1,14 @@
+[Unit]
+Description=LIQI V1 bounded platform slice
+Before=slices.target
+
+[Slice]
+CPUAccounting=yes
+MemoryAccounting=yes
+TasksAccounting=yes
+CPUQuota=300%
+CPUWeight=100
+MemoryHigh=18G
+MemoryMax=20G
+MemorySwapMax=0
+TasksMax=8192

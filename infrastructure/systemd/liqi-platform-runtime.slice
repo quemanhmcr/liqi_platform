@@ -1,0 +1,15 @@
+[Unit]
+Description=LIQI retained V0 Rust runtime slice
+Before=slices.target
+
+[Slice]
+Slice=liqi-platform.slice
+CPUAccounting=yes
+MemoryAccounting=yes
+TasksAccounting=yes
+CPUQuota=145%
+CPUWeight=150
+MemoryHigh=6G
+MemoryMax=7G
+MemorySwapMax=0
+TasksMax=1536

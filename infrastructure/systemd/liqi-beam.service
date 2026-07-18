@@ -1,0 +1,57 @@
+[Unit]
+Description=LIQI Phoenix/BEAM V1 release
+Requires=liqi-host-readiness.service liqi-secrets.service pgbouncer.service
+After=network-online.target liqi-host-readiness.service liqi-secrets.service pgbouncer.service
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=exec
+Slice=liqi-beam.slice
+User=liqi-beam
+Group=liqi
+EnvironmentFile=/etc/liqi/runtime/beam.env
+Environment=LIQI_CREDENTIALS_DIRECTORY=/run/liqi/secrets/beam
+RuntimeDirectory=liqi/beam
+RuntimeDirectoryMode=0750
+ExecStartPre=/usr/local/libexec/liqi-release-command preflight
+ExecStart=/usr/local/libexec/liqi-release-command start
+ExecStop=/usr/local/libexec/liqi-release-command drain
+ExecStop=/usr/local/libexec/liqi-release-command stop
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=90s
+TimeoutStopSec=90s
+KillSignal=SIGTERM
+FinalKillSignal=SIGKILL
+SendSIGKILL=yes
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadOnlyPaths=/opt/liqi/current /etc/liqi/runtime
+ReadWritePaths=/run/liqi/beam
+TasksMax=4096
+LimitNOFILE=65536
+OOMPolicy=stop
+
+[Install]
+WantedBy=multi-user.target
