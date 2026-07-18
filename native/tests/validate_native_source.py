@@ -216,6 +216,7 @@ def validate_semantics() -> list[str]:
         ROOT / "native" / "scripts" / "run-v1-safety-gates.sh",
         ROOT / "native" / "scripts" / "run_v1_safety_gates.py",
         ROOT / "native" / "scripts" / "prepare_deployment_manifest.py",
+        ROOT / "native" / "scripts" / "verify_deployment_manifest.py",
         ROOT / "native" / "tests" / "test_deployment_manifest.py",
         ROOT / "contracts" / "native" / "native-safety-result-v1.schema.json",
     ):
