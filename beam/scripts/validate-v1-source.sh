@@ -55,10 +55,10 @@ else
   checks+=("clean_worktree_state:passed")
 fi
 run_check deps_get -- mix deps.get
-run_check deps_compile --env MIX_ENV=test -- mix deps.compile --skip-umbrella-children
 run_check format -- mix format --check-formatted
 run_check locked_dependencies --env MIX_ENV=test -- mix deps.get --locked
 run_check clean_build -- python -c "import shutil; shutil.rmtree('_build/test', ignore_errors=True)"
+run_check deps_compile --env MIX_ENV=test -- mix deps.compile --force --skip-umbrella-children
 run_check compile --env MIX_ENV=test -- mix compile --warnings-as-errors
 run_check tests --env MIX_ENV=test -- mix test --seed 0
 run_check live_probe_compile -- python -m py_compile beam/bin/platform-probe beam/scripts/platform_probe.py beam/tests/test_platform_probe.py
