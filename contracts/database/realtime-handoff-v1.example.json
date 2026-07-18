@@ -24,5 +24,10 @@
     "pruneBatchMaximum": 500,
     "watermarkDurable": true
   },
-  "delivery": "at-least-once-idempotent-consumer"
+  "delivery": "at-least-once-idempotent-consumer",
+  "consumerAliases": {
+    "actor_key": "aggregate_key",
+    "payload_type": "event_type",
+    "payload_version": "event_version"
+  }
 }

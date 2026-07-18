@@ -16,7 +16,9 @@
     "transactionPolicy",
     "timeoutPolicy",
     "capacity",
-    "migrationPolicy"
+    "migrationPolicy",
+    "callableSeams",
+    "consumerIntegration"
   ],
   "properties": {
     "$schema": {
@@ -45,6 +47,7 @@
         "ectoSql",
         "postgrex",
         "oban",
+        "decimal",
         "pgbouncerMode",
         "v0ReadCompatibility"
       ],
@@ -53,10 +56,10 @@
           "const": 17
         },
         "ectoSql": {
-          "pattern": "^>=3\\.13,<4\\.0$"
+          "pattern": "^>=3\\.14,<3\\.15$"
         },
         "postgrex": {
-          "pattern": "^>=0\\.20,<0\\.21$"
+          "pattern": "^>=0\\.22\\.3,<0\\.23$"
         },
         "oban": {
           "pattern": "^>=2\\.23,<2\\.24$"
@@ -66,6 +69,9 @@
         },
         "v0ReadCompatibility": {
           "const": true
+        },
+        "decimal": {
+          "pattern": "^>=3\\.0,<4\\.0$"
         }
       }
     },
@@ -342,6 +348,167 @@
         "runtimeStartupMigration": {
           "const": false
         }
+      }
+    },
+    "callableSeams": {
+      "const": {
+        "readiness": {
+          "signature": "platform.database_readiness_v1(bigint,integer)",
+          "roles": [
+            "liqi_api",
+            "liqi_realtime",
+            "liqi_worker",
+            "liqi_readonly",
+            "liqi_monitor",
+            "liqi_backup"
+          ],
+          "resultColumns": [
+            "ready",
+            "write_ready",
+            "reason",
+            "current_version",
+            "expected_version",
+            "oban_migration_version",
+            "expected_oban_migration_version",
+            "in_recovery"
+          ]
+        },
+        "requestProbe": {
+          "signature": "platform.request_probe_v1(uuid,uuid,text,text,text,bigint,timestamptz,uuid,uuid,jsonb,timestamptz,jsonb)",
+          "roles": [
+            "liqi_api"
+          ],
+          "resultColumns": [
+            "probe_id",
+            "event_id",
+            "aggregate_version",
+            "handoff_cursor",
+            "duplicate",
+            "status",
+            "outcome"
+          ],
+          "errors": {
+            "idempotencyConflict": "LQ001",
+            "staleAggregateVersion": "LQ002"
+          }
+        },
+        "observeProbe": {
+          "signature": "platform.observe_probe_v1(uuid,uuid)",
+          "roles": [
+            "liqi_api",
+            "liqi_readonly",
+            "liqi_monitor",
+            "liqi_backup"
+          ],
+          "resultColumns": [
+            "probe_id",
+            "event_id",
+            "aggregate_version",
+            "probe_status",
+            "outbox_state",
+            "effect_applied",
+            "handoff_cursor",
+            "terminal",
+            "observed_at"
+          ],
+          "errors": {
+            "notFound": "empty-result",
+            "identityMismatch": "LQ003"
+          }
+        },
+        "claimOutbox": {
+          "signature": "platform.claim_outbox_v1(text,integer,integer)",
+          "roles": [
+            "liqi_worker"
+          ],
+          "resultColumns": [
+            "event_id",
+            "claim_token",
+            "attempt_no",
+            "protocol_version",
+            "message_id",
+            "correlation_id",
+            "causation_id",
+            "trace_context",
+            "deadline_at",
+            "actor_key",
+            "aggregate_key",
+            "priority",
+            "payload_type",
+            "event_type",
+            "payload_version",
+            "event_version",
+            "ordering_key",
+            "occurred_at",
+            "producer",
+            "payload",
+            "metadata",
+            "lease_expires_at"
+          ]
+        },
+        "applyProbeEffect": {
+          "signature": "platform.apply_probe_effect_and_ack_v1(uuid,uuid,text)",
+          "roles": [
+            "liqi_worker"
+          ],
+          "result": "status-text"
+        },
+        "failOutbox": {
+          "signature": "platform.fail_outbox_v1(uuid,uuid,text,text,timestamptz)",
+          "roles": [
+            "liqi_worker"
+          ],
+          "result": "status-text"
+        },
+        "readHandoff": {
+          "signature": "platform.read_realtime_handoff_v1(bigint,integer)",
+          "roles": [
+            "liqi_realtime"
+          ],
+          "resultColumns": [
+            "handoff_id",
+            "event_id",
+            "protocol_version",
+            "message_id",
+            "correlation_id",
+            "causation_id",
+            "trace_context",
+            "deadline_at",
+            "actor_key",
+            "aggregate_key",
+            "priority",
+            "payload_type",
+            "event_type",
+            "payload_version",
+            "event_version",
+            "ordering_key",
+            "occurred_at",
+            "producer",
+            "payload",
+            "metadata",
+            "recorded_at"
+          ],
+          "errors": {
+            "cursorGap": "LQ004"
+          }
+        }
+      }
+    },
+    "consumerIntegration": {
+      "const": {
+        "module": "LiqiPersistence.RuntimeAdapter",
+        "callbacks": [
+          "readiness/1",
+          "request_probe/1",
+          "observe_probe/2",
+          "claim_probe_events/2",
+          "apply_probe_effect/3",
+          "fail_event/5",
+          "read_handoff/2"
+        ],
+        "repoOwnership": "runtime-configured-single-pool-set",
+        "commandIdentity": "consumer-module-event_id/1",
+        "providerStartupDefault": "disabled-until-runtime-owner-configures-supervision"
       }
     }
   }

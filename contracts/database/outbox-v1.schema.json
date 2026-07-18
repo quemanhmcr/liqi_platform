@@ -14,7 +14,8 @@
     "deadLetter",
     "retention",
     "envelope",
-    "terminalEffects"
+    "terminalEffects",
+    "consumerAliases"
   ],
   "properties": {
     "$schema": {
@@ -137,7 +138,8 @@
         "fields",
         "maximumPayloadBytes",
         "maximumMetadataBytes",
-        "maximumTraceContextBytes"
+        "maximumTraceContextBytes",
+        "deadlineSemantics"
       ],
       "properties": {
         "protocolVersion": {
@@ -166,11 +168,42 @@
         },
         "maximumTraceContextBytes": {
           "const": 2048
+        },
+        "deadlineSemantics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "consumerUnit",
+            "storedType",
+            "conversionOwner",
+            "expiredCommandAdmission"
+          ],
+          "properties": {
+            "consumerUnit": {
+              "const": "unix-epoch-milliseconds"
+            },
+            "storedType": {
+              "const": "timestamptz"
+            },
+            "conversionOwner": {
+              "const": "LiqiPersistence.RuntimeAdapter"
+            },
+            "expiredCommandAdmission": {
+              "const": "reject-before-transaction"
+            }
+          }
         }
       }
     },
     "terminalEffects": {
       "const": "consumer-must-be-idempotent-before-ack"
+    },
+    "consumerAliases": {
+      "const": {
+        "actor_key": "aggregate_key",
+        "payload_type": "event_type",
+        "payload_version": "event_version"
+      }
     }
   }
 }

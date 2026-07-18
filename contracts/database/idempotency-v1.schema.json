@@ -9,7 +9,9 @@
     "authority",
     "scope",
     "key",
+    "requestFingerprint",
     "serialization",
+    "fingerprint",
     "requestConflict",
     "aggregateVersion",
     "retention",
@@ -122,6 +124,51 @@
     },
     "outcome": {
       "const": "stored-json-and-event-identity-returned-on-duplicate"
+    },
+    "fingerprint": {
+      "const": {
+        "source": "consumer-supplied-logical-command",
+        "algorithm": "sha256",
+        "encoding": "lowercase-hex",
+        "length": 64,
+        "storage": "validated-verbatim"
+      }
+    },
+    "requestFingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "encoding",
+        "length",
+        "ownership",
+        "input",
+        "databaseBehavior",
+        "interoperability"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "sha256"
+        },
+        "encoding": {
+          "const": "lowercase-hex"
+        },
+        "length": {
+          "const": 64
+        },
+        "ownership": {
+          "const": "consumer-command-module"
+        },
+        "input": {
+          "const": "consumer-versioned-stable-command-representation"
+        },
+        "databaseBehavior": {
+          "const": "opaque-exact-compare"
+        },
+        "interoperability": {
+          "const": "not-a-cross-language-canonical-json-contract"
+        }
+      }
     }
   }
 }
