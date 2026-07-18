@@ -1,0 +1,28 @@
+{
+  "$schema": "./realtime-handoff-v1.schema.json",
+  "contractVersion": "realtime-handoff-v1",
+  "source": "committed-outbox-projection",
+  "visibility": "after-producer-transaction-commit",
+  "cursor": {
+    "type": "int64",
+    "scope": "v1-handoff-stream",
+    "allocation": "gap-free-commit-ordered-singleton-lock",
+    "resumeComparison": "strictly-greater-than"
+  },
+  "read": {
+    "defaultBatch": 64,
+    "maximumBatch": 128,
+    "ordering": "handoff_id-ascending"
+  },
+  "gapRepair": {
+    "detection": "cursor-before-retained-watermark",
+    "errorCode": "LQ004",
+    "recovery": "authority-resync-then-resume-at-current-watermark"
+  },
+  "retention": {
+    "days": 7,
+    "pruneBatchMaximum": 500,
+    "watermarkDurable": true
+  },
+  "delivery": "at-least-once-idempotent-consumer"
+}

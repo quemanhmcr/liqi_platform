@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/database/recovery-status-v1.schema.json",
+  "title": "LIQI Database Recovery Status V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "sourceRevision",
+    "releaseId",
+    "migrationVersion",
+    "requiredMigrationVersion",
+    "backup",
+    "restore",
+    "targets",
+    "observedAt"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "recovery-status-v1"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked",
+        "failed"
+      ]
+    },
+    "sourceRevision": {
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "releaseId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "migrationVersion": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "requiredMigrationVersion": {
+      "const": 8
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "repositoryFormat",
+        "latestBackupAt",
+        "latestWalArchivedAt",
+        "metadataChecksumVerified",
+        "freshnessSeconds"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "passed",
+            "blocked",
+            "failed"
+          ]
+        },
+        "repositoryFormat": {
+          "const": "pgbackrest-encrypted-s3-v0"
+        },
+        "latestBackupAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "latestWalArchivedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "metadataChecksumVerified": {
+          "type": "boolean"
+        },
+        "freshnessSeconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "restore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "verifiedAt",
+        "durationSeconds",
+        "restoredSourceRevision",
+        "restoredMigrationVersion",
+        "invariantsPassed"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "passed",
+            "blocked",
+            "failed"
+          ]
+        },
+        "verifiedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "durationSeconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "restoredSourceRevision": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "restoredMigrationVersion": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "invariantsPassed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rpoSeconds",
+        "rtoSeconds"
+      ],
+      "properties": {
+        "rpoSeconds": {
+          "const": 300
+        },
+        "rtoSeconds": {
+          "const": 3600
+        }
+      }
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

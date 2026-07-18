@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/database/idempotency-v1.schema.json",
+  "title": "LIQI Command Idempotency V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "authority",
+    "scope",
+    "key",
+    "serialization",
+    "requestConflict",
+    "aggregateVersion",
+    "retention",
+    "outcome"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "contractVersion": {
+      "const": "idempotency-v1"
+    },
+    "authority": {
+      "const": "platform.command_idempotency_v1"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimumLength",
+        "maximumLength",
+        "format"
+      ],
+      "properties": {
+        "minimumLength": {
+          "const": 1
+        },
+        "maximumLength": {
+          "const": 96
+        },
+        "format": {
+          "const": "lowercase-dot-dash-colon"
+        }
+      }
+    },
+    "key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimumLength",
+        "maximumLength",
+        "caseSensitive"
+      ],
+      "properties": {
+        "minimumLength": {
+          "const": 1
+        },
+        "maximumLength": {
+          "const": 128
+        },
+        "caseSensitive": {
+          "const": true
+        }
+      }
+    },
+    "serialization": {
+      "const": "transaction-advisory-lock-by-scope-and-key"
+    },
+    "requestConflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sameFingerprint",
+        "differentFingerprint"
+      ],
+      "properties": {
+        "sameFingerprint": {
+          "const": "return-original-durable-outcome"
+        },
+        "differentFingerprint": {
+          "const": "LQ001"
+        }
+      }
+    },
+    "aggregateVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected",
+        "success",
+        "stale"
+      ],
+      "properties": {
+        "expected": {
+          "const": "client-supplied"
+        },
+        "success": {
+          "const": "increment-by-one"
+        },
+        "stale": {
+          "const": "LQ002"
+        }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "days",
+        "pruneBatchMaximum"
+      ],
+      "properties": {
+        "days": {
+          "const": 30
+        },
+        "pruneBatchMaximum": {
+          "const": 500
+        }
+      }
+    },
+    "outcome": {
+      "const": "stored-json-and-event-identity-returned-on-duplicate"
+    }
+  }
+}
