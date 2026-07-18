@@ -189,6 +189,23 @@ def validate_semantics() -> list[str]:
             },
         )
     )
+    failures.extend(
+        require_text(
+            ROOT / "native" / "scripts" / "prepare_deployment_manifest.py",
+            {
+                "single artifact identity": r'artifact SHA256 differs from the provider manifest',
+                "deployment Ed25519 verification": r'openssl.*pkeyutl|pkeyutl',
+                "distribution-free load probe": r'"bin/liqi_platform", "eval"',
+                "release install path": r'lib/liqi_native-1\.0\.0/priv/native/libliqi_sequence_diff_nif\.so',
+            },
+        )
+    )
+    failures.extend(
+        reject_text(
+            ROOT / "native" / "scripts" / "prepare_deployment_manifest.py",
+            {"distribution RPC": r'"rpc"'},
+        )
+    )
     for required_path in (
         ROOT / "native" / "fuzz" / "fuzz_targets" / "sequence_diff_parity.rs",
         ROOT / "native" / "sequence-diff-core" / "tests" / "differential.rs",
@@ -196,6 +213,12 @@ def validate_semantics() -> list[str]:
         ROOT / "native" / "elixir" / "lib" / "liqi" / "native" / "benchmark" / "sequence_diff.ex",
         ROOT / "native" / "bench" / "run-a1-nif-benchmark.exs",
         ROOT / "native" / "bench" / "validate_benchmark.py",
+        ROOT / "native" / "scripts" / "run-v1-safety-gates.sh",
+        ROOT / "native" / "scripts" / "run_v1_safety_gates.py",
+        ROOT / "native" / "scripts" / "prepare_deployment_manifest.py",
+        ROOT / "native" / "scripts" / "verify_deployment_manifest.py",
+        ROOT / "native" / "tests" / "test_deployment_manifest.py",
+        ROOT / "contracts" / "native" / "native-safety-result-v1.schema.json",
     ):
         if not required_path.is_file():
             failures.append(f"missing safety evidence provider: {required_path.relative_to(ROOT)}")
@@ -226,7 +249,7 @@ def main() -> int:
                 {
                     "validation": "native-source-v1",
                     "status": "passed",
-                    "schemas": 6,
+                    "schemas": 7,
                     "live_documents": 2,
                     "artifact_state": "pending",
                     "live_a1_state": "pending",

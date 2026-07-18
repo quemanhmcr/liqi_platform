@@ -231,9 +231,9 @@
       "required_environment": [],
       "timeout_seconds": 1800,
       "result_schema": null,
-      "action_required": "Run the Rust-only source gate on the integrated SHA. A Linux ARM64 Rustler target check and direct A1 evidence remain separate requirements.",
+      "action_required": "Run the Rust-only source gate on the integrated exact SHA. Linux additionally checks the Rustler AArch64 target; non-Linux output remains explicit and does not claim ARM64 evidence.",
       "provider_branch": "v1/native-rustler",
-      "provider_commit": "7478e31a4de48e278f0d08885bfaab56d5d88762"
+      "provider_commit": "ca71a1be6914a33db22544802f704084f3346af5"
     },
     {
       "id": "native-safety",
@@ -242,10 +242,15 @@
       "stages": [
         "integration"
       ],
-      "provider_state": "pending-provider-publication",
+      "provider_state": "available",
       "mutation_class": "build",
       "required_paths": [
-        "native/scripts/run-v1-safety-gates.sh"
+        "native/scripts/run-v1-safety-gates.sh",
+        "native/scripts/run_v1_safety_gates.py",
+        "native/tests/run-source-validation.sh",
+        "native/fuzz/run-fuzz.sh",
+        "native/tests/test_deployment_manifest.py",
+        "contracts/native/native-safety-result-v1.schema.json"
       ],
       "argv": [
         "bash",
@@ -255,15 +260,15 @@
       ],
       "required_environment": [],
       "timeout_seconds": 3600,
-      "result_schema": null,
-      "action_required": "Publish exact property/fuzz/panic/fallback/benchmark evidence for the V1 native kernels.",
+      "result_schema": "contracts/native/native-safety-result-v1.schema.json",
+      "action_required": "Run on Linux with Rust 1.97.1, OTP 28.5.0.3, Elixir 1.20.2-otp-28, nightly cargo-fuzz and no tracked source changes. Missing or mismatched toolchains must not be accepted as passed evidence.",
       "provider_branch": "v1/native-rustler",
-      "provider_commit": null
+      "provider_commit": "ca71a1be6914a33db22544802f704084f3346af5"
     },
     {
       "id": "native-artifact",
       "owner": "Senior 3",
-      "seam": "native/scripts/verify_artifact.py --manifest",
+      "seam": "native/scripts/verify_deployment_manifest.py --native-manifest --deployment-manifest --trust-dir",
       "stages": [
         "artifact"
       ],
@@ -271,22 +276,30 @@
       "mutation_class": "build",
       "required_paths": [
         "native/scripts/verify_artifact.py",
-        "contracts/native/native-artifact-v1.schema.json"
+        "native/scripts/verify_deployment_manifest.py",
+        "contracts/native/native-artifact-v1.schema.json",
+        "contracts/deployment/native-artifact-v1.schema.json"
       ],
       "argv": [
         "python",
-        "native/scripts/verify_artifact.py",
-        "--manifest",
-        "{env:LIQI_NATIVE_MANIFEST}"
+        "native/scripts/verify_deployment_manifest.py",
+        "--native-manifest",
+        "{env:LIQI_NATIVE_MANIFEST}",
+        "--deployment-manifest",
+        "{env:LIQI_NATIVE_DEPLOYMENT_MANIFEST}",
+        "--trust-dir",
+        "{env:LIQI_NATIVE_TRUST_DIR}"
       ],
       "required_environment": [
-        "LIQI_NATIVE_MANIFEST"
+        "LIQI_NATIVE_MANIFEST",
+        "LIQI_NATIVE_DEPLOYMENT_MANIFEST",
+        "LIQI_NATIVE_TRUST_DIR"
       ],
       "timeout_seconds": 1800,
       "result_schema": null,
-      "action_required": "Supply the signed ARM64 native manifest, artifact, SBOM, provenance and Sigstore bundle; verification availability does not claim artifact production.",
+      "action_required": "Provide the verified Sigstore provider manifest, the Ed25519 deployment manifest/signature and approved public-key directory for the same ARM64 artifact. Missing artifact inputs remain blocked evidence.",
       "provider_branch": "v1/native-rustler",
-      "provider_commit": "7478e31a4de48e278f0d08885bfaab56d5d88762"
+      "provider_commit": "ca71a1be6914a33db22544802f704084f3346af5"
     },
     {
       "id": "infrastructure-source",

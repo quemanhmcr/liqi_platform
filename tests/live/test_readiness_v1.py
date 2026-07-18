@@ -40,8 +40,9 @@ class ReadinessV1Tests(unittest.TestCase):
    'runtime-artifact':'15e2dd5a263decb91308a0d1783c4610bd7dc62d',
    'database-source':'168f6b3be66ff36eac4b4944f8d6940b6d2026ce',
    'database-integration':'168f6b3be66ff36eac4b4944f8d6940b6d2026ce',
-   'native-source':'7478e31a4de48e278f0d08885bfaab56d5d88762',
-   'native-artifact':'7478e31a4de48e278f0d08885bfaab56d5d88762',
+   'native-source':'ca71a1be6914a33db22544802f704084f3346af5',
+   'native-safety':'ca71a1be6914a33db22544802f704084f3346af5',
+   'native-artifact':'ca71a1be6914a33db22544802f704084f3346af5',
    'infrastructure-source':'f4b4563b0d6a5a3dd02c4ffb2a9915c6fb270aad',
   }
   for ident,commit in expected_available.items():

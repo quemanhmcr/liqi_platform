@@ -1,0 +1,28 @@
+{
+  "schema_version": "native-safety-result-v1",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "status": "passed",
+  "started_at": "2026-07-18T00:00:00Z",
+  "completed_at": "2026-07-18T00:05:00Z",
+  "toolchain": {
+    "rust": "rustc 1.97.1",
+    "cargo": "cargo 1.97.1",
+    "elixir": "Elixir 1.20.2",
+    "otp": "28",
+    "rustler": "0.38.0",
+    "nif_abi": "2.15"
+  },
+  "checks": [
+    {"id": "contracts", "status": "passed", "command": ["python", "contracts/native/validate_contracts.py"], "duration_ms": 1, "log_ref": ".artifacts/native-safety/contracts.log"},
+    {"id": "source", "status": "passed", "command": ["bash", "native/tests/run-source-validation.sh"], "duration_ms": 1, "log_ref": ".artifacts/native-safety/source.log"},
+    {"id": "nif-release", "status": "passed", "command": ["cargo", "+1.97.1", "build", "--profile", "nif-release"], "duration_ms": 1, "log_ref": ".artifacts/native-safety/nif-release.log"},
+    {"id": "runtime-native", "status": "passed", "command": ["mix", "test", "beam/test/liqi/runtime/native_test.exs"], "duration_ms": 1, "log_ref": ".artifacts/native-safety/runtime-native.log"},
+    {"id": "fallback-diagnostic", "status": "passed", "command": ["mix", "test", "beam/test/liqi/web/probe_auth_test.exs"], "duration_ms": 1, "log_ref": ".artifacts/native-safety/fallback-diagnostic.log"},
+    {"id": "deployment-adapter", "status": "passed", "command": ["python", "-m", "unittest", "native.tests.test_deployment_manifest"], "duration_ms": 1, "log_ref": ".artifacts/native-safety/deployment-adapter.log"},
+    {"id": "fuzz", "status": "passed", "command": ["bash", "native/fuzz/run-fuzz.sh"], "duration_ms": 1, "log_ref": ".artifacts/native-safety/fuzz.log"},
+    {"id": "secret-scan", "status": "passed", "command": ["python", "scripts/operations/scan_repository_secrets.py"], "duration_ms": 1, "log_ref": ".artifacts/native-safety/secret-scan.log"}
+  ],
+  "fuzz_seconds": 300,
+  "property_cases": 2000,
+  "failures": []
+}
