@@ -55,7 +55,7 @@ EXPECTED_SCENARIOS = {
 EXPECTED_GATES = {
     "runtime-source", "runtime-integration", "runtime-artifact", "runtime-live-probe",
     "database-source", "database-integration", "database-recovery",
-    "native-source", "native-safety", "native-artifact",
+    "native-source", "native-safety", "native-artifact", "deployment-artifact",
     "infrastructure-source", "infrastructure-plan", "host-readiness", "rollback-evidence",
 }
 FORBIDDEN_COMMANDS = (

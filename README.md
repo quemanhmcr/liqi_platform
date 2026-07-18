@@ -5,7 +5,7 @@
 ## Runtime generations
 
 - **V0 rollback target:** Rust runtime and its versioned V0 operations contracts remain retained during the V1 migration window.
-- **V1 target:** Phoenix HTTP/WebSocket → Elixir/OTP actors → Ecto/Postgrex → PostgreSQL/outbox/Oban → bounded Rustler kernels or isolated Rust processes.
+- **V1 target:** Phoenix HTTP/WebSocket â†’ Elixir/OTP actors â†’ Ecto/Postgrex â†’ PostgreSQL/outbox/Oban â†’ bounded Rustler kernels or isolated Rust processes.
 
 V1 is a production-shaped single-node deployment on `VM.Standard.A1.Flex` with 4 OCPU, 24 GiB RAM and at most 200 GiB combined storage. It is not multi-AZ HA, active-active, automatic failover, zero-downtime or exactly-once end-to-end.
 
@@ -13,8 +13,8 @@ Mandatory reserve:
 
 ```text
 Host:       4 OCPU / 24 GiB / 200 GiB
-Providers: ≤3 OCPU / 20 GiB / 180 GiB
-Reserve:   ≥1 OCPU /  4 GiB /  20 GiB
+Providers: â‰¤3 OCPU / 20 GiB / 180 GiB
+Reserve:   â‰¥1 OCPU /  4 GiB /  20 GiB
 ```
 
 Swap is not counted as capacity.
@@ -39,13 +39,13 @@ The control plane validates provider output; it does not reproduce Phoenix, data
 
 ```text
 provider evidence
-→ exact SHA/release compatibility
-→ capacity
-→ load/reconnect/resilience
-→ restore and rollback
-→ security and mutation approvals
-→ phased cutover/post-cutover observation
-→ one final verdict
+â†’ exact SHA/release compatibility
+â†’ capacity
+â†’ load/reconnect/resilience
+â†’ restore and rollback
+â†’ security and mutation approvals
+â†’ phased cutover/post-cutover observation
+â†’ one final verdict
 ```
 
 The only passing final verdict is:
@@ -81,7 +81,7 @@ python scripts/operations/validate_ci_workflows.py
 python scripts/operations/scan_repository_secrets.py
 ```
 
-Collect a source checkpoint without pretending unpublished provider branches exist:
+Collect the strict source checkpoint for the integrated provider graph:
 
 ```bash
 SHA="$(git rev-parse HEAD)"
@@ -89,11 +89,10 @@ RELEASE_ID="liqi-v1-source-${SHA:0:12}"
 python operations/bin/run_provider_gates_v1.py \
   --stage source \
   --release-id "$RELEASE_ID" \
-  --output .artifacts/v1/checkpoints/source.json \
-  --allow-blocked
+  --output .artifacts/v1/checkpoints/source.json
 ```
 
-`blocked` is useful owner-attributed evidence during provider publication, but it is never a production pass.
+The source checkpoint is strict after provider integration. Later artifact/live checkpoints remain fail-closed until exact-release evidence exists.
 
 ## Load and recovery
 

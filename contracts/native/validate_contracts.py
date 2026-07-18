@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the six Senior 3 native schemas and published source-ready documents."""
+"""Validate Senior 3 native schemas and published source-ready documents."""
 
 from __future__ import annotations
 
@@ -24,6 +24,7 @@ PAIRS = (
     ("native-artifact-v1.schema.json", "native-artifact-v1.example.json"),
     ("native-benchmark-v1.schema.json", "native-benchmark-v1.example.json"),
     ("rust-port-protocol-v1.schema.json", "rust-port-protocol-v1.example.json"),
+    ("native-safety-result-v1.schema.json", "native-safety-result-v1.example.json"),
 )
 
 LIVE_DOCUMENTS = (
