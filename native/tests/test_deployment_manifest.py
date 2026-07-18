@@ -50,6 +50,12 @@ class DeploymentManifestTest(unittest.TestCase):
                 result["artifact"]["install_relative_path"],
             )
             self.assertEqual(["bin/liqi_platform", "eval"], result["load"]["probe_command"][:2])
+            self.assertIs(result["compatibility_adapter"], True)
+            self.assertEqual(
+                "contracts/native/native-artifact-v1.schema.json",
+                result["provider_contract"],
+            )
+            self.assertEqual(MODULE.REMOVAL_CONDITION, result["removal_condition"])
             self.assertEqual([], VERIFY.binding_failures(provider, result))
 
     def test_cross_binding_rejects_distribution_rpc(self) -> None:
@@ -63,6 +69,21 @@ class DeploymentManifestTest(unittest.TestCase):
             deployment = MODULE.deployment_document(provider, artifact, signature, "native-signing-v1")
             deployment["load"]["probe_command"] = ["bin/liqi_platform", "rpc", "bad"]
             self.assertIn("distribution-free", "; ".join(VERIFY.binding_failures(provider, deployment)))
+
+    def test_cross_binding_rejects_compatibility_lifecycle_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            artifact = root / "libliqi_sequence_diff_nif.so"
+            signature = root / "libliqi_sequence_diff_nif.so.sig"
+            artifact.write_bytes(b"artifact")
+            signature.write_bytes(b"signature")
+            provider = self.provider_manifest(artifact)
+            deployment = MODULE.deployment_document(provider, artifact, signature, "native-signing-v1")
+            deployment["removal_condition"] = "Keep forever despite the direct provider contract."
+            self.assertIn(
+                "removal condition",
+                "; ".join(VERIFY.binding_failures(provider, deployment)),
+            )
 
     def test_rejects_artifact_identity_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

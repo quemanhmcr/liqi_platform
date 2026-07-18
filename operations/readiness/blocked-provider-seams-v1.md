@@ -1,6 +1,6 @@
 # V1 provider integration and remaining evidence seams
 
-The committed runtime, database, native and infrastructure source graph is integrated on `v1/production-readiness`. Provider command publication is complete for source, disposable database/runtime integration, native safety, release/native artifact verification and the runtime live probe. `available` means invokable; it does not mean passed evidence exists.
+The committed runtime, database, native and infrastructure provider graph is integrated on the composite V1 branch. Provider command publication is complete for source, disposable database/runtime integration, native safety, release/native artifact verification and the runtime live probe. `available` means invokable; it does not mean passed evidence exists.
 
 ## Integrated provider commands
 

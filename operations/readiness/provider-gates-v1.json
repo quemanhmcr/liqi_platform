@@ -236,7 +236,7 @@
       "result_schema": null,
       "action_required": "Run the Rust-only source gate on the exact integrated SHA. Non-Linux output must not claim Linux ARM64 evidence.",
       "provider_branch": "v1/native-rustler",
-      "provider_commit": "ca71a1be6914a33db22544802f704084f3346af5"
+      "provider_commit": "c73a4d15f366bc6675c36458642d3911a58a42fb"
     },
     {
       "id": "native-safety",
@@ -266,7 +266,7 @@
       "result_schema": "contracts/native/native-safety-result-v1.schema.json",
       "action_required": "Run on Linux with Rust 1.97.1, OTP 28.5.0.3, Elixir 1.20.2-otp-28, nightly cargo-fuzz and no tracked changes. A schema-valid blocked result remains blocked, never passed.",
       "provider_branch": "v1/native-rustler",
-      "provider_commit": "ca71a1be6914a33db22544802f704084f3346af5"
+      "provider_commit": "c73a4d15f366bc6675c36458642d3911a58a42fb"
     },
     {
       "id": "native-artifact",
@@ -302,7 +302,7 @@
       "result_schema": null,
       "action_required": "Provide the verified Sigstore provider manifest, Ed25519 deployment manifest/signature and approved public-key directory for the same Linux ARM64 artifact and exact release.",
       "provider_branch": "v1/native-rustler",
-      "provider_commit": "ca71a1be6914a33db22544802f704084f3346af5"
+      "provider_commit": "c73a4d15f366bc6675c36458642d3911a58a42fb"
     },
     {
       "id": "deployment-artifact",
@@ -382,7 +382,7 @@
       "required_environment": [],
       "timeout_seconds": 900,
       "result_schema": null,
-      "action_required": "Run the final direct-deployment source/contract validator on the exact composite SHA. It performs no OCI or host mutation.",
+      "action_required": "Run the integrated source/build-contract validator on the exact composite SHA. It performs no OCI or host mutation and does not replace plan, host, activation or rollback evidence.",
       "provider_branch": "v1/oci-live-runtime",
       "provider_commit": "ca99b7d14816cd051fce15a54accdeb17276096d"
     },

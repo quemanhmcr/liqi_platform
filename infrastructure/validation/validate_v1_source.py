@@ -192,9 +192,20 @@ def validate_static_policy() -> None:
             if token not in provider_text:
                 raise AssertionError(f"{provider_path} does not consume committed provider seam {token}")
     deployment_native = json.loads((ROOT / "contracts/deployment/native-artifact-v1.schema.json").read_text(encoding="utf-8"))
-    expected_native_fields = {"schema_version", "artifact_id", "git_sha", "artifact", "load", "safety"}
+    expected_native_fields = {
+        "schema_version", "artifact_id", "git_sha", "artifact", "load", "safety",
+        "compatibility_adapter", "provider_contract", "removal_condition",
+    }
     if not expected_native_fields.issubset(set(deployment_native.get("required", []))):
         raise AssertionError("deployment native handoff schema is missing provider-owned adapter fields")
+    properties = deployment_native["properties"]
+    if properties["compatibility_adapter"].get("const") is not True:
+        raise AssertionError("deployment native handoff must remain an explicit compatibility adapter")
+    if properties["provider_contract"].get("const") != "contracts/native/native-artifact-v1.schema.json":
+        raise AssertionError("deployment native handoff must reference the Senior 3 provider contract")
+    expected_removal = "Remove after Senior 5 and external consumers stop registering this compatibility adapter for one release window."
+    if properties["removal_condition"].get("const") != expected_removal:
+        raise AssertionError("deployment native handoff removal condition differs from the provider lifecycle")
 
     bundle_targets = {record[1] for record in __import__("infrastructure.deployment.build_host_bundle", fromlist=["FILES"]).FILES}
     for target in (

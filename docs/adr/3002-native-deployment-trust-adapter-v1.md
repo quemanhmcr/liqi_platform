@@ -22,13 +22,14 @@ It:
 4. emits `liqi.deployment.native-artifact/v1` without copying, signing or modifying the artifact;
 5. installs only at `lib/liqi_native-1.0.0/priv/native/libliqi_sequence_diff_nif.so`;
 6. uses `bin/liqi_platform eval`, not distributed Erlang RPC, for the load probe;
-7. preserves the pure Elixir fallback and `LIQI_NATIVE_MODE` feature control.
+7. preserves the pure Elixir fallback and `LIQI_NATIVE_MODE` feature control;
+8. marks the deployment document as a compatibility adapter, references the Senior 3 provider contract, and carries the Senior 4-owned one-release-window removal condition.
 
 The Ed25519 private key remains outside Senior 3 ownership. Senior 4 or an approved signing job supplies the signature and public-key identity. The adapter logs no key material or payload.
 
 ## Compatibility
 
-The change is additive. Both manifests share one source revision and artifact SHA-256. Existing Sigstore verification remains mandatory, and Senior 4's staging verifier remains unchanged.
+The change is additive. Both manifests share one source revision and artifact SHA-256. Existing Sigstore verification remains mandatory. The deployment document is a deprecated compatibility record rather than a competing production artifact authority, and its lifecycle metadata is verified against Senior 4's final contract.
 
 ## Migration and rollback
 

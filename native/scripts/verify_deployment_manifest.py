@@ -17,6 +17,11 @@ NATIVE_SCHEMA = ROOT / "contracts" / "native" / "native-artifact-v1.schema.json"
 DEPLOYMENT_SCHEMA = ROOT / "contracts" / "deployment" / "native-artifact-v1.schema.json"
 PROVIDER_VERIFIER = ROOT / "native" / "scripts" / "verify_artifact.py"
 EXPECTED_INSTALL_PATH = "lib/liqi_native-1.0.0/priv/native/libliqi_sequence_diff_nif.so"
+EXPECTED_PROVIDER_CONTRACT = "contracts/native/native-artifact-v1.schema.json"
+EXPECTED_REMOVAL_CONDITION = (
+    "Remove after Senior 5 and external consumers stop registering this compatibility "
+    "adapter for one release window."
+)
 
 
 def load(path: Path) -> Any:
@@ -77,6 +82,12 @@ def binding_failures(native: dict[str, Any], deployment: dict[str, Any]) -> list
     for name, expected in expected_safety.items():
         if safety.get(name) != expected:
             failures.append(f"deployment safety field {name} must equal {expected!r}")
+    if deployment.get("compatibility_adapter") is not True:
+        failures.append("deployment native handoff must remain an explicit compatibility adapter")
+    if deployment.get("provider_contract") != EXPECTED_PROVIDER_CONTRACT:
+        failures.append("deployment native handoff must reference the Senior 3 provider contract")
+    if deployment.get("removal_condition") != EXPECTED_REMOVAL_CONDITION:
+        failures.append("deployment native handoff removal condition differs from the approved lifecycle")
     return failures
 
 

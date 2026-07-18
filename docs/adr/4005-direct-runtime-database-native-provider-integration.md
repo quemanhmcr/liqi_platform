@@ -56,7 +56,7 @@ The signed Mix manifest references the deployment manifest checksum. Senior 4's 
 
 `infrastructure/deployment/authorize_native_artifact.py` is the protected build-time provider for the offline authorization. It first verifies the Senior 3 Sigstore artifact, signs the unchanged `.so` bytes with the Senior 4 Ed25519 deployment key, invokes the Senior 3 adapter and full verifier, and emits `native-authorization-result-v1`. The command performs no OCI mutation and never installs or loads the NIF.
 
-The adapter can be removed only through a versioned contract that preserves both Sigstore provenance and offline host authorization. Senior 3 owns provider identity and safety fields; Senior 4 owns the protected deployment signing key and immutable host installation.
+The deployment document remains an explicit compatibility adapter and records `contracts/native/native-artifact-v1.schema.json` as its provider contract. Its removal condition is fixed: remove it only after Senior 5 and external consumers stop registering the adapter for one release window. Any replacement must preserve both Sigstore provenance and offline host authorization. Senior 3 owns provider identity, safety fields and the adapter lifecycle; Senior 4 owns the protected deployment signing key and immutable host installation.
 
 ## Trade-offs
 

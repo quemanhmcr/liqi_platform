@@ -26,6 +26,11 @@ DEPLOYMENT_SCHEMA = ROOT / "contracts" / "deployment" / "native-artifact-v1.sche
 PROVIDER_VERIFIER = ROOT / "native" / "scripts" / "verify_artifact.py"
 ARTIFACT_ID = "liqi-sequence-diff-nif-v1"
 INSTALL_RELATIVE_PATH = "lib/liqi_native-1.0.0/priv/native/libliqi_sequence_diff_nif.so"
+PROVIDER_CONTRACT = "contracts/native/native-artifact-v1.schema.json"
+REMOVAL_CONDITION = (
+    "Remove after Senior 5 and external consumers stop registering this compatibility "
+    "adapter for one release window."
+)
 KEY_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{2,63}$")
 FILE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
@@ -159,6 +164,9 @@ def deployment_document(
             "fuzz_tests_passed": True,
         },
         "created_at": native_manifest["built_at"],
+        "compatibility_adapter": True,
+        "provider_contract": PROVIDER_CONTRACT,
+        "removal_condition": REMOVAL_CONDITION,
     }
 
 
