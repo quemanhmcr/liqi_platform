@@ -118,6 +118,37 @@ def main() -> int:
             readiness_step = step_by_name.get("Assemble source integration readiness")
             if not isinstance(readiness_step, dict) or readiness_step.get("if") != "always()":
                 failures.append(f"{relative}: source readiness composition must run with if: always()")
+
+        if path.name == "v1-source-readiness.yml":
+            for required in (
+                "operations/bin/validate_readiness_v1.py",
+                "--stage source",
+                "--stage integration",
+                "--stage artifact",
+                "--allow-disposable-database",
+                "tests/load/v1-floor.js",
+                "tests/load/reconnect-storm-v1.js",
+            ):
+                if required not in text:
+                    failures.append(f"{relative}: V1 source workflow is missing stage seam {required}")
+            if "--allow-blocked" not in text:
+                failures.append(f"{relative}: source/integration/artifact CI must retain owner-attributed blocked evidence")
+        if path.name == "v1-live-readiness.yml":
+            triggers = workflow.get("on")
+            if not isinstance(triggers, dict) or "workflow_dispatch" not in triggers or "push" in triggers or "pull_request" in triggers:
+                failures.append(f"{relative}: V1 live readiness must be manual-only")
+            for required in (
+                "environment: v1-${{ inputs.environment }}",
+                "--allow-live-read-only",
+                "restore_approval_ref",
+                "actions/download-artifact@",
+                "operations/bin/compose_readiness_v1.py",
+                "v1-readiness-result.json",
+            ):
+                if required not in text:
+                    failures.append(f"{relative}: V1 live workflow is missing protected seam {required}")
+            if "--allow-blocked" in text or "--allow-not-ready" in text:
+                failures.append(f"{relative}: protected live readiness cannot tolerate blocked or not-ready results")
         if "provider-integration" in path.name:
             triggers = workflow.get("on")
             if not isinstance(triggers, dict) or "workflow_dispatch" not in triggers or "push" in triggers:

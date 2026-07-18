@@ -1,92 +1,140 @@
 # LIQI Platform
 
-Self-owned backend platform for LIQI on Oracle Cloud Infrastructure. V0 establishes a deployable, observable and recoverable foundation; it does not implement the LIQI business engine.
+`liqi_platform` is the backend platform for LIQI on Oracle Cloud Infrastructure. PostgreSQL is the durable authority; runtime process state, PubSub/Presence, native kernels and workers are rebuildable coordination or acceleration layers.
 
-## Repository boundary
+## Runtime generations
 
-- `liqi_match`: mobile client and client-side adapters.
-- `liqi_platform`: Rust services, PostgreSQL authority, OCI infrastructure source, security controls and operations control plane.
-- OCI CLI configuration, PEM files, tokens, database passwords and signing keys remain outside Git.
+- **V0 rollback target:** Rust runtime and its versioned V0 operations contracts remain retained during the V1 migration window.
+- **V1 target:** Phoenix HTTP/WebSocket → Elixir/OTP actors → Ecto/Postgrex → PostgreSQL/outbox/Oban → bounded Rustler kernels or isolated Rust processes.
 
-## V0 runtime envelope
+V1 is a production-shaped single-node deployment on `VM.Standard.A1.Flex` with 4 OCPU, 24 GiB RAM and at most 200 GiB combined storage. It is not multi-AZ HA, active-active, automatic failover, zero-downtime or exactly-once end-to-end.
 
-```text
-OCI VM.Standard.A1.Flex â€” 4 OCPU / 24 GiB RAM
-â”œâ”€â”€ PostgreSQL authority
-â”œâ”€â”€ PgBouncer
-â”œâ”€â”€ Rust API
-â”œâ”€â”€ Rust realtime gateway
-â”œâ”€â”€ Rust worker
-â”œâ”€â”€ TLS/reverse proxy edge
-â”œâ”€â”€ OpenTelemetry Collector
-â””â”€â”€ host observability
-```
-
-PostgreSQL is the only durable authority. V0 is a health-gated single-node replacement/restart design, not HA or zero-downtime canary. Default-enabled steady-state CPU admission cannot exceed 3 OCPU, preserving 1 OCPU for the host/recovery path. Process hard CPU ceilings may total at most the physical 4 OCPU for bounded bursts; hard memory remains capped at 20 GiB and hard local disk at 180 GiB, preserving 4 GiB RAM and 20 GiB disk.
-
-## Operational golden path
+Mandatory reserve:
 
 ```text
-clean source
-â†’ operations/provider contract validation
-â†’ deterministic release manifest
-â†’ deployment specification and preflight
-â†’ liveness + readiness + platform-probe health gate
-â†’ activation or bounded rollback
-â†’ telemetry, SLO and recovery freshness evidence
+Host:       4 OCPU / 24 GiB / 200 GiB
+Providers: ≤3 OCPU / 20 GiB / 180 GiB
+Reserve:   ≥1 OCPU /  4 GiB /  20 GiB
 ```
 
-Provider logic is never reproduced in CI. Missing provider seams produce an owner-attributed `blocked` integration result. Source CI may tolerate blocked seams during the V0 checkpoint grace period; manual integration and promotion gates are strict and contain no mock fallback.
+Swap is not counted as capacity.
 
-## Senior 4 validation
+## V1 readiness control plane
 
-Install the pinned Python control-plane dependencies:
+Senior 5 owns the fail-closed control plane under:
+
+```text
+.github/**
+operations/**
+contracts/operations/**
+contracts/readiness/**
+tests/load/**
+tests/resilience/**
+tests/recovery/**
+tests/live/**
+docs/adr/50xx-*.md
+```
+
+The control plane validates provider output; it does not reproduce Phoenix, database, native or infrastructure logic.
+
+```text
+provider evidence
+→ exact SHA/release compatibility
+→ capacity
+→ load/reconnect/resilience
+→ restore and rollback
+→ security and mutation approvals
+→ phased cutover/post-cutover observation
+→ one final verdict
+```
+
+The only passing final verdict is:
+
+```text
+V1 PRODUCTION-SHAPED ON OCI
+```
+
+Any missing, blocked, stale, synthetic, release-mismatched or failed required evidence produces:
+
+```text
+V1 NOT READY
+```
+
+## Source validation
+
+Install the pinned control-plane dependency set:
 
 ```bash
 python -m pip install -r operations/ci/requirements-v0.txt
 ```
 
-Run source controls:
+Run V1 source gates:
 
 ```bash
-python scripts/operations/validate_contracts.py
-python scripts/operations/validate_provider_registry.py --allow-pending
-python scripts/operations/validate_dependency_policy.py
-python scripts/operations/validate_operability_catalog.py
-python scripts/operations/validate_telemetry_runtime.py
-python scripts/operations/validate_provider_compatibility.py --output .artifacts/provider-compatibility.json --allow-missing
-python scripts/operations/collect_provider_capacity.py --output .artifacts/provider-capacity.json --allow-blocked
-python scripts/operations/assemble_source_readiness.py --provider-result .artifacts/provider-source-result.json --compatibility-result .artifacts/provider-compatibility-result.json --capacity-result .artifacts/provider-capacity-result.json --output .artifacts/source-integration-readiness-v0.json --allow-blocked
+python operations/bin/validate_readiness_v1.py
+python -m unittest discover -s tests/live -p 'test_*.py' -v
+python -m unittest discover -s tests/recovery -p 'test_*.py' -v
+python -m unittest discover -s tests/resilience -p 'test_*.py' -v
+node --check tests/load/v1-floor.js
+node --check tests/load/reconnect-storm-v1.js
 python scripts/operations/validate_ci_workflows.py
 python scripts/operations/scan_repository_secrets.py
-python scripts/release/validate_supply_chain_evidence.py --manifest <manifest.json> --sbom <release.spdx.json> --provenance <release.intoto.jsonl> --output <result.json>
-python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-Run provider source gates without pretending missing branches are available:
+Collect a source checkpoint without pretending unpublished provider branches exist:
 
 ```bash
-python scripts/operations/run_provider_gates.py \
+SHA="$(git rev-parse HEAD)"
+RELEASE_ID="liqi-v1-source-${SHA:0:12}"
+python operations/bin/run_provider_gates_v1.py \
   --stage source \
-  --environment development \
-  --output .artifacts/provider-source-result.json \
+  --release-id "$RELEASE_ID" \
+  --output .artifacts/v1/checkpoints/source.json \
   --allow-blocked
 ```
 
-The manual GitHub provider integration workflow performs no OCI apply, host activation or production deployment. Paid/unknown resources, OCI mutations and build/release execution require explicit project-owner approval.
+`blocked` is useful owner-attributed evidence during provider publication, but it is never a production pass.
 
-The promotion form requires both `oci_plan_run_id` and `database_recovery_run_id`. The OCI artifact contains exactly one `oci-plan.json` produced by `tofu show -json`. The database artifact follows `operations/integration/database-recovery-evidence-v0.md`. Senior 4 downloads and validates both but never creates/applies the plan or performs backup/restore.
+## Load and recovery
 
-Host activation remains an owner-run command. First run `scripts/release/activate_release.py` without `--execute`; execution requires the reviewed deployment-spec SHA-256 and approval reference. Recovery exercises follow the same dry-run-first rule through `scripts/operations/run_recovery_exercise.py`.
+`tests/load/v1-floor.js` encodes the A1 acceptance floor: 2,000 concurrent WebSockets, 200 active subscriptions, 50 durable commands/s, 500 realtime events/s, 25% reconnect within 60 seconds and a 30-minute steady interval. Raw k6 output is not sufficient; `load-result-v1` also requires BEAM, mailbox, ETS, database, outbox, Oban, native, CPU, memory, disk and post-load recovery measurements.
 
-Current integration blockers are machine-readable: Senior 1 still needs a provider capacity contract and journald alignment; Senior 2 still needs committed realtime handoff/probe observation plus recovery ownership alignment; and project-owner build evidence remains required for the Rust build-dependent gates. Senior 3 capacity, telemetry declarations and provider-owned platform probe are now published and directly consumable, but realtime readiness/delivery intentionally remain failed until the Senior 2 handoff is integrated. No Senior 4 fallback is provided.
+Restore evidence must come from an approved provider-owned isolated restore/PITR drill. Restoring over the live database is forbidden. A backup claim is not accepted until restore, migration/invariant checks, read-only Elixir probe and cleanup pass.
 
-## Build boundary
+## Protected live flow
 
-Senior 3 owns the Cargo workspace, artifact names and exact runtime build semantics. Senior 4 may run only non-building rustfmt/Cargo metadata source checks. `cargo run`, clippy, tests, artifact builds and prebuild remain project-owner actions. Exact owner-run commands and expected evidence are versioned in `operations/integration/provider-integration-v0.md`.
+`.github/workflows/v1-live-readiness.yml` is manual-only and uses protected GitHub environments. It can run read-only probes and, only with an explicit approval reference, the provider-owned isolated restore command. It contains no OCI apply, live deployment, traffic switch or rollback mutation.
 
-See `CONTRIBUTING.md`, `operations/release/`, `operations/deployment/` and `operations/runbooks/` for governance and procedures.
+Senior 4 remains the executor for OCI and traffic mutations. The final composer consumes the approved mutation log rather than performing those changes:
 
-## Integration order
+```bash
+python operations/bin/compose_readiness_v1.py \
+  --git-sha <40-char-sha> \
+  --release-id <liqi-v1-release-id> \
+  --environment production \
+  --evidence capacity=<path> \
+  --evidence platform-probe=<path> \
+  --evidence load=<path> \
+  --evidence reconnect=<path> \
+  --evidence recovery=<path> \
+  --evidence resilience=<path> \
+  --evidence security=<path> \
+  --evidence cutover=<path> \
+  --evidence rollback=<path> \
+  --checkpoint source=<path> \
+  --checkpoint integration=<path> \
+  --checkpoint artifact=<path> \
+  --checkpoint live-staging=<path> \
+  --checkpoint promotion=<path> \
+  --checkpoint cutover=<path> \
+  --checkpoint post-cutover=<path> \
+  --compatibility <path> \
+  --oci-mutations <path> \
+  --output .artifacts/v1/v1-readiness-result.json
+```
 
-The low-conflict provider merge sequence and required pre-merge corrections are versioned in `operations/integration/merge-plan-v0.md`. Source readiness is authoritative; `blocked` means a seam is not merged, while `failed` means a present seam must be repaired by its owner.
+The canonical artifact layout is documented in `operations/readiness/evidence-bundle-layout-v1.md`. Operational response is under `operations/runbooks/`; the design decision and provider removal conditions are in `docs/adr/5000-v1-readiness-evidence-and-cutover-plane.md`.
+
+## Security boundary
+
+Never commit OCI configuration, PEM/private keys, tokens, session tokens, database passwords, backup contents, Terraform/OpenTofu state or unredacted crash dumps. Evidence stores references and checksums, not credentials or durable data copies.

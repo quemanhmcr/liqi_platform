@@ -7,10 +7,7 @@
       "owner": "Senior 1",
       "seam": "beam/scripts/validate-v1-source.sh --output",
       "stages": [
-        "source",
-        "integration",
-        "artifact",
-        "promotion"
+        "source"
       ],
       "provider_state": "pending-provider-publication",
       "mutation_class": "read-only",
@@ -33,8 +30,7 @@
       "owner": "Senior 1",
       "seam": "beam/scripts/run-v1-integration.sh --output",
       "stages": [
-        "integration",
-        "promotion"
+        "integration"
       ],
       "provider_state": "pending-provider-publication",
       "mutation_class": "disposable-database",
@@ -59,8 +55,7 @@
       "owner": "Senior 1",
       "seam": "beam/scripts/verify-v1-release.sh --manifest",
       "stages": [
-        "artifact",
-        "promotion"
+        "artifact"
       ],
       "provider_state": "pending-provider-publication",
       "mutation_class": "build",
@@ -118,9 +113,7 @@
       "owner": "Senior 2",
       "seam": "database/tests/run-v1-source-validation.sh --output",
       "stages": [
-        "source",
-        "integration",
-        "promotion"
+        "source"
       ],
       "provider_state": "pending-provider-publication",
       "mutation_class": "read-only",
@@ -143,8 +136,7 @@
       "owner": "Senior 2",
       "seam": "database/tests/integration/run-v1-database-tests.sh --output",
       "stages": [
-        "integration",
-        "promotion"
+        "integration"
       ],
       "provider_state": "pending-provider-publication",
       "mutation_class": "disposable-database",
@@ -202,10 +194,7 @@
       "owner": "Senior 3",
       "seam": "native/scripts/validate-v1-source.sh --output",
       "stages": [
-        "source",
-        "integration",
-        "artifact",
-        "promotion"
+        "source"
       ],
       "provider_state": "pending-provider-publication",
       "mutation_class": "read-only",
@@ -228,9 +217,7 @@
       "owner": "Senior 3",
       "seam": "native/scripts/run-v1-safety-gates.sh --output",
       "stages": [
-        "integration",
-        "artifact",
-        "promotion"
+        "integration"
       ],
       "provider_state": "pending-provider-publication",
       "mutation_class": "build",
@@ -253,8 +240,7 @@
       "owner": "Senior 3",
       "seam": "native/scripts/verify-v1-artifact.sh --manifest",
       "stages": [
-        "artifact",
-        "promotion"
+        "artifact"
       ],
       "provider_state": "pending-provider-publication",
       "mutation_class": "build",
@@ -281,9 +267,7 @@
       "owner": "Senior 4",
       "seam": "infrastructure/validation/run-v1-source-validation.sh --output",
       "stages": [
-        "source",
-        "integration",
-        "promotion"
+        "source"
       ],
       "provider_state": "pending-provider-publication",
       "mutation_class": "read-only",
