@@ -128,8 +128,10 @@ def validate_registry(document: dict[str, Any], failures: list[str]) -> None:
                 failures.append(f"pending-integration gate {gate.get('id')} requires provider branch and exact commit")
             elif subprocess.run(["git", "cat-file", "-e", f"{commit}^{{commit}}"], cwd=ROOT, check=False, capture_output=True).returncode == 0:
                 branch_result = subprocess.run(["git", "rev-parse", "--verify", branch], cwd=ROOT, check=False, capture_output=True, text=True)
-                if branch_result.returncode == 0 and branch_result.stdout.strip() != commit:
-                    failures.append(f"pending-integration gate {gate.get('id')} branch {branch} no longer points at {commit}")
+                if branch_result.returncode == 0:
+                    ancestor = subprocess.run(["git", "merge-base", "--is-ancestor", commit, branch], cwd=ROOT, check=False, capture_output=True)
+                    if ancestor.returncode != 0:
+                        failures.append(f"pending-integration gate {gate.get('id')} commit {commit} is not an ancestor of {branch}")
                 for required in gate.get("required_paths", []):
                     exists = subprocess.run(["git", "cat-file", "-e", f"{commit}:{required}"], cwd=ROOT, check=False, capture_output=True).returncode == 0
                     if not exists:

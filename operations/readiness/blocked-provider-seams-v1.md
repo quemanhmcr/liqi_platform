@@ -6,6 +6,7 @@ This is a machine-reviewable integration checkpoint, not a substitute implementa
 
 | Provider | Exact commit | Consumer seam | Current limitation |
 |---|---|---|---|
+| Senior 1 | `9a95350c516baa0b6e079685e1dcab1a49799bdf` | `MIX_ENV=test mix compile --warnings-as-errors && MIX_ENV=test mix test --seed 0 && mix hex.audit && python scripts/operations/validate_contracts.py` | Source walking skeleton only; disposable PostgreSQL integration, release artifact verification and live platform probe command are not published. |
 | Senior 2 | `ac759bb3435ef4633265d8eab75bd26768c0aac9` | `python database/tests/contract/validate_v1_contracts.py` | Source contracts only; disposable PostgreSQL integration and approved isolated restore result are not published. |
 | Senior 3 | `7478e31a4de48e278f0d08885bfaab56d5d88762` | `bash native/tests/run-source-validation.sh --rust-only` | Source/Rust safety is available after integration; full Elixir, fuzz-duration, A1 latency and scheduler evidence remain pending. |
 | Senior 3 | `7478e31a4de48e278f0d08885bfaab56d5d88762` | `python native/scripts/verify_artifact.py --manifest <path>` | Verifier exists; signed ARM64 artifact, SBOM, provenance and Sigstore bundle must be produced by the approved provider flow. |
@@ -17,11 +18,12 @@ This is a machine-reviewable integration checkpoint, not a substitute implementa
 Blocked seam:
 Provider: Senior 1
 Consumer: Senior 5
-Missing contract: runtime source/integration/artifact/live platform probe commands
-Why current work cannot safely continue: Phoenix, OTP lifecycle, envelope, release metadata, drain and realtime semantics are provider-owned.
-Minimal provider output required: commands registered under runtime-source, runtime-integration, runtime-artifact and runtime-live-probe
-Temporary work that remains independent: readiness schemas, evidence composer, load/reconnect workload and runbooks
+Missing contract: disposable PostgreSQL runtime integration, release artifact verification and live platform probe commands
+Why current work cannot safely continue: the published source walking skeleton uses a fail-closed database adapter and a local E2E probe; it does not prove live PostgreSQL, release packaging or OCI endpoint semantics.
+Minimal provider output required: commands registered under runtime-integration, runtime-artifact and runtime-live-probe
+Temporary work that remains independent: exact source checkpoint, load/reconnect workload and live evidence schemas
 ```
+
 
 ```text
 Blocked seam:

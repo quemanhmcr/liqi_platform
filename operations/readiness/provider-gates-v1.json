@@ -5,27 +5,30 @@
     {
       "id": "runtime-source",
       "owner": "Senior 1",
-      "seam": "beam/scripts/validate-v1-source.sh --output",
+      "seam": "MIX_ENV=test mix compile/test + hex audit + contract validation",
       "stages": [
         "source"
       ],
-      "provider_state": "pending-provider-publication",
+      "provider_state": "pending-integration",
       "mutation_class": "read-only",
       "required_paths": [
-        "beam/scripts/validate-v1-source.sh"
+        ".tool-versions",
+        "mix.exs",
+        "mix.lock",
+        "beam/lib/liqi/application.ex",
+        "beam/test/liqi/web/platform_probe_e2e_test.exs"
       ],
       "argv": [
         "bash",
-        "beam/scripts/validate-v1-source.sh",
-        "--output",
-        "{output}"
+        "-lc",
+        "MIX_ENV=test mix compile --warnings-as-errors && MIX_ENV=test mix test --seed 0 && mix hex.audit && python scripts/operations/validate_contracts.py"
       ],
       "required_environment": [],
       "timeout_seconds": 900,
       "result_schema": null,
-      "action_required": "Publish the BEAM/Phoenix source validation command with runtime, envelope, capacity and telemetry checks.",
+      "action_required": "Integrate exact runtime provider commit 9a95350c516baa0b6e079685e1dcab1a49799bdf, provision OTP 28.1.1/Elixir 1.18.4 from .tool-versions, then run the advertised source command before marking available.",
       "provider_branch": "v1/beam-runtime-realtime",
-      "provider_commit": null
+      "provider_commit": "9a95350c516baa0b6e079685e1dcab1a49799bdf"
     },
     {
       "id": "runtime-integration",
