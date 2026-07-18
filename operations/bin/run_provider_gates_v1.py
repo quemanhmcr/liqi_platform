@@ -201,7 +201,10 @@ def main() -> int:
             result_schema = gate.get("result_schema")
             if result_schema:
                 try:
-                    document = load_json(gate_output)
+                    loaded = load_json(gate_output)
+                    if not isinstance(loaded, dict):
+                        raise ValueError(f"{gate['id']} result must be a JSON object")
+                    document = loaded
                     schema_errors = validate_document(safe_repo_path(result_schema), document, gate["id"])
                     if document.get("git_sha") not in {None, sha}:
                         schema_errors.append(f"{gate['id']}.git_sha does not match {sha}")

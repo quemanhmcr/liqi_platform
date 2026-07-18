@@ -81,7 +81,7 @@ python scripts/operations/validate_ci_workflows.py
 python scripts/operations/scan_repository_secrets.py
 ```
 
-Collect a source checkpoint without pretending unpublished provider branches exist:
+Collect the strict source checkpoint for the integrated provider graph:
 
 ```bash
 SHA="$(git rev-parse HEAD)"
@@ -89,11 +89,10 @@ RELEASE_ID="liqi-v1-source-${SHA:0:12}"
 python operations/bin/run_provider_gates_v1.py \
   --stage source \
   --release-id "$RELEASE_ID" \
-  --output .artifacts/v1/checkpoints/source.json \
-  --allow-blocked
+  --output .artifacts/v1/checkpoints/source.json
 ```
 
-`blocked` is useful owner-attributed evidence during provider publication, but it is never a production pass.
+The source checkpoint is strict after provider integration. Later artifact/live checkpoints remain fail-closed until exact-release evidence exists.
 
 ## Load and recovery
 
