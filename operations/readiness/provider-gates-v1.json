@@ -231,7 +231,7 @@
       "result_schema": null,
       "action_required": "Run the Rust-only source gate on the integrated exact SHA. Linux additionally checks the Rustler AArch64 target; non-Linux output remains explicit and does not claim ARM64 evidence.",
       "provider_branch": "v1/native-rustler",
-      "provider_commit": "61c892a00d6d74351e70317935823e7e3fee41dc"
+      "provider_commit": "ca71a1be6914a33db22544802f704084f3346af5"
     },
     {
       "id": "native-safety",
@@ -261,7 +261,7 @@
       "result_schema": "contracts/native/native-safety-result-v1.schema.json",
       "action_required": "Run on Linux with Rust 1.97.1, OTP 28.5.0.3, Elixir 1.20.2-otp-28, nightly cargo-fuzz and no tracked source changes. Missing or mismatched toolchains must not be accepted as passed evidence.",
       "provider_branch": "v1/native-rustler",
-      "provider_commit": "61c892a00d6d74351e70317935823e7e3fee41dc"
+      "provider_commit": "ca71a1be6914a33db22544802f704084f3346af5"
     },
     {
       "id": "native-artifact",
@@ -297,7 +297,7 @@
       "result_schema": null,
       "action_required": "Provide the verified Sigstore provider manifest, the Ed25519 deployment manifest/signature and approved public-key directory for the same ARM64 artifact. Missing artifact inputs remain blocked evidence.",
       "provider_branch": "v1/native-rustler",
-      "provider_commit": "61c892a00d6d74351e70317935823e7e3fee41dc"
+      "provider_commit": "ca71a1be6914a33db22544802f704084f3346af5"
     },
     {
       "id": "infrastructure-source",
