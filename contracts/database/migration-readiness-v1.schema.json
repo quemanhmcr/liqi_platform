@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/database/migration-readiness-v1.schema.json",
+  "title": "LIQI Migration Readiness V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "ready",
+    "writeReady",
+    "reason",
+    "currentVersion",
+    "requiredVersion",
+    "obanMigrationVersion",
+    "requiredObanMigrationVersion",
+    "inRecovery",
+    "observedAt"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "migration-readiness-v1"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked",
+        "failed"
+      ]
+    },
+    "ready": {
+      "type": "boolean"
+    },
+    "writeReady": {
+      "type": "boolean"
+    },
+    "reason": {
+      "enum": [
+        "ready",
+        "migration-pending",
+        "failed-migration-run",
+        "oban-migration-pending",
+        "database-in-recovery",
+        "contract-missing"
+      ]
+    },
+    "currentVersion": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "requiredVersion": {
+      "const": 8
+    },
+    "obanMigrationVersion": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "requiredObanMigrationVersion": {
+      "const": 14
+    },
+    "inRecovery": {
+      "type": "boolean"
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

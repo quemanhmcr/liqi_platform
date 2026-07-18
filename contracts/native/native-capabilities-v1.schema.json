@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/native/native-capabilities-v1.schema.json",
+  "title": "LIQI native capabilities V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provider",
+    "status",
+    "source_revision",
+    "rust_toolchain",
+    "cargo_version",
+    "rustler_version",
+    "nif_abi",
+    "target_triple",
+    "capabilities",
+    "artifact_binding"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "native-capabilities-v1"
+    },
+    "provider": {
+      "const": "senior-3-native"
+    },
+    "status": {
+      "enum": [
+        "source-ready",
+        "artifact-ready",
+        "live-verified"
+      ]
+    },
+    "source_revision": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "rust_toolchain": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "cargo_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "rustler_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "nif_abi": {
+      "type": "string",
+      "pattern": "^2\\.[0-9]+$"
+    },
+    "target_triple": {
+      "const": "aarch64-unknown-linux-gnu"
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kernel",
+          "kernel_version",
+          "required",
+          "scheduler_class",
+          "max_input_bytes",
+          "max_output_ranges",
+          "max_concurrency",
+          "fallback",
+          "feature_default",
+          "kernel_contract"
+        ],
+        "properties": {
+          "kernel": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{2,63}$"
+          },
+          "kernel_version": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,5}$"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "scheduler_class": {
+            "enum": [
+              "regular",
+              "dirty_cpu",
+              "dirty_io",
+              "port"
+            ]
+          },
+          "max_input_bytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "max_output_ranges": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "max_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64
+          },
+          "fallback": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 256
+          },
+          "feature_default": {
+            "enum": [
+              "disabled",
+              "enabled"
+            ]
+          },
+          "kernel_contract": {
+            "type": "string",
+            "pattern": "^contracts/native/[a-z0-9-]+\\.json$"
+          }
+        }
+      }
+    },
+    "artifact_binding": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "status": {
+              "const": "pending"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 512
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "artifact_contract",
+            "artifact_sha256"
+          ],
+          "properties": {
+            "status": {
+              "const": "bound"
+            },
+            "artifact_contract": {
+              "type": "string",
+              "pattern": "^contracts/native/evidence/native-artifact-[a-zA-Z0-9._-]+\\.json$"
+            },
+            "artifact_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "source-ready"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "artifact_binding": {
+            "properties": {
+              "status": {
+                "const": "pending"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "artifact-ready",
+              "live-verified"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "artifact_binding": {
+            "properties": {
+              "status": {
+                "const": "bound"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

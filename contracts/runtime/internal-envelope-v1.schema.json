@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.app/runtime/internal-envelope-v1.schema.json",
+  "title": "LIQI Internal Envelope V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "message_id",
+    "correlation_id",
+    "causation_id",
+    "trace_context",
+    "deadline",
+    "actor_key",
+    "priority",
+    "payload_type",
+    "payload_version",
+    "payload"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": "1"
+    },
+    "message_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "causation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "trace_context": {
+      "type": "object",
+      "maxProperties": 8
+    },
+    "deadline": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "actor_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "priority": {
+      "enum": [
+        "durable",
+        "realtime",
+        "ephemeral",
+        "telemetry"
+      ]
+    },
+    "payload_type": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "payload_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "x-liqi-deadline-unit": "unix-epoch-milliseconds"
+}

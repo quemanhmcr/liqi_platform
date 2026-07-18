@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/database/realtime-handoff-v1.schema.json",
+  "title": "LIQI Committed Realtime Handoff V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "source",
+    "visibility",
+    "cursor",
+    "read",
+    "gapRepair",
+    "retention",
+    "delivery"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "contractVersion": {
+      "const": "realtime-handoff-v1"
+    },
+    "source": {
+      "const": "committed-outbox-projection"
+    },
+    "visibility": {
+      "const": "after-producer-transaction-commit"
+    },
+    "cursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "scope",
+        "allocation",
+        "resumeComparison"
+      ],
+      "properties": {
+        "type": {
+          "const": "int64"
+        },
+        "scope": {
+          "const": "v1-handoff-stream"
+        },
+        "allocation": {
+          "const": "gap-free-commit-ordered-singleton-lock"
+        },
+        "resumeComparison": {
+          "const": "strictly-greater-than"
+        }
+      }
+    },
+    "read": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "defaultBatch",
+        "maximumBatch",
+        "ordering"
+      ],
+      "properties": {
+        "defaultBatch": {
+          "const": 64
+        },
+        "maximumBatch": {
+          "const": 128
+        },
+        "ordering": {
+          "const": "handoff_id-ascending"
+        }
+      }
+    },
+    "gapRepair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "detection",
+        "errorCode",
+        "recovery"
+      ],
+      "properties": {
+        "detection": {
+          "const": "cursor-before-retained-watermark"
+        },
+        "errorCode": {
+          "const": "LQ004"
+        },
+        "recovery": {
+          "const": "authority-resync-then-resume-at-current-watermark"
+        }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "days",
+        "pruneBatchMaximum",
+        "watermarkDurable"
+      ],
+      "properties": {
+        "days": {
+          "const": 7
+        },
+        "pruneBatchMaximum": {
+          "const": 500
+        },
+        "watermarkDurable": {
+          "const": true
+        }
+      }
+    },
+    "delivery": {
+      "const": "at-least-once-idempotent-consumer"
+    }
+  }
+}

@@ -1,0 +1,375 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/native/native-kernel-v1.schema.json",
+  "title": "LIQI native kernel admission V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kernel",
+    "kernel_version",
+    "status",
+    "problem",
+    "pure_elixir_baseline",
+    "measured_bottleneck",
+    "bounds",
+    "scheduler",
+    "latency",
+    "failure",
+    "fallback",
+    "security_review",
+    "removal_condition",
+    "observability"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "native-kernel-v1"
+    },
+    "kernel": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{2,63}$"
+    },
+    "kernel_version": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,5}$"
+    },
+    "status": {
+      "enum": [
+        "source-ready",
+        "artifact-ready",
+        "live-verified",
+        "rejected"
+      ]
+    },
+    "problem": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 1024
+    },
+    "pure_elixir_baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "module",
+        "function",
+        "semantics_version",
+        "test_command"
+      ],
+      "properties": {
+        "module": {
+          "type": "string",
+          "pattern": "^Liqi\\.Native\\.Reference\\.[A-Za-z0-9.]+$"
+        },
+        "function": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]+/[0-9]+$"
+        },
+        "semantics_version": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,5}$"
+        },
+        "test_command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        }
+      }
+    },
+    "measured_bottleneck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "finding",
+        "evidence_ref"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "not-measured",
+            "developer-only",
+            "a1-verified"
+          ]
+        },
+        "finding": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 1024
+        },
+        "evidence_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 512,
+          "pattern": "^(?!/)(?!.*\\.\\.).+$"
+        }
+      }
+    },
+    "bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_encoding",
+        "max_input_bytes",
+        "max_observed_sequences",
+        "max_window_span",
+        "max_output_ranges",
+        "max_native_output_bytes",
+        "allocation_model"
+      ],
+      "properties": {
+        "input_encoding": {
+          "const": "big-endian-u64"
+        },
+        "max_input_bytes": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 1048576
+        },
+        "max_observed_sequences": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        },
+        "max_window_span": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1048576
+        },
+        "max_output_ranges": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65537
+        },
+        "max_native_output_bytes": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 4194304
+        },
+        "allocation_model": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 512
+        }
+      }
+    },
+    "scheduler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class",
+        "max_concurrency",
+        "admission_owner",
+        "queue_capacity",
+        "deadline_owner",
+        "blocking_io"
+      ],
+      "properties": {
+        "class": {
+          "enum": [
+            "regular",
+            "dirty_cpu",
+            "dirty_io",
+            "port"
+          ]
+        },
+        "max_concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "admission_owner": {
+          "const": "elixir-caller"
+        },
+        "queue_capacity": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "deadline_owner": {
+          "const": "elixir-caller"
+        },
+        "blocking_io": {
+          "type": "boolean"
+        }
+      }
+    },
+    "latency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_p99_us",
+        "hard_budget_us",
+        "enforcement",
+        "required_environment"
+      ],
+      "properties": {
+        "target_p99_us": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500
+        },
+        "hard_budget_us": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "enforcement": {
+          "enum": [
+            "blocked-pending-a1",
+            "a1-gate-enforced"
+          ]
+        },
+        "required_environment": {
+          "const": "oci-a1-flex-4ocpu-24gib"
+        }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "panic_mapping",
+        "invalid_input_mapping",
+        "durable_state_impact",
+        "beam_failure_policy"
+      ],
+      "properties": {
+        "panic_mapping": {
+          "const": "NATIVE_PANIC"
+        },
+        "invalid_input_mapping": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "NATIVE_INVALID_WINDOW",
+              "NATIVE_WINDOW_TOO_LARGE",
+              "NATIVE_INPUT_TOO_LARGE",
+              "NATIVE_INVALID_ENCODING",
+              "NATIVE_SEQUENCE_OUT_OF_ORDER",
+              "NATIVE_SEQUENCE_OUT_OF_WINDOW",
+              "NATIVE_ADMISSION_REJECTED",
+              "NATIVE_DEADLINE_EXCEEDED",
+              "NATIVE_UNAVAILABLE",
+              "NATIVE_VERSION_MISMATCH",
+              "NATIVE_PANIC",
+              "NATIVE_INTERNAL"
+            ]
+          }
+        },
+        "durable_state_impact": {
+          "const": "none"
+        },
+        "beam_failure_policy": {
+          "const": "optional-native-failure-must-not-stop-runtime"
+        }
+      }
+    },
+    "fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "module",
+        "mode",
+        "always_deployable",
+        "feature_default",
+        "semantic_parity"
+      ],
+      "properties": {
+        "module": {
+          "type": "string",
+          "pattern": "^Liqi\\.Native\\.Reference\\.[A-Za-z0-9.]+$"
+        },
+        "mode": {
+          "enum": [
+            "native-preferred",
+            "native-required",
+            "reference-only"
+          ]
+        },
+        "always_deployable": {
+          "const": true
+        },
+        "feature_default": {
+          "enum": [
+            "disabled",
+            "enabled"
+          ]
+        },
+        "semantic_parity": {
+          "const": "required"
+        }
+      }
+    },
+    "security_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unsafe_code",
+        "network_io",
+        "disk_io",
+        "database_io",
+        "unmanaged_threads",
+        "payload_logging",
+        "sensitive_payload"
+      ],
+      "properties": {
+        "unsafe_code": {
+          "const": "forbidden"
+        },
+        "network_io": {
+          "const": "forbidden"
+        },
+        "disk_io": {
+          "const": "forbidden"
+        },
+        "database_io": {
+          "const": "forbidden"
+        },
+        "unmanaged_threads": {
+          "const": "forbidden"
+        },
+        "payload_logging": {
+          "const": "forbidden"
+        },
+        "sensitive_payload": {
+          "const": "not-accepted"
+        }
+      }
+    },
+    "removal_condition": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 1024
+    },
+    "observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metrics",
+        "payload_labels_forbidden"
+      ],
+      "properties": {
+        "metrics": {
+          "type": "array",
+          "minItems": 6,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^liqi_native_[a-z0-9_]+$"
+          }
+        },
+        "payload_labels_forbidden": {
+          "const": true
+        }
+      }
+    }
+  }
+}

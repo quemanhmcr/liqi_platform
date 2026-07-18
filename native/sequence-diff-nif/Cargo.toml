@@ -1,0 +1,18 @@
+[package]
+name = "liqi-sequence-diff-nif"
+version = "1.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "liqi_sequence_diff_nif"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+liqi-sequence-diff-core = { version = "1.0.0", path = "../sequence-diff-core" }
+rustler.workspace = true
+
+[lints]
+workspace = true

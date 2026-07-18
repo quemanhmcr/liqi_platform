@@ -1,0 +1,544 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/readiness/v1-readiness-result.schema.json",
+  "title": "LIQI final V1 readiness result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "git_sha",
+    "release_id",
+    "environment",
+    "status",
+    "verdict",
+    "host",
+    "checkpoints",
+    "evidence",
+    "correctness_events",
+    "compatibility",
+    "rollback_target",
+    "oci_mutations",
+    "blockers"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "v1-readiness-result"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "environment": {
+      "enum": [
+        "staging",
+        "production"
+      ]
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked",
+        "failed"
+      ]
+    },
+    "verdict": {
+      "enum": [
+        "V1 PRODUCTION-SHAPED ON OCI",
+        "V1 NOT READY"
+      ]
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shape",
+        "ocpu",
+        "memory_mib",
+        "combined_storage_gib",
+        "reserved_ocpu",
+        "reserved_memory_mib",
+        "reserved_disk_gib"
+      ],
+      "properties": {
+        "shape": {
+          "const": "VM.Standard.A1.Flex"
+        },
+        "ocpu": {
+          "const": 4
+        },
+        "memory_mib": {
+          "const": 24576
+        },
+        "combined_storage_gib": {
+          "type": "number",
+          "maximum": 200
+        },
+        "reserved_ocpu": {
+          "type": "number",
+          "minimum": 1
+        },
+        "reserved_memory_mib": {
+          "type": "integer",
+          "minimum": 4096
+        },
+        "reserved_disk_gib": {
+          "type": "number",
+          "minimum": 20
+        }
+      }
+    },
+    "checkpoints": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "status",
+          "evidence_refs"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "source",
+              "integration",
+              "artifact",
+              "live-staging",
+              "promotion",
+              "cutover",
+              "post-cutover"
+            ]
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "blocked",
+              "failed"
+            ]
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "owner",
+          "schema_version",
+          "status",
+          "evidence_mode",
+          "git_sha",
+          "release_id",
+          "observed_at",
+          "sha256",
+          "evidence_ref"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "capacity",
+              "platform-probe",
+              "load",
+              "reconnect",
+              "recovery",
+              "resilience",
+              "security",
+              "cutover",
+              "rollback"
+            ]
+          },
+          "owner": {
+            "enum": [
+              "Senior 1",
+              "Senior 2",
+              "Senior 3",
+              "Senior 4",
+              "Senior 5"
+            ]
+          },
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "blocked",
+              "failed"
+            ]
+          },
+          "evidence_mode": {
+            "enum": [
+              "live",
+              "synthetic"
+            ]
+          },
+          "git_sha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "release_id": {
+            "type": "string",
+            "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "evidence_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      }
+    },
+    "correctness_events": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "count",
+          "evidence_ref"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "authorization-bypass",
+              "secret-exposure",
+              "duplicate-durable-identity",
+              "event-before-commit",
+              "durable-event-loss"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "evidence_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "migrations_expand_compatible",
+        "realtime_protocol_negotiated",
+        "native_fallback_available",
+        "config_versioned"
+      ],
+      "properties": {
+        "migrations_expand_compatible": {
+          "type": "boolean"
+        },
+        "realtime_protocol_negotiated": {
+          "type": "boolean"
+        },
+        "native_fallback_available": {
+          "type": "boolean"
+        },
+        "config_versioned": {
+          "type": "boolean"
+        }
+      }
+    },
+    "rollback_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retained",
+        "release_id",
+        "git_sha",
+        "runtime_generation",
+        "evidence_ref"
+      ],
+      "properties": {
+        "retained": {
+          "type": "boolean"
+        },
+        "release_id": {
+          "type": "string",
+          "pattern": "^liqi-[a-z0-9][a-z0-9._-]{2,95}$"
+        },
+        "git_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "runtime_generation": {
+          "enum": [
+            "v0-rust",
+            "v1-beam"
+          ]
+        },
+        "evidence_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      }
+    },
+    "oci_mutations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "approved",
+          "approval_ref",
+          "executed_by",
+          "evidence_ref"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "tofu-apply",
+              "oci-resource-change",
+              "iam-policy",
+              "secret",
+              "live-deploy",
+              "live-migration",
+              "backup",
+              "restore",
+              "traffic",
+              "rollback"
+            ]
+          },
+          "approved": {
+            "type": "boolean"
+          },
+          "approval_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 512
+          },
+          "executed_by": {
+            "const": "Senior 4"
+          },
+          "evidence_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "owner",
+          "seam",
+          "code",
+          "severity",
+          "message",
+          "action_required"
+        ],
+        "properties": {
+          "owner": {
+            "enum": [
+              "Senior 1",
+              "Senior 2",
+              "Senior 3",
+              "Senior 4",
+              "Senior 5"
+            ]
+          },
+          "seam": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{2,63}$"
+          },
+          "severity": {
+            "enum": [
+              "blocked",
+              "failed"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "action_required": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "verdict": {
+            "const": "V1 PRODUCTION-SHAPED ON OCI"
+          },
+          "checkpoints": {
+            "items": {
+              "properties": {
+                "status": {
+                  "const": "passed"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            }
+          },
+          "evidence": {
+            "items": {
+              "properties": {
+                "status": {
+                  "const": "passed"
+                },
+                "evidence_mode": {
+                  "const": "live"
+                }
+              },
+              "required": [
+                "status",
+                "evidence_mode"
+              ]
+            }
+          },
+          "correctness_events": {
+            "items": {
+              "properties": {
+                "count": {
+                  "const": 0
+                }
+              },
+              "required": [
+                "count"
+              ]
+            }
+          },
+          "compatibility": {
+            "properties": {
+              "migrations_expand_compatible": {
+                "const": true
+              },
+              "realtime_protocol_negotiated": {
+                "const": true
+              },
+              "native_fallback_available": {
+                "const": true
+              },
+              "config_versioned": {
+                "const": true
+              }
+            }
+          },
+          "rollback_target": {
+            "properties": {
+              "retained": {
+                "const": true
+              }
+            }
+          },
+          "oci_mutations": {
+            "items": {
+              "properties": {
+                "approved": {
+                  "const": true
+                }
+              },
+              "required": [
+                "approved"
+              ]
+            }
+          },
+          "blockers": {
+            "maxItems": 0
+          },
+          "environment": {
+            "const": "production"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "not": {
+          "properties": {
+            "status": {
+              "const": "passed"
+            }
+          },
+          "required": [
+            "status"
+          ]
+        }
+      },
+      "then": {
+        "properties": {
+          "verdict": {
+            "const": "V1 NOT READY"
+          },
+          "blockers": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}

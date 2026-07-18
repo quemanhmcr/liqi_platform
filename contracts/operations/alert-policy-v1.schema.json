@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/alert-policy-v1.schema.json",
+  "title": "LIQI V1 alert policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "classification",
+    "alerts"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "alert-policy-v1"
+    },
+    "classification": {
+      "const": "production-shaped-single-node"
+    },
+    "alerts": {
+      "type": "array",
+      "minItems": 26,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "owner",
+          "signal",
+          "condition",
+          "for",
+          "severity",
+          "missing_data",
+          "runbook",
+          "blocks_promotion"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{2,63}$"
+          },
+          "owner": {
+            "enum": [
+              "Senior 1",
+              "Senior 2",
+              "Senior 3",
+              "Senior 4",
+              "Senior 5"
+            ]
+          },
+          "signal": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "condition": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "for": {
+            "enum": [
+              "0m",
+              "1m",
+              "2m",
+              "5m",
+              "10m",
+              "15m",
+              "30m"
+            ]
+          },
+          "severity": {
+            "enum": [
+              "SEV0",
+              "SEV1",
+              "SEV2",
+              "SEV3"
+            ]
+          },
+          "missing_data": {
+            "enum": [
+              "bad",
+              "block-promotion",
+              "alert-and-bad"
+            ]
+          },
+          "runbook": {
+            "type": "string",
+            "pattern": "^operations/runbooks/[a-z0-9-]+-v1\\.md$"
+          },
+          "blocks_promotion": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

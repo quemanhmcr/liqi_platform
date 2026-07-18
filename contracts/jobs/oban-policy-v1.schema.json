@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/jobs/oban-policy-v1.schema.json",
+  "title": "LIQI Oban Policy V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "purpose",
+    "prohibited",
+    "compatibility",
+    "storage",
+    "notifier",
+    "queues",
+    "plugins",
+    "shutdownGraceMs",
+    "stageIntervalMs",
+    "uniqueness",
+    "deadJobs",
+    "drain"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "contractVersion": {
+      "const": "oban-policy-v1"
+    },
+    "purpose": {
+      "const": [
+        "scheduled-maintenance",
+        "push-delivery",
+        "delayed-retry",
+        "provider-calls",
+        "media-orchestration",
+        "cleanup",
+        "recovery-tasks"
+      ]
+    },
+    "prohibited": {
+      "const": [
+        "domain-event-authority",
+        "realtime-bus",
+        "exactly-once-executor",
+        "outbox-replacement"
+      ]
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "oban",
+        "migrationVersion",
+        "elixirMinimum",
+        "postgresqlMinimum"
+      ],
+      "properties": {
+        "oban": {
+          "pattern": "^>=2\\.23,<2\\.24$"
+        },
+        "migrationVersion": {
+          "const": 14
+        },
+        "elixirMinimum": {
+          "const": "1.15"
+        },
+        "postgresqlMinimum": {
+          "const": 14
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prefix",
+        "jobsLogged",
+        "peersLogged",
+        "backupIncluded"
+      ],
+      "properties": {
+        "prefix": {
+          "const": "oban"
+        },
+        "jobsLogged": {
+          "const": true
+        },
+        "peersLogged": {
+          "const": false
+        },
+        "backupIncluded": {
+          "const": true
+        }
+      }
+    },
+    "notifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "module",
+        "reason",
+        "insertWakeup"
+      ],
+      "properties": {
+        "module": {
+          "const": "Oban.Notifiers.PG"
+        },
+        "reason": {
+          "const": "pgbouncer-transaction-pooling"
+        },
+        "insertWakeup": {
+          "const": "bounded-local-stager-poll"
+        }
+      }
+    },
+    "queues": {
+      "type": "array",
+      "minItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "concurrency",
+          "timeoutMs",
+          "maxAttempts",
+          "uniquePeriodSeconds",
+          "pausedByDefault"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "maintenance",
+              "push",
+              "provider",
+              "media",
+              "cleanup",
+              "recovery"
+            ]
+          },
+          "concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 900000
+          },
+          "maxAttempts": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "uniquePeriodSeconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 2592000
+          },
+          "pausedByDefault": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "plugins": {
+      "const": [
+        "Oban.Plugins.Pruner",
+        "Oban.Plugins.Lifeline"
+      ]
+    },
+    "shutdownGraceMs": {
+      "const": 60000
+    },
+    "stageIntervalMs": {
+      "const": 1000
+    },
+    "uniqueness": {
+      "const": "admission-deduplication-not-execution-serialization"
+    },
+    "deadJobs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pruneAfterSeconds",
+        "pruneBatchMaximum",
+        "manualRetryRequired"
+      ],
+      "properties": {
+        "pruneAfterSeconds": {
+          "const": 2592000
+        },
+        "pruneBatchMaximum": {
+          "const": 500
+        },
+        "manualRetryRequired": {
+          "const": true
+        }
+      }
+    },
+    "drain": {
+      "const": "pause-fetch-allow-running-until-shutdown-grace-then-lifeline-reclaim"
+    }
+  }
+}

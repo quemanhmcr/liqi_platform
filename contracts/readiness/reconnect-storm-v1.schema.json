@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/readiness/reconnect-storm-v1.schema.json",
+  "title": "LIQI reconnect storm result V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evidence_mode",
+    "git_sha",
+    "release_id",
+    "environment",
+    "started_at",
+    "completed_at",
+    "status",
+    "baseline_sessions",
+    "disconnected_sessions",
+    "reconnect_window_seconds",
+    "reconnected_sessions",
+    "resume_success_ratio",
+    "gap_repairs",
+    "duplicate_deliveries",
+    "durable_event_loss",
+    "command_plane_error_ratio",
+    "recovered_within_seconds",
+    "metrics_ref",
+    "failures"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "reconnect-storm-v1"
+    },
+    "evidence_mode": {
+      "enum": [
+        "live",
+        "synthetic"
+      ]
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "environment": {
+      "enum": [
+        "staging",
+        "production"
+      ]
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked",
+        "failed"
+      ]
+    },
+    "baseline_sessions": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "disconnected_sessions": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reconnect_window_seconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "reconnected_sessions": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "resume_success_ratio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "gap_repairs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "duplicate_deliveries": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "durable_event_loss": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "command_plane_error_ratio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "recovered_within_seconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "metrics_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence_mode": {
+            "const": "live"
+          },
+          "baseline_sessions": {
+            "minimum": 2000
+          },
+          "disconnected_sessions": {
+            "minimum": 500
+          },
+          "reconnect_window_seconds": {
+            "maximum": 60
+          },
+          "reconnected_sessions": {
+            "minimum": 500
+          },
+          "resume_success_ratio": {
+            "minimum": 0.99
+          },
+          "durable_event_loss": {
+            "const": 0
+          },
+          "recovered_within_seconds": {
+            "maximum": 300
+          },
+          "failures": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
+}

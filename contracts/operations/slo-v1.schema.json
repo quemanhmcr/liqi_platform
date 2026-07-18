@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/operations/slo-v1.schema.json",
+  "title": "LIQI V1 working SLO catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "classification",
+    "window_days",
+    "objectives",
+    "correctness_events"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "slo-v1"
+    },
+    "classification": {
+      "const": "working-objectives-not-external-sla"
+    },
+    "window_days": {
+      "type": "integer",
+      "minimum": 7,
+      "maximum": 30
+    },
+    "objectives": {
+      "type": "array",
+      "minItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "owner",
+          "sli_source",
+          "window",
+          "missing_data",
+          "objective",
+          "alert",
+          "runbook",
+          "degraded_mode"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{2,63}$"
+          },
+          "owner": {
+            "enum": [
+              "Senior 1",
+              "Senior 2",
+              "Senior 3",
+              "Senior 4",
+              "Senior 5"
+            ]
+          },
+          "sli_source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "window": {
+            "enum": [
+              "5m",
+              "15m",
+              "1h",
+              "6h",
+              "24h",
+              "7d",
+              "28d"
+            ]
+          },
+          "missing_data": {
+            "enum": [
+              "bad",
+              "block-promotion",
+              "alert-and-bad"
+            ]
+          },
+          "objective": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "operator",
+              "value",
+              "unit"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "ratio",
+                  "percentile",
+                  "gauge",
+                  "freshness",
+                  "forecast"
+                ]
+              },
+              "operator": {
+                "enum": [
+                  ">=",
+                  "<=",
+                  ">"
+                ]
+              },
+              "value": {
+                "type": "number"
+              },
+              "unit": {
+                "enum": [
+                  "ratio",
+                  "milliseconds",
+                  "microseconds",
+                  "seconds",
+                  "percent",
+                  "count",
+                  "days"
+                ]
+              },
+              "percentile": {
+                "enum": [
+                  "p95",
+                  "p99"
+                ]
+              }
+            }
+          },
+          "alert": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "warning",
+              "critical",
+              "severity"
+            ],
+            "properties": {
+              "warning": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "critical": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "severity": {
+                "enum": [
+                  "SEV1",
+                  "SEV2",
+                  "SEV3"
+                ]
+              }
+            }
+          },
+          "runbook": {
+            "type": "string",
+            "pattern": "^operations/runbooks/[a-z0-9-]+-v1\\.md$"
+          },
+          "degraded_mode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      }
+    },
+    "correctness_events": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "owner",
+          "tolerance",
+          "budget",
+          "sli_source",
+          "missing_data",
+          "alert",
+          "runbook"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              "authorization-bypass",
+              "secret-exposure",
+              "duplicate-durable-identity",
+              "event-before-commit",
+              "durable-event-loss"
+            ]
+          },
+          "owner": {
+            "enum": [
+              "Senior 1",
+              "Senior 2",
+              "Senior 3",
+              "Senior 4",
+              "Senior 5"
+            ]
+          },
+          "tolerance": {
+            "const": "zero"
+          },
+          "budget": {
+            "const": 0
+          },
+          "sli_source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "missing_data": {
+            "const": "alert-and-bad"
+          },
+          "alert": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "threshold",
+              "severity"
+            ],
+            "properties": {
+              "threshold": {
+                "const": ">0"
+              },
+              "severity": {
+                "enum": [
+                  "SEV0",
+                  "SEV1"
+                ]
+              }
+            }
+          },
+          "runbook": {
+            "type": "string",
+            "pattern": "^operations/runbooks/[a-z0-9-]+-v1\\.md$"
+          }
+        }
+      }
+    }
+  }
+}

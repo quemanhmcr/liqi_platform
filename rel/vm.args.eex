@@ -1,0 +1,8 @@
++S 3:3
++SDcpu 2
++SDio 2
++A 4
++P 65536
++sbwt none
++sbwtdcpu none
++sbwtdio none

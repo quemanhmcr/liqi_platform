@@ -1,0 +1,87 @@
+{
+  "schema_version": "native-kernel-v1",
+  "kernel": "compact_sequence_diff",
+  "kernel_version": "1",
+  "status": "source-ready",
+  "problem": "Calculate compact missing sequence ranges for bounded realtime resume windows without transferring durable authority into native code.",
+  "pure_elixir_baseline": {
+    "module": "Liqi.Native.Reference.SequenceDiff",
+    "function": "compact/3",
+    "semantics_version": "1",
+    "test_command": [
+      "elixir",
+      "native/elixir/test/run-reference-tests.exs"
+    ]
+  },
+  "measured_bottleneck": {
+    "status": "developer-only",
+    "finding": "Rust core microbenchmark harness exists; BEAM-to-NIF p99 and scheduler impact on OCI A1 remain mandatory before enablement.",
+    "evidence_ref": null
+  },
+  "bounds": {
+    "input_encoding": "big-endian-u64",
+    "max_input_bytes": 16384,
+    "max_observed_sequences": 2048,
+    "max_window_span": 65536,
+    "max_output_ranges": 2049,
+    "max_native_output_bytes": 32784,
+    "allocation_model": "The input binary is borrowed from BEAM; native allocation is one bounded Vec of at most 2,049 sequence ranges."
+  },
+  "scheduler": {
+    "class": "regular",
+    "max_concurrency": 2,
+    "admission_owner": "elixir-caller",
+    "queue_capacity": 0,
+    "deadline_owner": "elixir-caller",
+    "blocking_io": false
+  },
+  "latency": {
+    "target_p99_us": 500,
+    "hard_budget_us": 1000,
+    "enforcement": "blocked-pending-a1",
+    "required_environment": "oci-a1-flex-4ocpu-24gib"
+  },
+  "failure": {
+    "panic_mapping": "NATIVE_PANIC",
+    "invalid_input_mapping": [
+      "NATIVE_INVALID_WINDOW",
+      "NATIVE_WINDOW_TOO_LARGE",
+      "NATIVE_INPUT_TOO_LARGE",
+      "NATIVE_INVALID_ENCODING",
+      "NATIVE_SEQUENCE_OUT_OF_ORDER",
+      "NATIVE_SEQUENCE_OUT_OF_WINDOW"
+    ],
+    "durable_state_impact": "none",
+    "beam_failure_policy": "optional-native-failure-must-not-stop-runtime"
+  },
+  "fallback": {
+    "module": "Liqi.Native.Reference.SequenceDiff",
+    "mode": "native-preferred",
+    "always_deployable": true,
+    "feature_default": "disabled",
+    "semantic_parity": "required"
+  },
+  "security_review": {
+    "unsafe_code": "forbidden",
+    "network_io": "forbidden",
+    "disk_io": "forbidden",
+    "database_io": "forbidden",
+    "unmanaged_threads": "forbidden",
+    "payload_logging": "forbidden",
+    "sensitive_payload": "not-accepted"
+  },
+  "removal_condition": "Remove the NIF and retain the reference implementation if A1 direct-NIF evidence fails the 500 microsecond p99 target or shows scheduler starvation at declared concurrency.",
+  "observability": {
+    "metrics": [
+      "liqi_native_calls_total",
+      "liqi_native_latency_microseconds",
+      "liqi_native_input_bytes",
+      "liqi_native_errors_total",
+      "liqi_native_panics_total",
+      "liqi_native_fallbacks_total",
+      "liqi_native_admission_rejections_total",
+      "liqi_native_memory_bytes"
+    ],
+    "payload_labels_forbidden": true
+  }
+}

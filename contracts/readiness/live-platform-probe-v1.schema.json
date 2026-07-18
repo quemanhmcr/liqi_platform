@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/readiness/live-platform-probe-v1.schema.json",
+  "title": "LIQI live platform probe V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evidence_mode",
+    "git_sha",
+    "release_id",
+    "observed_release_id",
+    "environment",
+    "endpoint",
+    "started_at",
+    "completed_at",
+    "status",
+    "checks",
+    "correctness_events",
+    "errors"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "live-platform-probe-v1"
+    },
+    "evidence_mode": {
+      "enum": [
+        "live",
+        "synthetic"
+      ]
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "observed_release_id": {
+      "type": "string",
+      "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "environment": {
+      "enum": [
+        "staging",
+        "production"
+      ]
+    },
+    "endpoint": {
+      "type": "string",
+      "pattern": "^https://",
+      "maxLength": 512
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked",
+        "failed"
+      ]
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "owner",
+          "status",
+          "duration_ms",
+          "evidence_ref",
+          "failure_class"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "https-health",
+              "runtime-readiness",
+              "websocket-connect",
+              "websocket-auth",
+              "durable-command-commit",
+              "outbox-handoff",
+              "realtime-delivery",
+              "resume-gap-repair",
+              "worker-job",
+              "native-kernel",
+              "native-fallback"
+            ]
+          },
+          "owner": {
+            "enum": [
+              "Senior 1",
+              "Senior 2",
+              "Senior 3",
+              "Senior 4",
+              "Senior 5"
+            ]
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "blocked",
+              "failed"
+            ]
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 600000
+          },
+          "evidence_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1024
+          },
+          "failure_class": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128
+          }
+        }
+      }
+    },
+    "correctness_events": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authorization_bypass",
+        "secret_exposure",
+        "duplicate_durable_identity",
+        "event_before_commit",
+        "durable_event_loss"
+      ],
+      "properties": {
+        "authorization_bypass": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "secret_exposure": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duplicate_durable_identity": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "event_before_commit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "durable_event_loss": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence_mode": {
+            "const": "live"
+          },
+          "checks": {
+            "items": {
+              "properties": {
+                "status": {
+                  "const": "passed"
+                },
+                "failure_class": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "status",
+                "failure_class"
+              ]
+            }
+          },
+          "correctness_events": {
+            "properties": {
+              "authorization_bypass": {
+                "const": 0
+              },
+              "secret_exposure": {
+                "const": 0
+              },
+              "duplicate_durable_identity": {
+                "const": 0
+              },
+              "event_before_commit": {
+                "const": 0
+              },
+              "durable_event_loss": {
+                "const": 0
+              }
+            }
+          },
+          "errors": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
+}

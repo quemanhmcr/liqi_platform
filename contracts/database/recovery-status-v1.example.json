@@ -1,0 +1,30 @@
+{
+  "$schema": "./recovery-status-v1.schema.json",
+  "schemaVersion": "recovery-status-v1",
+  "status": "blocked",
+  "sourceRevision": "4c561515f46237acfaf64e0145e37e54a6c4c9d9",
+  "releaseId": "v1-source-only-4c561515f462",
+  "migrationVersion": 8,
+  "requiredMigrationVersion": 8,
+  "backup": {
+    "status": "blocked",
+    "repositoryFormat": "pgbackrest-encrypted-s3-v0",
+    "latestBackupAt": null,
+    "latestWalArchivedAt": null,
+    "metadataChecksumVerified": false,
+    "freshnessSeconds": null
+  },
+  "restore": {
+    "status": "blocked",
+    "verifiedAt": null,
+    "durationSeconds": null,
+    "restoredSourceRevision": null,
+    "restoredMigrationVersion": null,
+    "invariantsPassed": false
+  },
+  "targets": {
+    "rpoSeconds": 300,
+    "rtoSeconds": 3600
+  },
+  "observedAt": "2026-07-18T00:00:00Z"
+}

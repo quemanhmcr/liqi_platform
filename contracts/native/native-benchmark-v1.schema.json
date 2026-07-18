@@ -1,0 +1,329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/native/native-benchmark-v1.schema.json",
+  "title": "LIQI native benchmark evidence V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "kernel",
+    "kernel_version",
+    "source_revision",
+    "artifact_sha256",
+    "execution_path",
+    "environment",
+    "case",
+    "samples",
+    "latency_us",
+    "scheduler_impact",
+    "fallback_verified",
+    "command",
+    "started_at",
+    "completed_at",
+    "notes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "native-benchmark-v1"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed",
+        "blocked"
+      ]
+    },
+    "kernel": {
+      "const": "compact_sequence_diff"
+    },
+    "kernel_version": {
+      "const": "1"
+    },
+    "source_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "artifact_sha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "execution_path": {
+      "enum": [
+        "beam-rustler-nif",
+        "rust-core-only"
+      ]
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class",
+        "target_triple",
+        "host_cpu",
+        "host_memory_mib",
+        "beam_schedulers",
+        "dirty_cpu_schedulers",
+        "dirty_io_schedulers",
+        "async_threads"
+      ],
+      "properties": {
+        "class": {
+          "enum": [
+            "oci-a1-flex-4ocpu-24gib",
+            "developer-workstation"
+          ]
+        },
+        "target_triple": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 128
+        },
+        "host_cpu": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 256
+        },
+        "host_memory_mib": {
+          "type": "integer",
+          "minimum": 128
+        },
+        "beam_schedulers": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "dirty_cpu_schedulers": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "dirty_io_schedulers": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "async_threads": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observed_sequences",
+        "input_bytes",
+        "window_span",
+        "expected_output_ranges"
+      ],
+      "properties": {
+        "observed_sequences": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2048
+        },
+        "input_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "window_span": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        },
+        "expected_output_ranges": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2049
+        }
+      }
+    },
+    "samples": {
+      "type": "integer",
+      "minimum": 1000
+    },
+    "latency_us": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "p50",
+        "p95",
+        "p99",
+        "maximum",
+        "target_p99",
+        "hard_budget"
+      ],
+      "properties": {
+        "p50": {
+          "type": "number",
+          "minimum": 0
+        },
+        "p95": {
+          "type": "number",
+          "minimum": 0
+        },
+        "p99": {
+          "type": "number",
+          "minimum": 0
+        },
+        "maximum": {
+          "type": "number",
+          "minimum": 0
+        },
+        "target_p99": {
+          "type": "number",
+          "minimum": 0
+        },
+        "hard_budget": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "scheduler_impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "starvation_tested",
+        "max_probe_delay_ms",
+        "status"
+      ],
+      "properties": {
+        "starvation_tested": {
+          "type": "boolean"
+        },
+        "max_probe_delay_ms": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "failed",
+            "not-tested"
+          ]
+        }
+      }
+    },
+    "fallback_verified": {
+      "type": "boolean"
+    },
+    "command": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      }
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "artifact_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "execution_path": {
+            "const": "beam-rustler-nif"
+          },
+          "environment": {
+            "properties": {
+              "class": {
+                "const": "oci-a1-flex-4ocpu-24gib"
+              },
+              "target_triple": {
+                "const": "aarch64-unknown-linux-gnu"
+              }
+            }
+          },
+          "scheduler_impact": {
+            "properties": {
+              "starvation_tested": {
+                "const": true
+              },
+              "status": {
+                "const": "passed"
+              }
+            }
+          },
+          "fallback_verified": {
+            "const": true
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "latency_us": {
+            "properties": {
+              "target_p99": {
+                "const": 500
+              },
+              "hard_budget": {
+                "const": 1000
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,1067 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/readiness/load-result-v1.schema.json",
+  "title": "LIQI load result V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evidence_mode",
+    "git_sha",
+    "release_id",
+    "environment",
+    "profile",
+    "host",
+    "dataset",
+    "generator",
+    "started_at",
+    "completed_at",
+    "status",
+    "workload",
+    "latency",
+    "resources",
+    "outcomes",
+    "recovery_after_load",
+    "evidence_refs",
+    "failures"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "load-result-v1"
+    },
+    "evidence_mode": {
+      "enum": [
+        "live",
+        "synthetic"
+      ]
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "environment": {
+      "enum": [
+        "staging",
+        "production"
+      ]
+    },
+    "profile": {
+      "enum": [
+        "floor",
+        "stretch",
+        "diagnostic"
+      ]
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shape",
+        "ocpu",
+        "memory_mib",
+        "combined_storage_gib"
+      ],
+      "properties": {
+        "shape": {
+          "const": "VM.Standard.A1.Flex"
+        },
+        "ocpu": {
+          "const": 4
+        },
+        "memory_mib": {
+          "const": 24576
+        },
+        "combined_storage_gib": {
+          "type": "number",
+          "maximum": 200
+        }
+      }
+    },
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision",
+        "seed",
+        "records"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "records": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "version",
+        "source_sha256"
+      ],
+      "properties": {
+        "tool": {
+          "const": "k6"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked",
+        "failed"
+      ]
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "concurrent_websocket_sessions",
+        "active_subscriptions",
+        "durable_commands_per_second",
+        "realtime_events_per_second",
+        "reconnect_fraction",
+        "reconnect_window_seconds",
+        "steady_duration_seconds",
+        "arrival_pattern"
+      ],
+      "properties": {
+        "concurrent_websocket_sessions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "active_subscriptions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "durable_commands_per_second": {
+          "type": "number",
+          "minimum": 0
+        },
+        "realtime_events_per_second": {
+          "type": "number",
+          "minimum": 0
+        },
+        "reconnect_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reconnect_window_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "steady_duration_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "arrival_pattern": {
+          "enum": [
+            "ramp-then-steady",
+            "constant-arrival-rate",
+            "reconnect-burst"
+          ]
+        }
+      }
+    },
+    "latency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "api_ms",
+        "commit_to_deliver_ms",
+        "db_pool_wait_ms",
+        "native_ms"
+      ],
+      "properties": {
+        "api_ms": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "milliseconds"
+            }
+          }
+        },
+        "commit_to_deliver_ms": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "milliseconds"
+            }
+          }
+        },
+        "db_pool_wait_ms": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "milliseconds"
+            }
+          }
+        },
+        "native_ms": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "milliseconds"
+            }
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cpu_percent",
+        "memory_mib",
+        "disk_used_gib",
+        "reserve_ocpu",
+        "reserve_memory_mib",
+        "disk_free_gib",
+        "beam_scheduler_utilization_percent",
+        "beam_run_queue",
+        "actor_mailbox_depth",
+        "actor_mailbox_age_ms",
+        "ets_memory_mib",
+        "postgres_connections",
+        "pgbouncer_pool_wait_ms",
+        "outbox_age_ms",
+        "oban_queue_age_ms",
+        "native_memory_mib",
+        "native_inflight",
+        "telemetry_dropped"
+      ],
+      "properties": {
+        "cpu_percent": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "percent"
+            }
+          }
+        },
+        "memory_mib": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "mebibytes"
+            }
+          }
+        },
+        "disk_used_gib": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "gibibytes"
+            }
+          }
+        },
+        "reserve_ocpu": {
+          "type": "number",
+          "minimum": 0
+        },
+        "reserve_memory_mib": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "disk_free_gib": {
+          "type": "number",
+          "minimum": 0
+        },
+        "beam_scheduler_utilization_percent": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "percent"
+            }
+          }
+        },
+        "beam_run_queue": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "count"
+            }
+          }
+        },
+        "actor_mailbox_depth": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "count"
+            }
+          }
+        },
+        "actor_mailbox_age_ms": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "milliseconds"
+            }
+          }
+        },
+        "ets_memory_mib": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "mebibytes"
+            }
+          }
+        },
+        "postgres_connections": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "count"
+            }
+          }
+        },
+        "pgbouncer_pool_wait_ms": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "milliseconds"
+            }
+          }
+        },
+        "outbox_age_ms": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "milliseconds"
+            }
+          }
+        },
+        "oban_queue_age_ms": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "milliseconds"
+            }
+          }
+        },
+        "native_memory_mib": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "mebibytes"
+            }
+          }
+        },
+        "native_inflight": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "unit"
+          ],
+          "properties": {
+            "p50": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "p99": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "const": "count"
+            }
+          }
+        },
+        "telemetry_dropped": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "outcomes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requests",
+        "errors",
+        "rejections",
+        "durable_event_loss",
+        "authorization_bypass",
+        "secret_exposure"
+      ],
+      "properties": {
+        "requests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "errors": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rejections": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "durable_event_loss": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "authorization_bypass": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "secret_exposure": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "recovery_after_load": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "recovered_within_seconds",
+        "outbox_age_ms",
+        "run_queue",
+        "memory_returned_to_baseline_percent"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "passed",
+            "blocked",
+            "failed"
+          ]
+        },
+        "recovered_within_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "outbox_age_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "run_queue": {
+          "type": "number",
+          "minimum": 0
+        },
+        "memory_returned_to_baseline_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1024
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence_mode": {
+            "const": "live"
+          },
+          "outcomes": {
+            "properties": {
+              "durable_event_loss": {
+                "const": 0
+              },
+              "authorization_bypass": {
+                "const": 0
+              },
+              "secret_exposure": {
+                "const": 0
+              }
+            }
+          },
+          "resources": {
+            "properties": {
+              "reserve_ocpu": {
+                "minimum": 1
+              },
+              "reserve_memory_mib": {
+                "minimum": 4096
+              },
+              "disk_free_gib": {
+                "minimum": 20
+              }
+            }
+          },
+          "recovery_after_load": {
+            "properties": {
+              "status": {
+                "const": "passed"
+              }
+            }
+          },
+          "failures": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "profile": {
+            "const": "floor"
+          },
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "profile",
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "workload": {
+            "properties": {
+              "concurrent_websocket_sessions": {
+                "minimum": 2000
+              },
+              "active_subscriptions": {
+                "minimum": 200
+              },
+              "durable_commands_per_second": {
+                "minimum": 50
+              },
+              "realtime_events_per_second": {
+                "minimum": 500
+              },
+              "reconnect_fraction": {
+                "minimum": 0.25
+              },
+              "reconnect_window_seconds": {
+                "maximum": 60
+              },
+              "steady_duration_seconds": {
+                "minimum": 1800
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "profile": {
+            "const": "stretch"
+          },
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "profile",
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "workload": {
+            "properties": {
+              "concurrent_websocket_sessions": {
+                "minimum": 5000
+              },
+              "active_subscriptions": {
+                "minimum": 1000
+              },
+              "durable_commands_per_second": {
+                "minimum": 100
+              },
+              "realtime_events_per_second": {
+                "minimum": 1000
+              },
+              "steady_duration_seconds": {
+                "minimum": 1800
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

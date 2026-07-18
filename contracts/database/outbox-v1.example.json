@@ -1,0 +1,55 @@
+{
+  "$schema": "./outbox-v1.schema.json",
+  "contractVersion": "outbox-v1",
+  "authority": "platform.outbox_events",
+  "delivery": "at-least-once",
+  "states": [
+    "pending",
+    "processing",
+    "succeeded",
+    "dead_letter"
+  ],
+  "claim": {
+    "batchMaximum": 50,
+    "leaseMinimumSeconds": 5,
+    "leaseMaximumSeconds": 300,
+    "locking": "for-update-skip-locked",
+    "reclaim": "expired-lease-new-token"
+  },
+  "retry": {
+    "defaultMaxAttempts": 8,
+    "hardMaxAttempts": 20,
+    "backoff": "caller-supplied-bounded-retry-at",
+    "ackIdempotent": true
+  },
+  "deadLetter": {
+    "terminal": true,
+    "bounded": true,
+    "operatorAction": "inspect-retry-or-prune-via-approved-command"
+  },
+  "retention": {
+    "terminalDays": 30,
+    "pruneBatchMaximum": 500,
+    "referencedRows": "retained-until-projection-and-probe-references-are-removed"
+  },
+  "envelope": {
+    "protocolVersion": 1,
+    "fields": [
+      "protocol_version",
+      "message_id",
+      "correlation_id",
+      "causation_id",
+      "trace_context",
+      "deadline_at",
+      "actor_key",
+      "priority",
+      "payload_type",
+      "payload_version",
+      "payload"
+    ],
+    "maximumPayloadBytes": 65536,
+    "maximumMetadataBytes": 4096,
+    "maximumTraceContextBytes": 2048
+  },
+  "terminalEffects": "consumer-must-be-idempotent-before-ack"
+}

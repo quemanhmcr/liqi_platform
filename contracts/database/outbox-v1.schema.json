@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/database/outbox-v1.schema.json",
+  "title": "LIQI Durable Outbox V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "authority",
+    "delivery",
+    "states",
+    "claim",
+    "retry",
+    "deadLetter",
+    "retention",
+    "envelope",
+    "terminalEffects"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "contractVersion": {
+      "const": "outbox-v1"
+    },
+    "authority": {
+      "const": "platform.outbox_events"
+    },
+    "delivery": {
+      "const": "at-least-once"
+    },
+    "states": {
+      "const": [
+        "pending",
+        "processing",
+        "succeeded",
+        "dead_letter"
+      ]
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "batchMaximum",
+        "leaseMinimumSeconds",
+        "leaseMaximumSeconds",
+        "locking",
+        "reclaim"
+      ],
+      "properties": {
+        "batchMaximum": {
+          "const": 50
+        },
+        "leaseMinimumSeconds": {
+          "const": 5
+        },
+        "leaseMaximumSeconds": {
+          "const": 300
+        },
+        "locking": {
+          "const": "for-update-skip-locked"
+        },
+        "reclaim": {
+          "const": "expired-lease-new-token"
+        }
+      }
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "defaultMaxAttempts",
+        "hardMaxAttempts",
+        "backoff",
+        "ackIdempotent"
+      ],
+      "properties": {
+        "defaultMaxAttempts": {
+          "const": 8
+        },
+        "hardMaxAttempts": {
+          "const": 20
+        },
+        "backoff": {
+          "const": "caller-supplied-bounded-retry-at"
+        },
+        "ackIdempotent": {
+          "const": true
+        }
+      }
+    },
+    "deadLetter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "terminal",
+        "bounded",
+        "operatorAction"
+      ],
+      "properties": {
+        "terminal": {
+          "const": true
+        },
+        "bounded": {
+          "const": true
+        },
+        "operatorAction": {
+          "const": "inspect-retry-or-prune-via-approved-command"
+        }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "terminalDays",
+        "pruneBatchMaximum",
+        "referencedRows"
+      ],
+      "properties": {
+        "terminalDays": {
+          "const": 30
+        },
+        "pruneBatchMaximum": {
+          "const": 500
+        },
+        "referencedRows": {
+          "const": "retained-until-projection-and-probe-references-are-removed"
+        }
+      }
+    },
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "fields",
+        "maximumPayloadBytes",
+        "maximumMetadataBytes",
+        "maximumTraceContextBytes"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 1
+        },
+        "fields": {
+          "const": [
+            "protocol_version",
+            "message_id",
+            "correlation_id",
+            "causation_id",
+            "trace_context",
+            "deadline_at",
+            "actor_key",
+            "priority",
+            "payload_type",
+            "payload_version",
+            "payload"
+          ]
+        },
+        "maximumPayloadBytes": {
+          "const": 65536
+        },
+        "maximumMetadataBytes": {
+          "const": 4096
+        },
+        "maximumTraceContextBytes": {
+          "const": 2048
+        }
+      }
+    },
+    "terminalEffects": {
+      "const": "consumer-must-be-idempotent-before-ack"
+    }
+  }
+}
