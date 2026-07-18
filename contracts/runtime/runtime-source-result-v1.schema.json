@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/runtime/runtime-source-result-v1.schema.json",
+  "title": "LIQI BEAM runtime source validation V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "git_sha", "observed_at", "status", "toolchain", "checks", "blockers"],
+  "properties": {
+    "schema_version": {"const": "runtime-source-result-v1"},
+    "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["passed", "blocked", "failed"]},
+    "toolchain": {
+      "type": "object", "additionalProperties": false,
+      "required": ["erlang", "elixir"],
+      "properties": {"erlang": {"type": "string"}, "elixir": {"type": "string"}}
+    },
+    "checks": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "status"],
+        "properties": {"name": {"type": "string"}, "status": {"enum": ["passed", "blocked", "failed"]}}
+      }
+    },
+    "blockers": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  }
+}

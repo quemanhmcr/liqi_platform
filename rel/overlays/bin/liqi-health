@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+shopt -s nullglob
+candidates=("$(cd "$(dirname "$0")/.." && pwd)"/lib/liqi_platform-*/priv/health.sh)
+[[ ${#candidates[@]} -eq 1 ]] || { echo "expected exactly one LIQI health provider script" >&2; exit 66; }
+exec "${candidates[0]}" "$@"

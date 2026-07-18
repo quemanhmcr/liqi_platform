@@ -46,7 +46,8 @@ defmodule LiqiPlatform.MixProject do
     [
       liqi_platform: [
         include_executables_for: [:unix],
-        applications: [runtime_tools: :permanent]
+        applications: [runtime_tools: :permanent],
+        overlays: ["rel/overlays"]
       ]
     ]
   end

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/runtime/runtime-artifact-result-v1.schema.json",
+  "title": "LIQI Mix release verification V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "git_sha", "release_id", "observed_at", "status", "artifact_sha256", "checks", "blockers"],
+  "properties": {
+    "schema_version": {"const": "runtime-artifact-result-v1"},
+    "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "release_id": {"type": "string"},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["passed", "blocked", "failed"]},
+    "artifact_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "checks": {"type": "array", "items": {"type": "object", "required": ["name", "status"], "additionalProperties": false, "properties": {"name": {"type": "string"}, "status": {"enum": ["passed", "blocked", "failed"]}}}},
+    "blockers": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  }
+}
