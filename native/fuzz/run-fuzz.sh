@@ -19,8 +19,10 @@ if ! cargo +nightly fuzz --help >/dev/null 2>&1; then
   printf '%s\n' '{"validation":"native-fuzz-v1","status":"blocked","reason":"cargo-fuzz-required"}' >&2
   exit 69
 fi
-cd "$ROOT_DIR/native/fuzz"
-cargo +nightly fuzz run sequence_diff_parity -- \
+cd "$ROOT_DIR"
+cargo +nightly fuzz run \
+  --fuzz-dir "$ROOT_DIR/native/fuzz" \
+  sequence_diff_parity -- \
   -max_total_time="$MAX_TOTAL_TIME" \
   -rss_limit_mb=512 \
   -timeout=2
