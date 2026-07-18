@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+OUTPUT=''
+while (($#)); do
+  case "$1" in
+    --output) OUTPUT=${2:-}; shift 2 ;;
+    *) echo "unknown argument: $1" >&2; exit 64 ;;
+  esac
+done
+: "${OUTPUT:?--output is required}"
+: "${LIQI_RECOVERY_RELEASE_BIN:?LIQI_RECOVERY_RELEASE_BIN is required}"
+: "${LIQI_DATABASE_SOCKET_DIR:?LIQI_DATABASE_SOCKET_DIR is required}"
+: "${LIQI_DATABASE_API_PASSWORD_FILE:?LIQI_DATABASE_API_PASSWORD_FILE is required}"
+: "${LIQI_SOURCE_GIT_SHA:?LIQI_SOURCE_GIT_SHA is required}"
+: "${LIQI_RELEASE_ID:?LIQI_RELEASE_ID is required}"
+: "${LIQI_RESTORE_PROBE_ID:?LIQI_RESTORE_PROBE_ID is required}"
+: "${LIQI_RESTORE_PROBE_EVENT_ID:?LIQI_RESTORE_PROBE_EVENT_ID is required}"
+[[ -x "$LIQI_RECOVERY_RELEASE_BIN" ]] || { echo 'release eval executable is unavailable' >&2; exit 69; }
+[[ "$LIQI_RECOVERY_RELEASE_BIN" == /opt/liqi/current/bin/liqi_platform || "$LIQI_RECOVERY_RELEASE_BIN" == /opt/liqi/releases/*/bin/liqi_platform ]] || { echo 'release eval executable escapes approved release layout' >&2; exit 64; }
+[[ -d "$LIQI_DATABASE_SOCKET_DIR" && ! -L "$LIQI_DATABASE_SOCKET_DIR" ]] || { echo 'isolated database socket directory is invalid' >&2; exit 64; }
+[[ -f "$LIQI_DATABASE_API_PASSWORD_FILE" && ! -L "$LIQI_DATABASE_API_PASSWORD_FILE" && -r "$LIQI_DATABASE_API_PASSWORD_FILE" ]] || { echo 'database API credential file is unavailable' >&2; exit 78; }
+find "$LIQI_DATABASE_API_PASSWORD_FILE" -maxdepth 0 -perm /077 -print -quit | grep -q . && { echo 'database API credential permissions are too broad' >&2; exit 78; }
+export LIQI_RESTORE_BEAM_PROBE_OUTPUT="$OUTPUT"
+exec "$LIQI_RECOVERY_RELEASE_BIN" eval 'LiqiPersistence.RestoreProbe.run!(System.fetch_env!("LIQI_RESTORE_BEAM_PROBE_OUTPUT"))'

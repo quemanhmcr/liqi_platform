@@ -14,6 +14,7 @@ The following steps require explicit approval because they mutate the live datab
 ## Preconditions
 
 - approved `v0-platform-foundation-ready` tag and exact-SHA owner evidence exist
+- independent pgBackRest TLS repository preflight and fresh checksummed capacity evidence pass
 - current backup status is recovery-ready and WAL freshness is at most 300 seconds
 - migration manifest checksums pass
 - PostgreSQL 17 and Oban migration compatibility are accepted

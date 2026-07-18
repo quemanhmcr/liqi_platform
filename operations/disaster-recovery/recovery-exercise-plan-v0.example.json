@@ -1,24 +1,73 @@
 {
   "schema_version": "recovery-exercise-plan-v0",
-  "exercise_id": "rx-development-v0",
+  "exercise_id": "rx-development-v1",
   "mode": "provider",
   "source_environment": "development",
   "target": {
     "environment": "isolated-recovery",
-    "root": "/var/lib/liqi/recovery-exercises/rx-development-v0",
-    "database": "liqi_restore_development_v0",
+    "root": "/var/lib/liqi/recovery-exercises/rx-development-v1",
+    "database": "liqi_restore_development_v1",
     "production_traffic": false,
     "isolated": true
   },
-  "backup_ref": "oci://example-namespace/liqi-development-backups/postgresql/v0/metadata/20260717-030000F.json",
-  "required_database_migration": "4",
+  "backup_ref": "pgbackrest://management/database-backup-repository/liqi/20260718-000000F",
+  "required_database_migration": "8",
   "approval_ref": null,
   "steps": [
-    {"name": "prepare", "owner": "Senior 2", "argv": ["database/recovery/prepare-restore-exercise.sh", "{target_root}", "{target_database}"], "timeout_seconds": 300, "mutation": "isolated-target"},
-    {"name": "restore", "owner": "Senior 2", "argv": ["database/recovery/restore-exercise.sh", "{backup_ref}", "{target_root}", "{target_database}"], "timeout_seconds": 3600, "mutation": "isolated-target"},
-    {"name": "verify", "owner": "Senior 2", "argv": ["database/recovery/verify-restore-exercise.sh", "{target_root}", "{target_database}", "{required_database_migration}", "{verification_output}", "{source_environment}"], "timeout_seconds": 900, "mutation": "none"},
-    {"name": "cleanup", "owner": "Senior 2", "argv": ["database/recovery/cleanup-restore-exercise.sh", "{target_root}", "{target_database}"], "timeout_seconds": 300, "mutation": "isolated-target"}
+    {
+      "name": "prepare",
+      "owner": "Senior 2",
+      "argv": [
+        "database/recovery/prepare-restore-exercise.sh",
+        "{target_root}",
+        "{target_database}"
+      ],
+      "timeout_seconds": 300,
+      "mutation": "isolated-target"
+    },
+    {
+      "name": "restore",
+      "owner": "Senior 2",
+      "argv": [
+        "database/recovery/restore-exercise.sh",
+        "{backup_ref}",
+        "{target_root}",
+        "{target_database}"
+      ],
+      "timeout_seconds": 3600,
+      "mutation": "isolated-target"
+    },
+    {
+      "name": "verify",
+      "owner": "Senior 2",
+      "argv": [
+        "database/recovery/verify-restore-exercise.sh",
+        "{target_root}",
+        "{target_database}",
+        "{required_database_migration}",
+        "{verification_output}",
+        "{source_environment}"
+      ],
+      "timeout_seconds": 900,
+      "mutation": "none"
+    },
+    {
+      "name": "cleanup",
+      "owner": "Senior 2",
+      "argv": [
+        "database/recovery/cleanup-restore-exercise.sh",
+        "{target_root}",
+        "{target_database}"
+      ],
+      "timeout_seconds": 300,
+      "mutation": "isolated-target"
+    }
   ],
   "cleanup_policy": "always",
-  "mutation_policy": {"source_database_write": false, "production_traffic": false, "oci_mutation": false, "target_only": true}
+  "mutation_policy": {
+    "source_database_write": false,
+    "production_traffic": false,
+    "oci_mutation": false,
+    "target_only": true
+  }
 }

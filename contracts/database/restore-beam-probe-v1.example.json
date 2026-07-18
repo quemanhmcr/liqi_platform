@@ -1,0 +1,17 @@
+{
+  "schema_version": "liqi.database.restore-beam-probe/v1",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "release_id": "liqi-v1-example",
+  "migration_version": 8,
+  "database_ready": true,
+  "write_ready": true,
+  "in_recovery": false,
+  "probe_id": "10000000-0000-4000-8000-000000000001",
+  "event_id": "10000000-0000-4000-8000-000000000002",
+  "probe_status": "completed",
+  "outbox_state": "succeeded",
+  "effect_applied": true,
+  "terminal": true,
+  "status": "passed",
+  "observed_at": "2026-07-18T00:00:00Z"
+}

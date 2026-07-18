@@ -26,8 +26,13 @@ defmodule LiqiPersistence.Config do
   def repo_options(role) do
     role_config = Map.fetch!(@roles, role)
 
+    endpoint =
+      case System.get_env("LIQI_DATABASE_SOCKET_DIR") do
+        path when is_binary(path) and path != "" -> [socket_dir: path]
+        _ -> [hostname: System.get_env("LIQI_DATABASE_HOST", "127.0.0.1")]
+      end
+
     [
-      hostname: System.get_env("LIQI_DATABASE_HOST", "127.0.0.1"),
       port: integer_env!("LIQI_DATABASE_PORT", 6432),
       database: System.get_env("LIQI_DATABASE_NAME", "liqi"),
       username: role_config.username,
@@ -41,6 +46,7 @@ defmodule LiqiPersistence.Config do
       show_sensitive_data_on_connection_error: false,
       telemetry_prefix: [:liqi, :persistence, role]
     ]
+    |> Keyword.merge(endpoint)
     |> Keyword.put(:password, read_secret!(role_config.password_env))
   end
 

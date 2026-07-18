@@ -1,14 +1,16 @@
 # Database systemd provider templates
 
-These units are provider templates, not an instruction to enable services automatically.
+These units are provider templates and do not enable services automatically.
 
-Senior 1 must provide:
+The application host requires `/etc/liqi/database/backup.env` rendered from `database/config/backup.env.template` with the exact source SHA, reviewed WireGuard-overlay repository hostname, fixed TLS port 8432, independent repository path and checksummed capacity evidence paths. The file contains no secret value.
 
-- `/etc/liqi/database/backup.env` with non-secret host paths, Object Storage namespace/region/bucket and `oci-host-v0` references.
-- systemd `LoadCredential=` drop-ins for `pgbackrest-s3-key`, `pgbackrest-s3-secret` and `pgbackrest-cipher-passphrase`.
-- bounded writable directories for pgBackRest spool/logs and backup metadata.
-- the stable deployment path `/opt/liqi/current` or a compatible adapter path.
+OCI Vault materialization and systemd `LoadCredential=` supply:
 
-Senior 4 may enable timers only after source validation, PostgreSQL integration tests, `pgbackrest stanza-create/check`, a successful full backup and an isolated restore drill. The units do not create OCI resources.
+- `pgbackrest-repo-ca`;
+- `pgbackrest-repo-client-cert`;
+- `pgbackrest-repo-client-key`;
+- `pgbackrest-cipher-passphrase`.
 
-Backup and repository-check units share `/run/lock/liqi-database-backup.lock`; they must not overlap. Resource limits implement `contracts/platform/database-capacity-budget-v0.json`.
+The PostgreSQL `archive_command` uses the same root-materialized files under `/run/liqi/secrets/database`; backup and repository-check units receive private per-unit credential copies. No S3 key, Customer Secret Key, bucket or OCI Object Storage namespace is accepted.
+
+Senior 4 may enable timers only after source validation, PostgreSQL integration tests, `pgbackrest stanza-create/check`, a successful full backup, checksummed fresh capacity evidence and an isolated restore drill. Backup and repository-check units share `/run/lock/liqi-database-backup.lock` and cannot overlap.

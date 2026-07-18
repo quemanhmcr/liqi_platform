@@ -1,0 +1,27 @@
+[Unit]
+Description=LIQI independent pgBackRest TLS repository
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/pgbackrest/liqi-repository.conf
+
+[Service]
+Type=simple
+User=pgbackrest
+Group=pgbackrest
+ExecStart=/usr/bin/pgbackrest --config=/etc/pgbackrest/liqi-repository.conf server
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=60s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/independent-storage/pgbackrest /var/log/pgbackrest /var/spool/pgbackrest
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

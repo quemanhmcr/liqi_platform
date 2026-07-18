@@ -136,7 +136,7 @@ def main() -> int:
         "requiredMigrationVersion": 8,
         "backup": {
             "status": backup_status,
-            "repositoryFormat": "pgbackrest-encrypted-s3-v0",
+            "repositoryFormat": "pgbackrest-encrypted-posix-tls-v1",
             "latestBackupAt": iso(latest_backup_at),
             "latestWalArchivedAt": iso(latest_wal_at),
             "metadataChecksumVerified": metadata_verified,

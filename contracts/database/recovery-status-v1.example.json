@@ -8,7 +8,7 @@
   "requiredMigrationVersion": 8,
   "backup": {
     "status": "blocked",
-    "repositoryFormat": "pgbackrest-encrypted-s3-v0",
+    "repositoryFormat": "pgbackrest-encrypted-posix-tls-v1",
     "latestBackupAt": null,
     "latestWalArchivedAt": null,
     "metadataChecksumVerified": false,

@@ -1,0 +1,80 @@
+{
+  "$schema": "./backup-metadata-v1.schema.json",
+  "schemaVersion": "database-backup-metadata-v1",
+  "generatedAt": "2026-07-18T00:05:00Z",
+  "backupRunId": "10000000-0000-4000-8000-000000000001",
+  "stanza": "liqi",
+  "source": {
+    "database": "liqi",
+    "authority": "postgresql",
+    "hostRef": "oci-live-v1://host/database-authority",
+    "gitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "repository": {
+    "type": "pgbackrest-tls-remote-posix",
+    "authority": "independent-management-storage",
+    "repositoryRef": "management://database-backup-repository",
+    "port": 8432,
+    "path": "/independent-storage/pgbackrest/liqi",
+    "transport": "mutual-tls-over-wireguard",
+    "clientSideEncryption": "aes-256-cbc",
+    "dedicated": true,
+    "metadataAuthority": "pgbackrest-backup-annotations"
+  },
+  "backup": {
+    "label": "20260718-000000F",
+    "type": "full",
+    "startedAt": "2026-07-18T00:00:00Z",
+    "stoppedAt": "2026-07-18T00:04:30Z",
+    "archiveStart": "000000010000000000000001",
+    "archiveStop": "000000010000000000000002",
+    "annotation": {
+      "liqi-run-id": "10000000-0000-4000-8000-000000000001",
+      "liqi-source-git-sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "liqi-host-ref": "oci-live-v1://host/database-authority",
+      "liqi-postgresql-version": "17.10",
+      "liqi-migration-version": "8",
+      "liqi-probe-id": "10000000-0000-4000-8000-000000000002",
+      "liqi-probe-event-id": "10000000-0000-4000-8000-000000000003",
+      "liqi-probe-completed-at": "2026-07-17T23:59:59Z",
+      "liqi-probe-status": "completed",
+      "liqi-outbox-state": "succeeded",
+      "liqi-effect-count": "1",
+      "liqi-manifest-sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "liqi-repository-ref": "management://database-backup-repository",
+      "liqi-repository-path": "/independent-storage/pgbackrest/liqi",
+      "liqi-repository-port": "8432"
+    },
+    "infoSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "postgresql": {
+    "major": 17,
+    "version": "17.10"
+  },
+  "migration": {
+    "currentVersion": 8,
+    "manifestSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "probe": {
+    "probeId": "10000000-0000-4000-8000-000000000002",
+    "eventId": "10000000-0000-4000-8000-000000000003",
+    "probeStatus": "completed",
+    "outboxState": "succeeded",
+    "effectCount": 1,
+    "completedAt": "2026-07-17T23:59:59Z"
+  },
+  "pgBackRest": {
+    "version": "2.58.0",
+    "repositoryFormat": "pgbackrest-encrypted-posix-tls-v1"
+  },
+  "recoveryTargets": {
+    "workingRpo": "5m",
+    "workingRto": "60m",
+    "pitr": true,
+    "restoreScope": "entire-postgresql-cluster"
+  },
+  "costClassification": {
+    "class": "external-owner-provisioned-independent-storage",
+    "ociResourceCreated": false
+  }
+}

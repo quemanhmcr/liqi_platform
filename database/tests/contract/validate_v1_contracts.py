@@ -16,6 +16,9 @@ PAIRS = [
     ("contracts/database/idempotency-v1.schema.json", "contracts/database/idempotency-v1.example.json"),
     ("contracts/jobs/oban-policy-v1.schema.json", "contracts/jobs/oban-policy-v1.example.json"),
     ("contracts/database/recovery-status-v1.schema.json", "contracts/database/recovery-status-v1.example.json"),
+    ("contracts/database/backup-metadata-v1.schema.json", "contracts/database/backup-metadata-v1.example.json"),
+    ("contracts/database/backup-repository-capacity-v1.schema.json", "contracts/database/backup-repository-capacity-v1.example.json"),
+    ("contracts/database/restore-beam-probe-v1.schema.json", "contracts/database/restore-beam-probe-v1.example.json"),
 ]
 
 def load(path: str) -> dict:

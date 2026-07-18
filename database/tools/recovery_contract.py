@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create and verify LIQI PostgreSQL V0 backup/restore evidence."""
+"""Create, reconstruct and verify LIQI PostgreSQL backup/restore evidence."""
 from __future__ import annotations
 
 import argparse
@@ -16,13 +16,17 @@ from typing import Any
 from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[2]
-CONTRACTS = ROOT / "contracts/platform"
-BACKUP_SCHEMA = CONTRACTS / "database-backup-metadata-v0.schema.json"
-BACKUP_EXAMPLE = CONTRACTS / "database-backup-metadata-v0.example.json"
-BACKUP_STATUS_SCHEMA = CONTRACTS / "database-backup-status-v0.schema.json"
-BACKUP_STATUS_EXAMPLE = CONTRACTS / "database-backup-status-v0.example.json"
-RESTORE_SCHEMA = CONTRACTS / "database-restore-result-v0.schema.json"
-RESTORE_EXAMPLE = CONTRACTS / "database-restore-result-v0.example.json"
+DATABASE_CONTRACTS = ROOT / "contracts/database"
+PLATFORM_CONTRACTS = ROOT / "contracts/platform"
+BACKUP_SCHEMA = DATABASE_CONTRACTS / "backup-metadata-v1.schema.json"
+BACKUP_EXAMPLE = DATABASE_CONTRACTS / "backup-metadata-v1.example.json"
+BACKUP_STATUS_SCHEMA = PLATFORM_CONTRACTS / "database-backup-status-v0.schema.json"
+BACKUP_STATUS_EXAMPLE = PLATFORM_CONTRACTS / "database-backup-status-v0.example.json"
+RESTORE_SCHEMA = PLATFORM_CONTRACTS / "database-restore-result-v0.schema.json"
+RESTORE_EXAMPLE = PLATFORM_CONTRACTS / "database-restore-result-v0.example.json"
+REPOSITORY_REF = "management://database-backup-repository"
+REPOSITORY_PATH = "/independent-storage/pgbackrest/liqi"
+REPOSITORY_PORT = 8432
 
 
 def load_json(path: Path) -> Any:
@@ -117,21 +121,103 @@ def manifest_entries(path: Path) -> list[dict[str, Any]]:
     return entries
 
 
-def select_backup(info: Any, stanza_name: str, run_id: str, backup_type: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def select_backup(
+    info: Any,
+    stanza_name: str,
+    *,
+    run_id: str | None = None,
+    backup_type: str | None = None,
+    label: str | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
     if not isinstance(info, list):
         raise ValueError("pgBackRest info must be a JSON array")
     stanza = next((item for item in info if item.get("name") == stanza_name), None)
     if stanza is None:
         raise ValueError(f"pgBackRest stanza not found: {stanza_name}")
-    candidates = [
-        backup for backup in stanza.get("backup", [])
-        if backup.get("type") == backup_type
-        and backup.get("annotation", {}).get("liqi-run-id") == run_id
-    ]
+    candidates = []
+    for backup in stanza.get("backup", []):
+        if label is not None and backup.get("label") != label:
+            continue
+        if backup_type is not None and backup.get("type") != backup_type:
+            continue
+        if run_id is not None and backup.get("annotation", {}).get("liqi-run-id") != run_id:
+            continue
+        candidates.append(backup)
+    selector = label or run_id or "requested selector"
     if len(candidates) != 1:
-        raise ValueError(f"expected one pgBackRest backup for run {run_id}, found {len(candidates)}")
+        raise ValueError(f"expected one pgBackRest backup for {selector}, found {len(candidates)}")
     return stanza, candidates[0]
 
+
+def metadata_from_backup(info_raw: bytes, stanza: dict[str, Any], backup: dict[str, Any]) -> dict[str, Any]:
+    annotation = backup.get("annotation")
+    if not isinstance(annotation, dict):
+        raise ValueError("pgBackRest backup annotations are missing")
+    if stanza.get("cipher") != "aes-256-cbc":
+        raise ValueError("pgBackRest repository must use aes-256-cbc client-side encryption")
+    if annotation.get("liqi-repository-ref") != REPOSITORY_REF:
+        raise ValueError("backup annotation repository reference mismatch")
+    if annotation.get("liqi-repository-path") != REPOSITORY_PATH:
+        raise ValueError("backup annotation repository path mismatch")
+    if annotation.get("liqi-repository-port") != str(REPOSITORY_PORT):
+        raise ValueError("backup annotation repository port mismatch")
+    pgbackrest_version = backup.get("backrest", {}).get("version")
+    if not pgbackrest_version:
+        raise ValueError("pgBackRest version is absent from repository info")
+    backup_archive = backup.get("archive") or {}
+    backup_timestamps = backup.get("timestamp") or {}
+    metadata = {
+        "$schema": "./backup-metadata-v1.schema.json",
+        "schemaVersion": "database-backup-metadata-v1",
+        "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "backupRunId": annotation["liqi-run-id"],
+        "stanza": "liqi",
+        "source": {
+            "database": "liqi",
+            "authority": "postgresql",
+            "hostRef": annotation["liqi-host-ref"],
+            "gitSha": annotation["liqi-source-git-sha"],
+        },
+        "repository": {
+            "type": "pgbackrest-tls-remote-posix",
+            "authority": "independent-management-storage",
+            "repositoryRef": REPOSITORY_REF,
+            "port": REPOSITORY_PORT,
+            "path": REPOSITORY_PATH,
+            "transport": "mutual-tls-over-wireguard",
+            "clientSideEncryption": "aes-256-cbc",
+            "dedicated": True,
+            "metadataAuthority": "pgbackrest-backup-annotations",
+        },
+        "backup": {
+            "label": backup["label"],
+            "type": backup["type"],
+            "startedAt": timestamp(backup_timestamps["start"]),
+            "stoppedAt": timestamp(backup_timestamps["stop"]),
+            "archiveStart": backup_archive.get("start"),
+            "archiveStop": backup_archive.get("stop"),
+            "annotation": dict(annotation),
+            "infoSha256": sha256_bytes(info_raw),
+        },
+        "postgresql": {"major": 17, "version": annotation["liqi-postgresql-version"]},
+        "migration": {
+            "currentVersion": int(annotation["liqi-migration-version"]),
+            "manifestSha256": annotation["liqi-manifest-sha256"],
+        },
+        "probe": {
+            "probeId": annotation["liqi-probe-id"],
+            "eventId": annotation["liqi-probe-event-id"],
+            "probeStatus": annotation["liqi-probe-status"],
+            "outboxState": annotation["liqi-outbox-state"],
+            "effectCount": int(annotation["liqi-effect-count"]),
+            "completedAt": annotation["liqi-probe-completed-at"],
+        },
+        "pgBackRest": {"version": pgbackrest_version, "repositoryFormat": "pgbackrest-encrypted-posix-tls-v1"},
+        "recoveryTargets": {"workingRpo": "5m", "workingRto": "60m", "pitr": True, "restoreScope": "entire-postgresql-cluster"},
+        "costClassification": {"class": "external-owner-provisioned-independent-storage", "ociResourceCreated": False},
+    }
+    validate(metadata, BACKUP_SCHEMA)
+    return metadata
 
 def command_validate_contracts(_: argparse.Namespace) -> int:
     for schema, example in [(BACKUP_SCHEMA, BACKUP_EXAMPLE), (BACKUP_STATUS_SCHEMA, BACKUP_STATUS_EXAMPLE), (RESTORE_SCHEMA, RESTORE_EXAMPLE)]:
@@ -146,81 +232,70 @@ def command_create_metadata(args: argparse.Namespace) -> int:
     info = json.loads(info_raw)
     state = load_json(Path(args.database_state))
     manifest = Path(args.manifest)
-    stanza, backup = select_backup(info, "liqi", args.run_id, args.backup_type)
+    stanza, backup = select_backup(info, "liqi", run_id=args.run_id, backup_type=args.backup_type)
     annotation = backup.get("annotation", {})
     probe = state.get("probe")
     if not isinstance(probe, dict):
         raise ValueError("database state does not contain a completed recovery probe")
-    manifest_sha = sha256_file(manifest)
-    expected_annotations = {
-        "liqi-run-id": args.run_id,
-        "liqi-migration-version": str(state["migrationVersion"]),
-        "liqi-probe-event-id": str(probe["eventId"]),
-        "liqi-manifest-sha256": manifest_sha,
-    }
-    for key, expected in expected_annotations.items():
-        if annotation.get(key) != expected:
-            raise ValueError(f"pgBackRest annotation mismatch for {key}: {annotation.get(key)!r} != {expected!r}")
     if state.get("failedMigrationRuns") != 0:
         raise ValueError("backup refused because failed migration runs are present")
     if probe.get("probeStatus") != "completed" or probe.get("outboxState") != "succeeded" or probe.get("effectCount") != 1:
         raise ValueError("backup recovery probe invariant is not terminal and unique")
-
-    pgbackrest_version = backup.get("backrest", {}).get("version") or args.pgbackrest_version
-    if not pgbackrest_version:
-        raise ValueError("pgBackRest version missing from info and command argument")
-    backup_archive = backup.get("archive") or {}
-    backup_timestamps = backup.get("timestamp") or {}
-    metadata = {
-        "$schema": "./database-backup-metadata-v0.schema.json",
-        "schemaVersion": "database-backup-metadata-v0",
-        "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "backupRunId": args.run_id,
-        "stanza": "liqi",
-        "source": {"database": state["database"], "authority": "postgresql", "hostRef": args.host_ref},
-        "repository": {
-            "type": "oci-object-storage-s3-compatible",
-            "bucket": args.bucket,
-            "namespace": args.namespace,
-            "region": args.region,
-            "path": "/postgresql/v0",
-            "uriStyle": "path",
-            "clientSideEncryption": stanza.get("cipher") or "aes-256-cbc",
-            "dedicated": True,
-        },
-        "backup": {
-            "label": backup["label"],
-            "type": backup["type"],
-            "startedAt": timestamp(backup_timestamps["start"]),
-            "stoppedAt": timestamp(backup_timestamps["stop"]),
-            "archiveStart": backup_archive.get("start"),
-            "archiveStop": backup_archive.get("stop"),
-            "annotation": expected_annotations,
-            "infoSha256": sha256_bytes(info_raw),
-        },
-        "postgresql": {"major": state["postgresqlMajor"], "version": state["postgresqlVersion"]},
-        "migration": {"currentVersion": state["migrationVersion"], "manifestSha256": manifest_sha},
-        "probe": probe,
-        "pgBackRest": {"version": pgbackrest_version, "repositoryFormat": "pgbackrest-encrypted-s3-v0"},
-        "recoveryTargets": {"workingRpo": "5m", "workingRto": "60m", "pitr": True, "restoreScope": "entire-postgresql-cluster"},
-        "costClassification": {"class": "always-free-safe-with-v0-cap", "v0ObjectBudgetGiB": 18},
+    manifest_sha = sha256_file(manifest)
+    expected_annotations = {
+        "liqi-run-id": args.run_id,
+        "liqi-source-git-sha": args.source_git_sha,
+        "liqi-host-ref": args.host_ref,
+        "liqi-postgresql-version": str(state["postgresqlVersion"]),
+        "liqi-migration-version": str(state["migrationVersion"]),
+        "liqi-probe-id": str(probe["probeId"]),
+        "liqi-probe-event-id": str(probe["eventId"]),
+        "liqi-probe-completed-at": str(probe["completedAt"]),
+        "liqi-probe-status": str(probe["probeStatus"]),
+        "liqi-outbox-state": str(probe["outboxState"]),
+        "liqi-effect-count": str(probe["effectCount"]),
+        "liqi-manifest-sha256": manifest_sha,
+        "liqi-repository-ref": REPOSITORY_REF,
+        "liqi-repository-path": REPOSITORY_PATH,
+        "liqi-repository-port": str(REPOSITORY_PORT),
     }
-    validate(metadata, BACKUP_SCHEMA)
+    for key, expected in expected_annotations.items():
+        if annotation.get(key) != expected:
+            raise ValueError(f"pgBackRest annotation mismatch for {key}: {annotation.get(key)!r} != {expected!r}")
+    metadata = metadata_from_backup(info_raw, stanza, backup)
     output = Path(args.output)
     checksum = write_json_with_checksum(output, metadata)
     print(json.dumps({
         "backupLabel": metadata["backup"]["label"],
         "metadata": str(output),
         "checksum": str(checksum),
+        "durableAuthority": "pgbackrest-backup-annotations",
         "passed": True,
     }, separators=(",", ":")))
     return 0
 
 
+def command_reconstruct_metadata(args: argparse.Namespace) -> int:
+    info_path = Path(args.info)
+    info_raw = info_path.read_bytes()
+    info = json.loads(info_raw)
+    stanza, backup = select_backup(info, "liqi", label=args.label)
+    metadata = metadata_from_backup(info_raw, stanza, backup)
+    output = Path(args.output)
+    checksum = write_json_with_checksum(output, metadata)
+    print(json.dumps({
+        "backupLabel": metadata["backup"]["label"],
+        "metadata": str(output),
+        "checksum": str(checksum),
+        "reconstructedFrom": "pgbackrest-backup-annotations",
+        "passed": True,
+    }, separators=(",", ":")))
+    return 0
+
 def command_validate_metadata(args: argparse.Namespace) -> int:
     metadata = validate_metadata(Path(args.metadata), Path(args.checksum))
     print(json.dumps({
-        "validation": "database-backup-metadata-v0",
+        "validation": "database-backup-metadata-v1",
         "backupLabel": metadata["backup"]["label"],
         "passed": True,
     }, separators=(",", ":")))
@@ -285,7 +360,7 @@ def command_verify_restore(args: argparse.Namespace) -> int:
     actual_rows = actual.get("migrations", [])
     checks: list[dict[str, Any]] = []
     add_check(checks, "backup-metadata-checksum", expected_checksum(checksum_path), sha256_file(metadata_path))
-    add_check(checks, "backup-metadata-schema", "database-backup-metadata-v0", metadata.get("schemaVersion"))
+    add_check(checks, "backup-metadata-schema", "database-backup-metadata-v1", metadata.get("schemaVersion"))
     add_check(checks, "postgres-major", metadata["postgresql"]["major"], actual.get("postgresqlMajor"))
     add_check(checks, "migration-version", metadata["migration"]["currentVersion"], actual.get("migrationVersion"))
     add_check(checks, "migration-manifest-checksum", metadata["migration"]["manifestSha256"], local_manifest_sha)
@@ -403,13 +478,9 @@ def command_create_recovery_status(args: argparse.Namespace) -> int:
     if not isinstance(archive_lag, (int, float)) or archive_lag < 0:
         raise ValueError("current WAL archive lag is unavailable")
 
-    latest_backup_ref = args.backup_evidence_ref or (
-        f"oci://{latest_metadata['repository']['namespace']}/{latest_metadata['repository']['bucket']}"
-        f"{latest_metadata['repository']['path']}/metadata/{latest_label}.json"
-    )
+    latest_backup_ref = args.backup_evidence_ref or f"pgbackrest://management/database-backup-repository/liqi/{latest_label}"
     restore_source_ref = args.restore_source_evidence_ref or (
-        f"oci://{restore_source_metadata['repository']['namespace']}/{restore_source_metadata['repository']['bucket']}"
-        f"{restore_source_metadata['repository']['path']}/metadata/{restore_source_metadata['backup']['label']}.json"
+        f"pgbackrest://management/database-backup-repository/liqi/{restore_source_metadata['backup']['label']}"
     )
     restore_ref = args.restore_evidence_ref or f"file://{restore_path.resolve()}"
     status = {
@@ -464,13 +535,16 @@ def parser() -> argparse.ArgumentParser:
     create.add_argument("--manifest", required=True)
     create.add_argument("--run-id", required=True)
     create.add_argument("--backup-type", choices=("full", "diff"), required=True)
-    create.add_argument("--bucket", required=True)
-    create.add_argument("--namespace", required=True)
-    create.add_argument("--region", required=True)
     create.add_argument("--host-ref", required=True)
-    create.add_argument("--pgbackrest-version")
+    create.add_argument("--source-git-sha", required=True)
     create.add_argument("--output", required=True)
     create.set_defaults(func=command_create_metadata)
+
+    reconstruct = sub.add_parser("reconstruct-metadata")
+    reconstruct.add_argument("--info", required=True)
+    reconstruct.add_argument("--label", required=True)
+    reconstruct.add_argument("--output", required=True)
+    reconstruct.set_defaults(func=command_reconstruct_metadata)
 
     verify_metadata = sub.add_parser("validate-metadata")
     verify_metadata.add_argument("--metadata", required=True)
@@ -505,7 +579,7 @@ def parser() -> argparse.ArgumentParser:
     recovery_status.add_argument("--backup-evidence-ref")
     recovery_status.add_argument("--restore-evidence-ref")
     recovery_status.add_argument("--restore-source-evidence-ref")
-    recovery_status.add_argument("--wal-evidence-ref", default="database://pg_stat_archiver")
+    recovery_status.add_argument("--wal-evidence-ref", default="pgbackrest://management/database-backup-repository/liqi/archive")
     recovery_status.add_argument("--output")
     recovery_status.set_defaults(func=command_create_recovery_status)
 

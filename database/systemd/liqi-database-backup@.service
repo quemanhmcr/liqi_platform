@@ -1,8 +1,9 @@
 [Unit]
-Description=LIQI PostgreSQL %i backup with durable OCI metadata
+Description=LIQI PostgreSQL %i backup to independent TLS repository
 Documentation=file:/opt/liqi/current/database/runbooks/backup-and-wal.md
-After=postgresql-17.service network-online.target
+After=postgresql-17.service liqi-secrets.service network-online.target
 Wants=network-online.target
+Requires=liqi-secrets.service
 ConditionPathExists=/etc/liqi/database/backup.env
 
 [Service]
@@ -10,9 +11,9 @@ Type=oneshot
 User=postgres
 Group=postgres
 EnvironmentFile=/etc/liqi/database/backup.env
-# Senior 1 supplies LoadCredential= drop-ins with these credential names.
-Environment=LIQI_SECRET_PGBACKREST_S3_KEY_FILE=%d/pgbackrest-s3-key
-Environment=LIQI_SECRET_PGBACKREST_S3_SECRET_FILE=%d/pgbackrest-s3-secret
+Environment=LIQI_SECRET_PGBACKREST_REPO_CA_FILE=%d/pgbackrest-repo-ca
+Environment=LIQI_SECRET_PGBACKREST_REPO_CLIENT_CERT_FILE=%d/pgbackrest-repo-client-cert
+Environment=LIQI_SECRET_PGBACKREST_REPO_CLIENT_KEY_FILE=%d/pgbackrest-repo-client-key
 Environment=LIQI_SECRET_PGBACKREST_CIPHER_FILE=%d/pgbackrest-cipher-passphrase
 ExecStart=/opt/liqi/current/database/bin/backup.sh %i
 TimeoutStartSec=2h
@@ -33,6 +34,7 @@ ProtectKernelModules=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 
 [Install]
 WantedBy=multi-user.target

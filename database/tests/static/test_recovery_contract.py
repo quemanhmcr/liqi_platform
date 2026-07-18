@@ -36,7 +36,7 @@ def main() -> int:
     run("validate-contracts")
     with tempfile.TemporaryDirectory() as temp_name:
         temp = Path(temp_name)
-        info = json.loads((ROOT / "fixtures/pgbackrest-info-v0.json").read_text(encoding="utf-8"))
+        info = json.loads((ROOT / "fixtures/pgbackrest-info-v1.json").read_text(encoding="utf-8"))
         manifest_sha = hashlib.sha256(MANIFEST.read_bytes()).hexdigest()
         info[0]["backup"][0]["annotation"]["liqi-manifest-sha256"] = manifest_sha
         info_path = temp / "info.json"
@@ -45,18 +45,23 @@ def main() -> int:
         run(
             "create-metadata",
             "--info", str(info_path),
-            "--database-state", str(ROOT / "fixtures/database-backup-state-v0.json"),
+            "--database-state", str(ROOT / "fixtures/database-backup-state-v1.json"),
             "--manifest", str(MANIFEST),
             "--run-id", "10000000-0000-4000-8000-000000000001",
             "--backup-type", "full",
-            "--bucket", "liqi-database-backup-v0",
-            "--namespace", "example-namespace",
-            "--region", "ap-singapore-2",
-            "--host-ref", "oci-host-v0://host/database-authority",
+            "--host-ref", "oci-live-v1://host/database-authority",
+            "--source-git-sha", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             "--output", str(metadata),
         )
         checksum = Path(str(metadata) + ".sha256")
         run("validate-metadata", "--metadata", str(metadata), "--checksum", str(checksum))
+        reconstructed = temp / "reconstructed.json"
+        run("reconstruct-metadata", "--info", str(info_path), "--label", "20260717-030000F", "--output", str(reconstructed))
+        reconstructed_value = json.loads(reconstructed.read_text(encoding="utf-8"))
+        created_value = json.loads(metadata.read_text(encoding="utf-8"))
+        for key in ("source", "repository", "backup", "postgresql", "migration", "probe", "pgBackRest"):
+            if reconstructed_value[key] != created_value[key]:
+                raise AssertionError(f"reconstructed metadata differs for {key}")
         meta = json.loads(metadata.read_text(encoding="utf-8"))
         source_metadata = temp / f"{meta['backup']['label']}.json"
         source_metadata.write_bytes(metadata.read_bytes())
@@ -68,7 +73,7 @@ def main() -> int:
         actual = {
             "postgresqlMajor": 17,
             "postgresqlVersion": "17.10",
-            "migrationVersion": 4,
+            "migrationVersion": 8,
             "failedMigrationRuns": 0,
             "inRecovery": False,
             "archiveMode": "off",
@@ -161,11 +166,17 @@ def main() -> int:
         # an older retained backup, as long as database major and migration semantics match.
         latest_meta = json.loads(metadata.read_text(encoding="utf-8"))
         latest_meta["backupRunId"] = "30000000-0000-4000-8000-000000000001"
+        latest_meta["backup"]["annotation"]["liqi-run-id"] = latest_meta["backupRunId"]
         latest_meta["generatedAt"] = "2026-07-18T03:05:00Z"
         latest_meta["backup"]["label"] = "20260717-030000F_20260718-030000D"
         latest_meta["backup"]["type"] = "diff"
         latest_meta["backup"]["startedAt"] = "2026-07-18T03:00:00Z"
         latest_meta["backup"]["stoppedAt"] = "2026-07-18T03:04:30Z"
+        latest_meta["backup"]["annotation"].update({
+            "liqi-probe-id": "30000000-0000-4000-8000-000000000002",
+            "liqi-probe-event-id": "30000000-0000-4000-8000-000000000003",
+            "liqi-probe-completed-at": "2026-07-18T02:59:59Z",
+        })
         latest_meta["probe"] = {
             "probeId": "30000000-0000-4000-8000-000000000002",
             "eventId": "30000000-0000-4000-8000-000000000003",
@@ -267,7 +278,7 @@ def main() -> int:
         corrupted.write_bytes(metadata.read_bytes() + b" ")
         run("validate-metadata", "--metadata", str(corrupted), "--checksum", str(checksum), expected=1)
 
-    print(json.dumps({"validation": "database-recovery-contract-v0", "passed": True}, separators=(",", ":")))
+    print(json.dumps({"validation": "database-recovery-contract-v1", "passed": True}, separators=(",", ":")))
     return 0
 
 

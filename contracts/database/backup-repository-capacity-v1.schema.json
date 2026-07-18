@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/database/backup-repository-capacity-v1.schema.json",
+  "title": "LIQI backup repository capacity evidence V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "git_sha",
+    "observed_at",
+    "authority",
+    "repository_ref",
+    "filesystem",
+    "transport",
+    "status"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "liqi.database.backup-repository-capacity/v1"
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "authority": {
+      "const": "independent-management-storage"
+    },
+    "repository_ref": {
+      "const": "management://database-backup-repository"
+    },
+    "filesystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "total_bytes",
+        "used_bytes",
+        "available_bytes",
+        "reserved_bytes"
+      ],
+      "properties": {
+        "path": {
+          "const": "/independent-storage/pgbackrest/liqi"
+        },
+        "total_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "used_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "available_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reserved_bytes": {
+          "type": "integer",
+          "minimum": 1073741824
+        }
+      }
+    },
+    "transport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "port",
+        "publicly_exposed"
+      ],
+      "properties": {
+        "kind": {
+          "const": "mutual-tls-over-wireguard"
+        },
+        "port": {
+          "const": 8432
+        },
+        "publicly_exposed": {
+          "const": false
+        }
+      }
+    },
+    "status": {
+      "const": "passed"
+    }
+  }
+}

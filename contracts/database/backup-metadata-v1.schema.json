@@ -1,0 +1,313 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/database/backup-metadata-v1.schema.json",
+  "title": "LIQI Database Backup Metadata V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "generatedAt",
+    "backupRunId",
+    "stanza",
+    "source",
+    "repository",
+    "backup",
+    "postgresql",
+    "migration",
+    "probe",
+    "pgBackRest",
+    "recoveryTargets",
+    "costClassification"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "database-backup-metadata-v1"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "backupRunId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "stanza": {
+      "const": "liqi"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "database",
+        "authority",
+        "hostRef",
+        "gitSha"
+      ],
+      "properties": {
+        "database": {
+          "const": "liqi"
+        },
+        "authority": {
+          "const": "postgresql"
+        },
+        "hostRef": {
+          "type": "string",
+          "pattern": "^oci-live-v1://host/[a-z0-9][a-z0-9-]{2,63}$"
+        },
+        "gitSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "authority",
+        "repositoryRef",
+        "port",
+        "path",
+        "transport",
+        "clientSideEncryption",
+        "dedicated",
+        "metadataAuthority"
+      ],
+      "properties": {
+        "type": {
+          "const": "pgbackrest-tls-remote-posix"
+        },
+        "authority": {
+          "const": "independent-management-storage"
+        },
+        "repositoryRef": {
+          "const": "management://database-backup-repository"
+        },
+        "port": {
+          "const": 8432
+        },
+        "path": {
+          "const": "/independent-storage/pgbackrest/liqi"
+        },
+        "transport": {
+          "const": "mutual-tls-over-wireguard"
+        },
+        "clientSideEncryption": {
+          "const": "aes-256-cbc"
+        },
+        "dedicated": {
+          "const": true
+        },
+        "metadataAuthority": {
+          "const": "pgbackrest-backup-annotations"
+        }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "type",
+        "startedAt",
+        "stoppedAt",
+        "archiveStart",
+        "archiveStop",
+        "annotation",
+        "infoSha256"
+      ],
+      "properties": {
+        "label": {
+          "type": "string",
+          "pattern": "^[0-9]{8}-[0-9]{6}[FDI](?:_[0-9]{8}-[0-9]{6}[DI])?$"
+        },
+        "type": {
+          "enum": [
+            "full",
+            "diff",
+            "incr"
+          ]
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "stoppedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "archiveStart": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "archiveStop": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "annotation": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "required": [
+            "liqi-run-id",
+            "liqi-source-git-sha",
+            "liqi-host-ref",
+            "liqi-postgresql-version",
+            "liqi-migration-version",
+            "liqi-probe-id",
+            "liqi-probe-event-id",
+            "liqi-probe-completed-at",
+            "liqi-probe-status",
+            "liqi-outbox-state",
+            "liqi-effect-count",
+            "liqi-manifest-sha256",
+            "liqi-repository-ref",
+            "liqi-repository-path",
+            "liqi-repository-port"
+          ]
+        },
+        "infoSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "postgresql": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "major",
+        "version"
+      ],
+      "properties": {
+        "major": {
+          "const": 17
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^17(?:\\.[0-9]+)?$"
+        }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currentVersion",
+        "manifestSha256"
+      ],
+      "properties": {
+        "currentVersion": {
+          "type": "integer",
+          "minimum": 8
+        },
+        "manifestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probeId",
+        "eventId",
+        "probeStatus",
+        "outboxState",
+        "effectCount",
+        "completedAt"
+      ],
+      "properties": {
+        "probeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "eventId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "probeStatus": {
+          "const": "completed"
+        },
+        "outboxState": {
+          "const": "succeeded"
+        },
+        "effectCount": {
+          "const": 1
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "pgBackRest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "repositoryFormat"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$"
+        },
+        "repositoryFormat": {
+          "const": "pgbackrest-encrypted-posix-tls-v1"
+        }
+      }
+    },
+    "recoveryTargets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workingRpo",
+        "workingRto",
+        "pitr",
+        "restoreScope"
+      ],
+      "properties": {
+        "workingRpo": {
+          "const": "5m"
+        },
+        "workingRto": {
+          "const": "60m"
+        },
+        "pitr": {
+          "const": true
+        },
+        "restoreScope": {
+          "const": "entire-postgresql-cluster"
+        }
+      }
+    },
+    "costClassification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class",
+        "ociResourceCreated"
+      ],
+      "properties": {
+        "class": {
+          "const": "external-owner-provisioned-independent-storage"
+        },
+        "ociResourceCreated": {
+          "const": false
+        }
+      }
+    }
+  }
+}

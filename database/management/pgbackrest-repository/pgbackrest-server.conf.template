@@ -1,0 +1,15 @@
+[liqi]
+repo1-path=/independent-storage/pgbackrest/liqi
+
+[global]
+repo1-cipher-type=aes-256-cbc
+tls-server-address=@@WIREGUARD_ADDRESS@@
+tls-server-port=8432
+tls-server-ca-file=@@TLS_CA_FILE@@
+tls-server-cert-file=@@TLS_CERT_FILE@@
+tls-server-key-file=@@TLS_KEY_FILE@@
+tls-server-auth=@@CLIENT_CN@@=liqi
+log-path=/var/log/pgbackrest
+log-level-console=info
+log-level-file=detail
+process-max=2

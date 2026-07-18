@@ -4,18 +4,18 @@ validate_common; require_command psql; require_command createdb
 : "${STATE_ADMIN_SERVICE:?STATE_ADMIN_SERVICE is required}"
 : "${STATE_ROLE_PASSWORD_FILE:?STATE_ROLE_PASSWORD_FILE is required}"
 require_file_0600 "$STATE_ROLE_PASSWORD_FILE"
-password=$(cat "$STATE_ROLE_PASSWORD_FILE"); [ ${#password} -ge 24 ] || fail 'state role password must be at least 24 characters'
+role_credential=$(cat "$STATE_ROLE_PASSWORD_FILE"); [ ${#role_credential} -ge 24 ] || fail 'state role password must be at least 24 characters'
 tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT
-python - "$tmp" "$STATE_ROLE" "$password" <<'PY2'
+python - "$tmp" "$STATE_ROLE" "$role_credential" <<'PY2'
 import pathlib,sys
-path,role,password=sys.argv[1:]
+path,role,role_credential=sys.argv[1:]
 q=lambda s:"'"+s.replace("'","''")+"'"
 pathlib.Path(path).write_text(f"""DO $$
 BEGIN
  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname={q(role)}) THEN
-  EXECUTE format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION PASSWORD %L',{q(role)},{q(password)});
+  EXECUTE format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION PASSWORD %L',{q(role)},{q(role_credential)});
  ELSE
-  EXECUTE format('ALTER ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION PASSWORD %L',{q(role)},{q(password)});
+  EXECUTE format('ALTER ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION PASSWORD %L',{q(role)},{q(role_credential)});
  END IF;
 END $$;
 """,encoding='utf-8')

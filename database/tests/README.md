@@ -52,7 +52,7 @@ Set `LIQI_RUN_BEAM_INTEGRATION=1` when invoking `run_database_tests.sh` to inclu
 
 Senior 1 remains owner of the root `mix.lock`, release supervision, and production Elixir/OTP pin.
 
-## PgBouncer and OCI evidence
+## PgBouncer and live recovery evidence
 
 Static validation confirms `pool_mode=transaction`, bounded pools, unnamed Postgrex preparation, and no session-state design. Production readiness still requires an actual provider run through deployed PgBouncer and evidence of server-pool limits. A direct PostgreSQL test is not a substitute.
 

@@ -90,6 +90,7 @@ restore_args+=(restore)
 
 cat > "$canonical_target/pg_hba.conf" <<'EOF'
 local all postgres peer
+local liqi liqi_api scram-sha-256
 local all all reject
 host all all 0.0.0.0/0 reject
 host all all ::0/0 reject

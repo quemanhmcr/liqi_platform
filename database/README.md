@@ -81,12 +81,12 @@ Application rollback does not run a database down migration. Rust V0 functions r
 - PgBouncer metrics: `database/bin/pgbouncer-metrics.sh`
 - Backup status: `database/bin/backup-status.sh`
 - V1 exact-SHA recovery status: `database/bin/recovery-status-v1.sh`
-- Recovery execution and verification: `database/recovery/*.sh`
+- Recovery execution and verification: `database/bin/run-restore-drill-v1.sh` (readiness provider) and `database/recovery/*.sh` (provider lifecycle primitives)
 
 Backup freshness does not prove restore. `recovery-status-v1.sh` remains non-zero until checksummed, schema-valid backup and restore evidence refer to the same exact source revision and meet the 300-second RPO and 3,600-second RTO working targets.
 
 ## Evidence boundary
 
-Local PostgreSQL 17 integration can prove migration and durability semantics. It cannot prove the deployed PgBouncer path, OCI Object Storage/WAL freshness, isolated restore, live capacity, or the approved V0 checkpoint. Those remain environment evidence and must not be replaced by fixtures.
+Local PostgreSQL 17 integration can prove migration and durability semantics. It cannot prove the deployed PgBouncer path, independent pgBackRest repository/WAL freshness, isolated restore, live capacity, or the approved V0 checkpoint. Those remain environment evidence and must not be replaced by fixtures.
 
 See `database/tests/README.md` and `database/runbooks/v1-durable-plane-activation.md`.

@@ -177,33 +177,64 @@ text_suffixes = {".sql", ".sh", ".py", ".conf", ".ini", ".json", ".md", ".sha256
 
 pgbackrest_config = (ROOT / "config/pgbackrest.conf.template").read_text(encoding="utf-8")
 required_pgbackrest = {
-    "repo1-type=s3",
-    "repo1-s3-uri-style=path",
-    "repo1-storage-verify-tls=y",
+    "repo1-host=@@REPO_HOST@@",
+    "repo1-host-type=tls",
+    "repo1-host-port=@@REPO_PORT@@",
+    "repo1-host-user=pgbackrest",
+    "repo1-path=@@REPO_PATH@@",
     "repo1-cipher-type=aes-256-cbc",
     "archive-async=y",
     "archive-push-queue-max=2GiB",
-    "repo1-retention-full=2",
-    "repo1-retention-diff=7",
     "cmd=@@PGBACKREST_WRAPPER@@",
+    "repo1-retention-full=2",
+    "repo1-retention-diff=6",
 }
 for line in required_pgbackrest:
     if line not in pgbackrest_config:
-        failures.append(f"missing pgBackRest contract line: {line}")
-for forbidden in ("repo1-s3-key=", "repo1-s3-key-secret=", "repo1-cipher-pass="):
+        failures.append(f"missing pgBackRest TLS repository contract line: {line}")
+for forbidden in ("repo1-type=s3", "repo1-s3-", "repo1-cipher-pass=", "Object Storage"):
     if forbidden in pgbackrest_config:
-        failures.append(f"persistent pgBackRest template contains secret option: {forbidden}")
+        failures.append(f"V1 pgBackRest template retains forbidden repository option: {forbidden}")
 
 if "pgbackrest-command.sh --stanza=liqi archive-push %p" not in postgres_config:
     failures.append("PostgreSQL archive_command does not use the secret-safe pgBackRest boundary")
 
+wrapper = (ROOT / "bin/pgbackrest-command.sh").read_text(encoding="utf-8")
+for token in ("PGBACKREST_REPO1_HOST_CA_FILE", "PGBACKREST_REPO1_HOST_CERT_FILE", "PGBACKREST_REPO1_HOST_KEY_FILE", "PGBACKREST_REPO1_CIPHER_PASS"):
+    if token not in wrapper:
+        failures.append(f"pgBackRest wrapper missing transient TLS/cipher input: {token}")
+for forbidden in ("PGBACKREST_REPO1_S3_KEY", "PGBACKREST_REPO1_S3_KEY_SECRET", "backup-s3"):
+    if forbidden in wrapper:
+        failures.append(f"pgBackRest wrapper retains forbidden S3 credential: {forbidden}")
+
 backup_script = (ROOT / "bin/backup.sh").read_text(encoding="utf-8")
-metadata_position = backup_script.find('--name "$metadata_object"')
-checksum_position = backup_script.find('--name "$checksum_object"')
-if metadata_position < 0 or checksum_position < 0 or metadata_position >= checksum_position:
-    failures.append("backup metadata must publish before checksum completion marker")
-if backup_script.count("--no-overwrite") != 2 or "--force" in backup_script:
-    failures.append("backup metadata and checksum must be append-only OCI uploads")
+for token in ("liqi-source-git-sha", "liqi-probe-id", "liqi-probe-completed-at", "liqi-repository-ref", "durableAuthority", "pgbackrest-backup-annotations"):
+    if token not in backup_script:
+        failures.append(f"backup command missing durable annotation/evidence seam: {token}")
+for forbidden in ("oci os object", "LIQI_OCI_OBJECT", "LIQI_DATABASE_BACKUP_BUCKET", "--bucket-name", "oci://"):
+    if forbidden in backup_script:
+        failures.append(f"V1 backup command retains Object Storage dependency: {forbidden}")
+
+fetch_script = (ROOT / "recovery/fetch-backup-metadata.sh").read_text(encoding="utf-8")
+for token in ("--output=json info", "reconstruct-metadata", "validate-metadata"):
+    if token not in fetch_script:
+        failures.append(f"metadata reconstruction command missing: {token}")
+
+capacity_script = (ROOT / "bin/backup-capacity-check.sh").read_text(encoding="utf-8")
+for token in ("backup-repository-capacity-v1.schema.json", "capacity evidence checksum mismatch", "capacity evidence checksum filename mismatch", "capacity evidence is stale", "must not be group/world writable", "must be root-owned", "LIQI_SOURCE_GIT_SHA"):
+    if token not in capacity_script:
+        failures.append(f"capacity guard missing independent evidence check: {token}")
+for forbidden in ("oci os bucket", "LIQI_DATABASE_BACKUP_BUCKET"):
+    if forbidden in capacity_script:
+        failures.append(f"capacity guard retains Object Storage dependency: {forbidden}")
+
+management_source = "\n".join(path.read_text(encoding="utf-8") for path in sorted((ROOT / "management/pgbackrest-repository").rglob("*")) if path.is_file())
+for token in ("tls-server-port=8432", "tls-server-auth=@@CLIENT_CN@@=liqi", "/independent-storage/pgbackrest/liqi", "mutual-tls-over-wireguard"):
+    if token not in management_source:
+        failures.append(f"independent pgBackRest repository provider missing: {token}")
+for forbidden in ("repo1-type=s3", "repo1-s3-", "AWS_SHARED_CREDENTIALS_FILE", "oci os object"):
+    if forbidden in management_source:
+        failures.append(f"management repository retains forbidden dependency: {forbidden}")
 
 restore_metrics = (ROOT / "bin/restore-result-metrics.sh").read_text(encoding="utf-8")
 for required_metric_guard in (
@@ -222,9 +253,38 @@ for required_restore_guard in (
     "--archive-mode=off",
     "--target-action=promote",
     "listen_addresses = ''",
+    "local liqi liqi_api scram-sha-256",
 ):
     if required_restore_guard not in restore_script:
         failures.append(f"missing restore safety guard: {required_restore_guard}")
+
+recovery_provider = (ROOT / "tools/run_restore_drill_v1.py").read_text(encoding="utf-8")
+for token in (
+    "contracts/readiness/recovery-result-v1.schema.json",
+    "LIQI_RECOVERY_BACKUP_REF",
+    "LIQI_RESTORE_TARGET_TIME",
+    "LIQI_V0_ROLLBACK_COMPATIBILITY",
+    "database/recovery/cleanup-restore-exercise.sh",
+    "beam/bin/database-restore-probe",
+    "source_database_mutated",
+    "production_traffic_changed",
+    "oci_mutated",
+    "WAL archive coverage timestamp is unavailable",
+):
+    if token not in recovery_provider:
+        failures.append(f"V1 recovery provider missing fail-closed seam: {token}")
+for forbidden in ("oci os ", "oci_objectstorage", "repo1-type=s3", "AWS_SHARED_CREDENTIALS_FILE"):
+    if forbidden in recovery_provider:
+        failures.append(f"V1 recovery provider retains forbidden storage dependency: {forbidden}")
+
+beam_probe = (ROOT.parent / "beam/bin/database-restore-probe").read_text(encoding="utf-8")
+beam_probe_module = (ROOT.parent / "beam/apps/liqi_persistence/lib/liqi_persistence/restore_probe.ex").read_text(encoding="utf-8")
+for token in ("LIQI_RECOVERY_RELEASE_BIN", "LIQI_DATABASE_SOCKET_DIR", "LiqiPersistence.RestoreProbe.run!"):
+    if token not in beam_probe:
+        failures.append(f"BEAM restore probe command missing: {token}")
+for token in ("Readiness.check", "Probe.observe", "GenServer.stop", "write_ready", "in_recovery"):
+    if token not in beam_probe_module:
+        failures.append(f"BEAM restore probe implementation missing: {token}")
 
 shell_scripts = sorted(ROOT.rglob("*.sh"))
 for path in shell_scripts:

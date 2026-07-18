@@ -64,7 +64,7 @@
           ]
         },
         "repositoryFormat": {
-          "const": "pgbackrest-encrypted-s3-v0"
+          "const": "pgbackrest-encrypted-posix-tls-v1"
         },
         "latestBackupAt": {
           "type": [

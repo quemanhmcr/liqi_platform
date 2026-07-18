@@ -4,49 +4,161 @@
   "title": "LIQI recovery exercise plan V0",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "exercise_id", "mode", "source_environment", "target", "backup_ref", "required_database_migration", "approval_ref", "steps", "cleanup_policy", "mutation_policy"],
+  "required": [
+    "schema_version",
+    "exercise_id",
+    "mode",
+    "source_environment",
+    "target",
+    "backup_ref",
+    "required_database_migration",
+    "approval_ref",
+    "steps",
+    "cleanup_policy",
+    "mutation_policy"
+  ],
   "properties": {
-    "schema_version": {"const": "recovery-exercise-plan-v0"},
-    "exercise_id": {"type": "string", "pattern": "^rx-[a-z0-9][a-z0-9._-]{5,63}$"},
-    "mode": {"enum": ["provider", "mock"]},
-    "source_environment": {"enum": ["development", "staging", "production"]},
-    "target": {
-      "type": "object", "additionalProperties": false,
-      "required": ["environment", "root", "database", "production_traffic", "isolated"],
-      "properties": {
-        "environment": {"const": "isolated-recovery"},
-        "root": {"type": "string", "pattern": "^/var/lib/liqi/recovery-exercises/"},
-        "database": {"type": "string", "pattern": "^liqi_restore_[a-z0-9_]{3,48}$"},
-        "production_traffic": {"const": false},
-        "isolated": {"const": true}
-      }
+    "schema_version": {
+      "const": "recovery-exercise-plan-v0"
     },
-    "backup_ref": {"type": "string", "pattern": "^oci://", "maxLength": 1024},
-    "required_database_migration": {"type": "string", "pattern": "^[0-9]{1,20}$"},
-    "approval_ref": {"type": ["string", "null"], "maxLength": 512},
-    "steps": {
-      "type": "array", "minItems": 4, "maxItems": 4,
-      "items": {
-        "type": "object", "additionalProperties": false,
-        "required": ["name", "owner", "argv", "timeout_seconds", "mutation"],
-        "properties": {
-          "name": {"enum": ["prepare", "restore", "verify", "cleanup"]},
-          "owner": {"const": "Senior 2"},
-          "argv": {"type": "array", "minItems": 1, "maxItems": 24, "items": {"type": "string", "minLength": 1, "maxLength": 1024}},
-          "timeout_seconds": {"type": "integer", "minimum": 5, "maximum": 7200},
-          "mutation": {"enum": ["none", "isolated-target"]}
+    "exercise_id": {
+      "type": "string",
+      "pattern": "^rx-[a-z0-9][a-z0-9._-]{5,63}$"
+    },
+    "mode": {
+      "enum": [
+        "provider",
+        "mock"
+      ]
+    },
+    "source_environment": {
+      "enum": [
+        "development",
+        "staging",
+        "production"
+      ]
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment",
+        "root",
+        "database",
+        "production_traffic",
+        "isolated"
+      ],
+      "properties": {
+        "environment": {
+          "const": "isolated-recovery"
+        },
+        "root": {
+          "type": "string",
+          "pattern": "^/var/lib/liqi/recovery-exercises/"
+        },
+        "database": {
+          "type": "string",
+          "pattern": "^liqi_restore_[a-z0-9_]{3,48}$"
+        },
+        "production_traffic": {
+          "const": false
+        },
+        "isolated": {
+          "const": true
         }
       }
     },
-    "cleanup_policy": {"const": "always"},
+    "backup_ref": {
+      "type": "string",
+      "pattern": "^(?:oci://|pgbackrest://management/database-backup-repository/liqi/)",
+      "maxLength": 1024
+    },
+    "required_database_migration": {
+      "type": "string",
+      "pattern": "^[0-9]{1,20}$"
+    },
+    "approval_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "owner",
+          "argv",
+          "timeout_seconds",
+          "mutation"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "prepare",
+              "restore",
+              "verify",
+              "cleanup"
+            ]
+          },
+          "owner": {
+            "const": "Senior 2"
+          },
+          "argv": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 24,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 7200
+          },
+          "mutation": {
+            "enum": [
+              "none",
+              "isolated-target"
+            ]
+          }
+        }
+      }
+    },
+    "cleanup_policy": {
+      "const": "always"
+    },
     "mutation_policy": {
-      "type": "object", "additionalProperties": false,
-      "required": ["source_database_write", "production_traffic", "oci_mutation", "target_only"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_database_write",
+        "production_traffic",
+        "oci_mutation",
+        "target_only"
+      ],
       "properties": {
-        "source_database_write": {"const": false},
-        "production_traffic": {"const": false},
-        "oci_mutation": {"const": false},
-        "target_only": {"const": true}
+        "source_database_write": {
+          "const": false
+        },
+        "production_traffic": {
+          "const": false
+        },
+        "oci_mutation": {
+          "const": false
+        },
+        "target_only": {
+          "const": true
+        }
       }
     }
   }

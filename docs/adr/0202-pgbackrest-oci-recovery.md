@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Superseded by ADR 0204 for V1. Retained as historical V0 compatibility context.
 
 ## Context
 
