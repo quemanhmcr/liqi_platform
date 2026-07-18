@@ -1,0 +1,23 @@
+[package]
+name = "liqi-sequence-diff-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+rust-version = "1.97.1"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "=0.4.13"
+liqi-sequence-diff-core = { path = "../sequence-diff-core" }
+
+[[bin]]
+name = "sequence_diff_parity"
+path = "fuzz_targets/sequence_diff_parity.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+members = ["."]

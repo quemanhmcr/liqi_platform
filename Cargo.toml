@@ -8,11 +8,14 @@ members = [
   "crates/runtime",
   "crates/telemetry",
   "crates/test-support",
+  "native/sequence-diff-core",
+  "native/sequence-diff-nif",
   "services/admin-cli",
   "services/api",
   "services/realtime",
   "services/worker",
 ]
+exclude = ["native/fuzz"]
 
 [workspace.package]
 version = "0.1.0"
@@ -34,6 +37,7 @@ opentelemetry-otlp = { version = "0.32.0", default-features = false, features = 
 opentelemetry_sdk = { version = "0.32.0", features = ["rt-tokio", "trace"] }
 oas3 = { version = "0.22.0", default-features = false, features = ["yaml-spec"] }
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls"] }
+rustler = { version = "=0.38.0", default-features = false, features = ["nif_version_2_15"] }
 secrecy = "0.10.3"
 sqlx = { version = "0.9.0", default-features = false, features = ["json", "postgres", "runtime-tokio", "time", "uuid"] }
 serde = { version = "1.0.228", features = ["derive"] }
@@ -63,6 +67,13 @@ expect_used = "deny"
 panic = "deny"
 print_stdout = "deny"
 print_stderr = "deny"
+
+[profile.nif-release]
+inherits = "release"
+panic = "unwind"
+strip = "symbols"
+lto = "thin"
+codegen-units = 1
 
 [profile.release]
 panic = "abort"
