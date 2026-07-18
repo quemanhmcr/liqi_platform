@@ -49,6 +49,8 @@ LIQI_TEST_DATABASE_URL=<disposable-postgresql-17> \
 
 Disposable PostgreSQL evidence remains mandatory. Source tests and fixtures do not substitute for migration-8 execution evidence.
 
+The integration command accepts only a loopback `postgres` or disposable `liqi_v1_ci` administrative URL using trust authentication and protected V1/V0-upgrade database prefixes. This matches Senior 2's provider runner, which publishes disposable trust-only credential files. Remote, password-bearing, query-bearing, or other administrative targets fail before tooling lookup. The command enables Senior 2's BEAM provider gate, runs Senior 1's root Ecto/Oban consumer through the canonical role URL bundle, applies per-command process-tree timeouts, redacts database material, and drops both test databases. Cluster-scoped test roles disappear when the disposable cluster is destroyed; the runner never mutates credentials on a shared cluster.
+
 ## OCI impact
 
 None. Live migration, deployment, secret mutation, and traffic changes remain approval-gated and Senior 4-owned.

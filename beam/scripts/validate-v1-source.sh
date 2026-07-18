@@ -54,19 +54,21 @@ if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
 else
   checks+=("clean_worktree_state:passed")
 fi
+mix_build_path="${LIQI_SOURCE_MIX_BUILD_PATH:-$PWD/.artifacts/mix-build-source}"
+run_check clean_build -- python -c "import shutil,sys; shutil.rmtree(sys.argv[1], ignore_errors=True)" "$mix_build_path"
+export MIX_BUILD_PATH="$mix_build_path"
+
 run_check format -- mix format --check-formatted
 run_check locked_dependencies --env MIX_ENV=test -- mix deps.get --locked
-run_check clean_build -- python -c "import shutil; shutil.rmtree('_build/test', ignore_errors=True)"
-run_check deps_compile --env MIX_ENV=test -- mix deps.compile --force --skip-umbrella-children
 run_check compile --env MIX_ENV=test -- mix compile --warnings-as-errors
 run_check tests --env MIX_ENV=test -- mix test --seed 0
 run_check persistence_provider_tests --env MIX_ENV=test -- mix test beam/apps/liqi_persistence/test/config_test.exs --seed 0
 run_check jobs_provider_tests --env MIX_ENV=test -- mix test beam/apps/liqi_jobs/test/queue_policy_test.exs --seed 0
-run_check live_probe_compile -- python -m py_compile beam/bin/platform-probe beam/scripts/platform_probe.py beam/scripts/run_v1_integration.py beam/tests/test_platform_probe.py beam/tests/test_runtime_integration.py
-run_check live_probe_tests -- python -m unittest discover -s beam/tests -p 'test_*.py' -v
+run_check python_provider_compile -- python -m py_compile beam/bin/platform-probe beam/scripts/platform_probe.py beam/scripts/prepare_disposable_database.py beam/scripts/run_v1_integration.py beam/tests/test_platform_probe.py beam/tests/test_prepare_disposable_database.py beam/tests/test_runtime_integration.py
+run_check python_provider_tests -- python -m unittest discover -s beam/tests -p 'test_*.py' -v
 run_check dependency_audit -- mix hex.audit
 run_check shared_contracts -- python scripts/operations/validate_contracts.py
-run_check database_contracts -- python database/tests/contract/validate_v1_contracts.py
+run_check database_source -- bash database/tests/run-source-validation.sh
 run_check infrastructure_contracts -- python infrastructure/validation/validate_v1_contracts.py
 run_check native_contracts -- python contracts/native/validate_contracts.py
 run_check secret_scan -- python scripts/operations/scan_repository_secrets.py

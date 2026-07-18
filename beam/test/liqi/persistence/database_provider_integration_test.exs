@@ -4,6 +4,21 @@ defmodule Liqi.Persistence.DatabaseProviderIntegrationTest do
   @moduletag skip: System.get_env("LIQI_DATABASE_INTEGRATION") != "1"
 
   setup_all do
+    previous_runtime_config = Application.get_env(:liqi_platform, :runtime_config)
+    bundle_reference = System.fetch_env!("LIQI_TEST_DATABASE_ROLE_URLS_REF")
+
+    Application.put_env(:liqi_platform, :runtime_config, %Liqi.Runtime.Config{
+      environment: "test",
+      release_id: "runtime-database-integration",
+      service_identity: "liqi-platform",
+      schema_version: "1",
+      database_secret_ref: bundle_reference,
+      database_credential_format: "role-url-bundle-v1",
+      required_migration_version: 8,
+      oban_concurrency: 6,
+      native_mode: :disabled
+    })
+
     started =
       Enum.map(
         [Liqi.Persistence.ApiRepo, Liqi.Persistence.RealtimeRepo, Liqi.Persistence.WorkerRepo],
@@ -19,6 +34,11 @@ defmodule Liqi.Persistence.DatabaseProviderIntegrationTest do
       Enum.each(Enum.reverse(started), fn pid ->
         if is_pid(pid) and Process.alive?(pid), do: Supervisor.stop(pid, :normal, 5_000)
       end)
+
+      case previous_runtime_config do
+        nil -> Application.delete_env(:liqi_platform, :runtime_config)
+        config -> Application.put_env(:liqi_platform, :runtime_config, config)
+      end
     end)
 
     :ok

@@ -8,4 +8,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 [[ -n "$output" ]] || { echo "--output is required" >&2; exit 64; }
-exec python beam/scripts/run_v1_integration.py --output "$output"
+if command -v python3 >/dev/null 2>&1; then
+  python_bin=python3
+else
+  python_bin=python
+fi
+exec "$python_bin" beam/scripts/run_v1_integration.py --output "$output"
