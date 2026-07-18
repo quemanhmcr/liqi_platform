@@ -11,9 +11,13 @@ defmodule Liqi.Runtime.SecretRef do
   def resolve_value(_), do: {:error, :unsupported_reference}
 
   defp resolve_credential(name) do
-    case System.get_env("CREDENTIALS_DIRECTORY") do
+    directory =
+      System.get_env("CREDENTIALS_DIRECTORY") ||
+        System.get_env("LIQI_CREDENTIALS_DIRECTORY")
+
+    case directory do
       nil -> {:error, :credentials_directory_missing}
-      directory -> read_single_value(Path.join(directory, name))
+      value -> read_single_value(Path.join(value, name))
     end
   end
 

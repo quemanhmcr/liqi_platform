@@ -23,5 +23,14 @@ defmodule Liqi.Runtime.ReleaseProviderContractTest do
         ] do
       assert {:ok, _} = path |> File.read!() |> Jason.decode()
     end
+
+    manifest =
+      "beam/release/mix-release-provider-v1.example.json"
+      |> File.read!()
+      |> Jason.decode!()
+
+    assert manifest["manifest_signature"]["signed_payload"] == "exact-manifest-bytes"
+    assert manifest["artifact"]["signature"]["signed_payload"] == "artifact-bytes"
+    assert String.starts_with?(manifest["rollback_target_release_id"], "liqi-v0-")
   end
 end
