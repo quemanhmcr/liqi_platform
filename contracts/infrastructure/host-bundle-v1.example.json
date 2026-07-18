@@ -108,10 +108,12 @@
   ],
   "installation": {
     "installer": "/usr/local/libexec/liqi-install-host-bundle",
-    "object_prefix": "artifacts/host/host-example-v1/",
     "approval_required": true,
     "build_on_host": false,
-    "activates_release": false
+    "activates_release": false,
+    "delivery": "operator-staged-local",
+    "archive_relative_path": "host/host-example-v1/",
+    "staging_root": "/var/lib/liqi/incoming/host"
   },
   "created_at": "2026-07-18T00:00:00Z"
 }

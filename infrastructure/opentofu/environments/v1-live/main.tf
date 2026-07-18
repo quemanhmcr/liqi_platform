@@ -29,6 +29,9 @@ module "v1_live" {
   enable_reserved_public_ip                  = var.enable_reserved_public_ip
   acknowledge_reserved_public_ip             = var.acknowledge_reserved_public_ip
   vault_secret_ocids                         = var.vault_secret_ocids
+  management_wireguard_peer_cidr             = var.management_wireguard_peer_cidr
+  management_wireguard_port                  = var.management_wireguard_port
+  management_plane_evidence_id               = var.management_plane_evidence_id
   state_backend_lock_evidence_id             = var.state_backend_lock_evidence_id
   host_bundle_signing_key_id                 = var.host_bundle_signing_key_id
   host_bundle_signing_public_key_sha256      = sha256(var.host_bundle_signing_public_key_pem)

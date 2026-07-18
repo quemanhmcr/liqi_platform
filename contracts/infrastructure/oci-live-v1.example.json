@@ -3,7 +3,7 @@
   "environment": "v1-live",
   "classification": "production-shaped-development",
   "git_sha": "0000000000000000000000000000000000000000",
-  "infrastructure_output_version": "1.0.0",
+  "infrastructure_output_version": "1.1.0",
   "region": {
     "name": "ap-singapore-2",
     "availability_domain": "example-AD-1"
@@ -52,7 +52,14 @@
       "otlp-http",
       "metrics"
     ],
-    "object_storage_service_gateway": true
+    "management_tunnel": {
+      "mode": "outbound-only",
+      "protocol": "wireguard-udp",
+      "peer_cidr": "198.51.100.10/32",
+      "peer_port": 51820,
+      "public_ingress_required": false,
+      "preflight_status": "pending-management-plane-preflight"
+    }
   },
   "host": {
     "instance_id": "ocid1.instance.oc1.example",
@@ -60,24 +67,22 @@
     "private_ipv4": "10.40.10.10",
     "public_ipv4": "203.0.113.10",
     "public_ip_mode": "ephemeral",
-    "legacy_imds_disabled": true
+    "legacy_imds_disabled": true,
+    "run_command_plugin_enabled": true
   },
   "storage": {
     "data_volume_id": "ocid1.volume.oc1.example",
     "data_volume_preserved": true,
-    "backup_bucket_name": "liqi-v1-live-backups-example",
-    "backup_bucket_versioning": "Enabled",
-    "backup_bucket_public": false,
     "kms_key_id": "ocid1.key.oc1.example",
-    "vault_id": "ocid1.vault.oc1.example"
+    "vault_id": "ocid1.vault.oc1.example",
+    "application_backup_authority": "independent-management-storage",
+    "artifact_archive_authority": "independent-management-storage"
   },
   "identity": {
     "dynamic_group_id": "ocid1.dynamicgroup.oc1.example",
     "instance_principal": true,
     "capabilities": [
-      "vault-secret-bundle-read",
-      "backup-object-read-create-inspect",
-      "backup-bucket-read"
+      "vault-secret-bundle-read"
     ],
     "user_api_keys_present": false
   },

@@ -6,7 +6,7 @@ locals {
     environment                   = local.environment
     classification                = "production-shaped-development"
     git_sha                       = var.source_git_sha
-    infrastructure_output_version = "1.0.0"
+    infrastructure_output_version = "1.1.0"
     region = {
       name                = var.region
       availability_domain = var.availability_domain
@@ -38,31 +38,38 @@ locals {
         { protocol = "tcp", port = 80, purpose = "http-redirect-and-acme" },
         { protocol = "tcp", port = 443, purpose = "https-edge" }
       ]
-      ssh_default_enabled            = false
-      loopback_services              = ["phoenix-http", "postgresql", "pgbouncer", "otlp-grpc", "otlp-http", "metrics"]
-      object_storage_service_gateway = true
+      ssh_default_enabled = false
+      loopback_services   = ["phoenix-http", "postgresql", "pgbouncer", "otlp-grpc", "otlp-http", "metrics"]
+      management_tunnel = {
+        mode                    = "outbound-only"
+        protocol                = "wireguard-udp"
+        peer_cidr               = var.management_wireguard_peer_cidr
+        peer_port               = var.management_wireguard_port
+        public_ingress_required = false
+        preflight_status        = length(trimspace(var.management_plane_evidence_id)) > 0 ? "validated" : "pending-management-plane-preflight"
+      }
     }
     host = {
-      instance_id          = oci_core_instance.host.id
-      image_id             = var.oracle_linux_image_ocid
-      private_ipv4         = oci_core_instance.host.private_ip
-      public_ipv4          = local.public_ipv4
-      public_ip_mode       = var.enable_reserved_public_ip ? "reserved-approved" : "ephemeral"
-      legacy_imds_disabled = true
+      instance_id                = oci_core_instance.host.id
+      image_id                   = var.oracle_linux_image_ocid
+      private_ipv4               = oci_core_instance.host.private_ip
+      public_ipv4                = local.public_ipv4
+      public_ip_mode             = var.enable_reserved_public_ip ? "reserved-approved" : "ephemeral"
+      legacy_imds_disabled       = true
+      run_command_plugin_enabled = true
     }
     storage = {
-      data_volume_id           = oci_core_volume.data.id
-      data_volume_preserved    = true
-      backup_bucket_name       = oci_objectstorage_bucket.backups.name
-      backup_bucket_versioning = "Enabled"
-      backup_bucket_public     = false
-      kms_key_id               = oci_kms_key.main.id
-      vault_id                 = oci_kms_vault.main.id
+      data_volume_id               = oci_core_volume.data.id
+      data_volume_preserved        = true
+      application_backup_authority = "independent-management-storage"
+      artifact_archive_authority   = "independent-management-storage"
+      kms_key_id                   = oci_kms_key.main.id
+      vault_id                     = oci_kms_vault.main.id
     }
     identity = {
       dynamic_group_id      = oci_identity_dynamic_group.host.id
       instance_principal    = true
-      capabilities          = ["vault-secret-bundle-read", "backup-object-read-create-inspect", "backup-bucket-read"]
+      capabilities          = ["vault-secret-bundle-read"]
       user_api_keys_present = false
     }
     state_backend = {
@@ -93,12 +100,12 @@ output "host_bootstrap_sha256" {
 }
 
 output "replacement_impact" {
-  description = "Stateful preservation and edge address behavior for replacement planning."
+  description = "Stateful preservation and external recovery authority for replacement planning."
   value = {
-    host_replaceable        = true
-    data_volume_preserved   = true
-    backup_bucket_preserved = true
-    vault_preserved         = true
-    public_ip_stable        = var.enable_reserved_public_ip
+    host_replaceable            = true
+    data_volume_preserved       = true
+    external_recovery_authority = true
+    vault_preserved             = true
+    public_ip_stable            = var.enable_reserved_public_ip
   }
 }

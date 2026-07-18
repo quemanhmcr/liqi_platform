@@ -3,13 +3,46 @@
   "environment": "v1-live",
   "classification": "production-shaped-development",
   "resources": [
-    {"resource": "VM.Standard.A1.Flex 4 OCPU / 24 GiB", "classification": "always-free-eligible-capacity-not-guaranteed", "approval_required": true},
-    {"resource": "boot plus block volume 180 GiB", "classification": "always-free-eligible-tenancy-quota-dependent", "approval_required": true},
-    {"resource": "Object Storage backup usage", "classification": "always-free-up-to-tenancy-quota-then-paid", "approval_required": true},
-    {"resource": "DEFAULT Vault with software-protected AES key", "classification": "free", "approval_required": false},
-    {"resource": "OCI Secret Management", "classification": "free-with-service-limits", "approval_required": false},
-    {"resource": "reserved public IPv4", "classification": "disabled-until-approved", "approval_required": true},
-    {"resource": "VCN, NSG, gateways, IAM", "classification": "no-direct-resource-charge", "approval_required": false}
+    {
+      "resource": "VM.Standard.A1.Flex 4 OCPU / 24 GiB",
+      "classification": "always-free-eligible-capacity-not-guaranteed",
+      "approval_required": true
+    },
+    {
+      "resource": "boot plus block volume 180 GiB",
+      "classification": "always-free-eligible-tenancy-quota-dependent",
+      "approval_required": true
+    },
+    {
+      "resource": "DEFAULT Vault with software-protected AES key",
+      "classification": "free",
+      "approval_required": false
+    },
+    {
+      "resource": "OCI Secret Management",
+      "classification": "free-with-service-limits",
+      "approval_required": false
+    },
+    {
+      "resource": "reserved public IPv4",
+      "classification": "disabled-until-approved",
+      "approval_required": true
+    },
+    {
+      "resource": "VCN, NSG, gateways, IAM",
+      "classification": "no-direct-resource-charge",
+      "approval_required": false
+    },
+    {
+      "resource": "outbound-only WireGuard NSG rule to independent management peer",
+      "classification": "no-direct-resource-charge-external-peer-owner",
+      "approval_required": false
+    },
+    {
+      "resource": "independent management/storage hardware",
+      "classification": "external-owner-input-not-created-by-oci-plan",
+      "approval_required": true
+    }
   ],
   "paid_resource_default_enabled": false,
   "capacity_acknowledgement_required": true

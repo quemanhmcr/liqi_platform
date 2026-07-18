@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download, verify and stage a signed LIQI V1 host runtime bundle."""
+"""Verify and stage a locally delivered signed LIQI V1 host runtime bundle."""
 from __future__ import annotations
 
 import argparse
@@ -22,8 +22,8 @@ SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--namespace", required=True)
-    parser.add_argument("--bucket", required=True)
+    parser.add_argument("--bundle-dir", required=True, type=Path)
+    parser.add_argument("--incoming-root", type=Path, default=Path("/var/lib/liqi/incoming/host"))
     parser.add_argument("--bundle-id", required=True)
     parser.add_argument("--approval-reference", required=True)
     parser.add_argument("--execute", action="store_true")
@@ -55,13 +55,19 @@ def sha256(path: Path) -> str:
     return value.hexdigest()
 
 
-def download(namespace: str, bucket: str, name: str, target: Path) -> None:
-    run([
-        "/usr/bin/oci", "os", "object", "get", "--auth", "instance_principal",
-        "--namespace-name", namespace, "--bucket-name", bucket,
-        "--name", name, "--file", str(target),
-    ], timeout=180, capture=True)
-
+def validate_staged_source(bundle_dir: Path, incoming_root: Path) -> Path:
+    root = incoming_root.resolve(strict=True)
+    source = bundle_dir.resolve(strict=True)
+    if source == root or root not in source.parents:
+        raise RuntimeError("bundle directory must be below the approved incoming root")
+    if source.is_symlink() or not source.is_dir():
+        raise RuntimeError("bundle source must be a regular directory")
+    if source.stat().st_uid != 0:
+        raise RuntimeError("bundle source directory must be root-owned")
+    mode = source.stat().st_mode & 0o777
+    if mode & 0o022:
+        raise RuntimeError("bundle source directory must not be group/world writable")
+    return source
 
 def validate_manifest(document: object, bundle_id: str, key_id: str) -> dict[str, object]:
     if not isinstance(document, dict) or document.get("schema_version") != "liqi.infrastructure.host-bundle/v1":
@@ -166,6 +172,7 @@ def write_evidence(args: argparse.Namespace, manifest: dict[str, object], manife
         "manifest_sha256": sha256(manifest_path),
         "signature_sha256": sha256(signature_path),
         "artifact_sha256": manifest["artifact"]["sha256"],
+        "delivery": "operator-staged-local",
         "status": "staged",
         "release_activated": False,
         "database_initialized": False,
@@ -192,25 +199,28 @@ def main() -> int:
     if not IDENTIFIER.fullmatch(key_id):
         raise SystemExit("invalid trusted key ID")
 
-    prefix = f"artifacts/host/{args.bundle_id}/"
     manifest_name = f"liqi-host-bundle-{args.bundle_id}.json"
     archive_name = f"liqi-host-bundle-{args.bundle_id}.tar.gz"
     signature_name = f"{manifest_name}.sig"
+    source = validate_staged_source(args.bundle_dir, args.incoming_root)
+    manifest_path = source / manifest_name
+    signature_path = source / signature_name
+    archive_path = source / archive_name
+    for path in (manifest_path, signature_path, archive_path):
+        if not path.is_file() or path.is_symlink() or path.stat().st_uid != 0 or path.stat().st_mode & 0o022:
+            raise RuntimeError(f"staged bundle input must be regular, root-owned and not group/world writable: {path}")
+    verify_signature(manifest_path, signature_path, args.public_key)
+    manifest = validate_manifest(json.loads(manifest_path.read_text(encoding="utf-8")), args.bundle_id, key_id)
+    installation = manifest.get("installation")
+    if not isinstance(installation, dict) or installation.get("delivery") != "operator-staged-local" or installation.get("staging_root") != str(args.incoming_root):
+        raise RuntimeError("host bundle local-delivery contract mismatch")
+    if manifest["signing"]["signature_filename"] != signature_name or manifest["artifact"]["filename"] != archive_name:
+        raise RuntimeError("host bundle filenames do not match manifest")
+    if archive_path.stat().st_size != int(manifest["artifact"]["size_bytes"]) or sha256(archive_path) != manifest["artifact"]["sha256"]:
+        raise RuntimeError("host bundle archive checksum mismatch")
 
     with tempfile.TemporaryDirectory(prefix="liqi-host-bundle-") as directory:
         workspace = Path(directory)
-        manifest_path = workspace / manifest_name
-        signature_path = workspace / signature_name
-        archive_path = workspace / archive_name
-        download(args.namespace, args.bucket, prefix + manifest_name, manifest_path)
-        download(args.namespace, args.bucket, prefix + signature_name, signature_path)
-        verify_signature(manifest_path, signature_path, args.public_key)
-        manifest = validate_manifest(json.loads(manifest_path.read_text(encoding="utf-8")), args.bundle_id, key_id)
-        if manifest["signing"]["signature_filename"] != signature_name or manifest["artifact"]["filename"] != archive_name:
-            raise RuntimeError("host bundle object filenames do not match manifest")
-        download(args.namespace, args.bucket, prefix + archive_name, archive_path)
-        if archive_path.stat().st_size != int(manifest["artifact"]["size_bytes"]) or sha256(archive_path) != manifest["artifact"]["sha256"]:
-            raise RuntimeError("host bundle archive checksum mismatch")
         staging = workspace / "staging"
         extract_verified(archive_path, manifest, staging)
         # Install provider scripts/config first so the package installer has its pinned inputs.

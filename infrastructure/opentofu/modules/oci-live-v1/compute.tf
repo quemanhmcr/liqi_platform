@@ -33,6 +33,16 @@ resource "oci_core_instance" "host" {
     are_legacy_imds_endpoints_disabled = true
   }
 
+  agent_config {
+    are_all_plugins_disabled = false
+    is_management_disabled   = false
+    is_monitoring_disabled   = false
+    plugins_config {
+      name          = "Compute Instance Run Command"
+      desired_state = "ENABLED"
+    }
+  }
+
   availability_config {
     recovery_action = "RESTORE_INSTANCE"
   }
@@ -50,6 +60,7 @@ resource "oci_core_instance" "host" {
   depends_on = [
     terraform_data.operation_guard,
     terraform_data.capacity_guard,
+    terraform_data.management_plane_guard,
     terraform_data.reserved_ip_guard,
     terraform_data.host_bundle_trust_guard
   ]

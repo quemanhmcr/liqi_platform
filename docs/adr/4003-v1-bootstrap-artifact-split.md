@@ -5,6 +5,10 @@
 - Owner: Senior 4
 - Consumers: Senior 5
 
+## Supersession
+
+The OCI Object Storage artifact transport described below is superseded by ADR 4004. V1 artifacts are archived on independent management/storage hardware and delivered to a root-owned local staging directory without S3.
+
 ## Context
 
 The first V1 host design embedded package installation, all systemd units, Caddy, OpenTelemetry and deployment scripts in OCI instance metadata. The rendered gzip/base64 `user_data` measured 21,756 bytes, above OCI Compute's 16 KiB metadata limit. Compressing more aggressively or deleting validation code would make the bootstrap fragile and reduce evidence quality.

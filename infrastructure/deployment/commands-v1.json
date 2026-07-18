@@ -81,6 +81,27 @@
       "output": "signed host bundle, manifest and signature"
     },
     {
+      "id": "archive-host-bundle",
+      "command": [
+        "python",
+        "infrastructure/deployment/archive_host_bundle.py",
+        "--bundle-dir",
+        "<artifact-dir>",
+        "--bundle-id",
+        "<bundle-id>",
+        "--public-key",
+        "<public-key-file>",
+        "--archive-root",
+        "<independent-management-storage-root>",
+        "--output",
+        "<archive-evidence.json>"
+      ],
+      "working_directory": "repository-root-clean",
+      "mutation": "dry-run-unless---execute-and-approval-reference",
+      "output": "host-bundle-archive-result-v1",
+      "failure_policy": "refuse overwrite, symlink inputs, unmarked archive roots, invalid signatures or non-independent authority"
+    },
+    {
       "id": "authorize-native-artifact",
       "command": [
         "python",

@@ -1,5 +1,3 @@
-data "oci_core_services" "regional" {}
-
 resource "oci_core_vcn" "main" {
   compartment_id = oci_identity_compartment.environment.id
   cidr_blocks    = ["10.40.0.0/16"]
@@ -16,16 +14,6 @@ resource "oci_core_internet_gateway" "main" {
   freeform_tags  = local.common_tags
 }
 
-resource "oci_core_service_gateway" "object_storage" {
-  compartment_id = oci_identity_compartment.environment.id
-  vcn_id         = oci_core_vcn.main.id
-  display_name   = "${local.prefix}-object-storage-service-gateway"
-  services {
-    service_id = local.object_storage_service.id
-  }
-  freeform_tags = local.common_tags
-}
-
 resource "oci_core_route_table" "edge" {
   compartment_id = oci_identity_compartment.environment.id
   vcn_id         = oci_core_vcn.main.id
@@ -35,12 +23,6 @@ resource "oci_core_route_table" "edge" {
     destination_type  = "CIDR_BLOCK"
     network_entity_id = oci_core_internet_gateway.main.id
     description       = "Public edge egress."
-  }
-  route_rules {
-    destination       = local.object_storage_service.cidr_block
-    destination_type  = "SERVICE_CIDR_BLOCK"
-    network_entity_id = oci_core_service_gateway.object_storage.id
-    description       = "Private Object Storage path."
   }
   freeform_tags = local.common_tags
 }
@@ -169,18 +151,18 @@ resource "oci_core_network_security_group_security_rule" "ntp_egress" {
   }
 }
 
-resource "oci_core_network_security_group_security_rule" "object_storage_egress" {
+resource "oci_core_network_security_group_security_rule" "management_tunnel_egress" {
   network_security_group_id = oci_core_network_security_group.host.id
   direction                 = "EGRESS"
-  protocol                  = "6"
-  destination               = local.object_storage_service.cidr_block
-  destination_type          = "SERVICE_CIDR_BLOCK"
+  protocol                  = "17"
+  destination               = var.management_wireguard_peer_cidr
+  destination_type          = "CIDR_BLOCK"
   stateless                 = false
-  description               = "Object Storage HTTPS through service gateway."
-  tcp_options {
+  description               = "Outbound-only encrypted WireGuard tunnel to the independent management plane."
+  udp_options {
     destination_port_range {
-      min = 443
-      max = 443
+      min = var.management_wireguard_port
+      max = var.management_wireguard_port
     }
   }
 }

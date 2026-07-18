@@ -269,7 +269,9 @@ def main() -> int:
         "files": public_records,
         "installation": {
             "installer": "/usr/local/libexec/liqi-install-host-bundle",
-            "object_prefix": f"artifacts/host/{args.bundle_id}/",
+            "delivery": "operator-staged-local",
+            "archive_relative_path": f"host/{args.bundle_id}/",
+            "staging_root": "/var/lib/liqi/incoming/host",
             "approval_required": True,
             "build_on_host": False,
             "activates_release": False,

@@ -44,6 +44,33 @@ variable "acknowledge_reserved_public_ip" {
   default = false
 }
 
+
+variable "management_wireguard_peer_cidr" {
+  type = string
+  validation {
+    condition     = can(cidrhost(var.management_wireguard_peer_cidr, 0)) && can(regex("/32$", var.management_wireguard_peer_cidr))
+    error_message = "management_wireguard_peer_cidr must be an exact IPv4 /32 peer endpoint."
+  }
+}
+
+variable "management_wireguard_port" {
+  type    = number
+  default = 51820
+  validation {
+    condition     = var.management_wireguard_port >= 1 && var.management_wireguard_port <= 65535
+    error_message = "management_wireguard_port must be between 1 and 65535."
+  }
+}
+
+variable "management_plane_evidence_id" {
+  type    = string
+  default = ""
+  validation {
+    condition     = length(var.management_plane_evidence_id) <= 256
+    error_message = "management_plane_evidence_id must be at most 256 characters."
+  }
+}
+
 variable "vault_secret_ocids" {
   type    = set(string)
   default = []

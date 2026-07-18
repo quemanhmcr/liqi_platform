@@ -29,14 +29,6 @@ locals {
     https = 443
   }
 
-  object_storage_services = [
-    for service in data.oci_core_services.regional.services : service
-    if can(regex("Object Storage", service.name)) && !can(regex("All .* Services", service.name))
-  ]
-  object_storage_service = one(local.object_storage_services)
-
-  backup_bucket_name = "${local.prefix}-backups"
-
   vault_secret_statements = [
     for secret_ocid in sort(tolist(var.vault_secret_ocids)) :
     "Allow dynamic-group ${oci_identity_dynamic_group.host.name} to read secret-bundles in compartment id ${oci_identity_compartment.environment.id} where target.secret.id = '${secret_ocid}'"

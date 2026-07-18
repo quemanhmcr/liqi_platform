@@ -134,7 +134,9 @@
       "additionalProperties": false,
       "required": [
         "installer",
-        "object_prefix",
+        "delivery",
+        "archive_relative_path",
+        "staging_root",
         "approval_required",
         "build_on_host",
         "activates_release"
@@ -142,10 +144,6 @@
       "properties": {
         "installer": {
           "const": "/usr/local/libexec/liqi-install-host-bundle"
-        },
-        "object_prefix": {
-          "type": "string",
-          "pattern": "^artifacts/host/[a-z0-9][a-z0-9._-]{2,95}/$"
         },
         "approval_required": {
           "const": true
@@ -155,6 +153,16 @@
         },
         "activates_release": {
           "const": false
+        },
+        "delivery": {
+          "const": "operator-staged-local"
+        },
+        "archive_relative_path": {
+          "type": "string",
+          "pattern": "^host/[a-z0-9][a-z0-9._-]{2,95}/$"
+        },
+        "staging_root": {
+          "const": "/var/lib/liqi/incoming/host"
         }
       }
     },

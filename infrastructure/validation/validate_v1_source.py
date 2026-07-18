@@ -143,6 +143,12 @@ def validate_static_policy() -> None:
     module_text = "\n".join(path.read_text(encoding="utf-8") for path in sorted((INFRA / "opentofu/modules/oci-live-v1").glob("*.tf")))
     if "oci_vault_secret" in module_text or 'port = 22' in module_text or "enable_admin_ssh" in module_text:
         raise AssertionError("source introduces secret-in-state or SSH ingress")
+    for forbidden in ("oci_objectstorage_bucket", "oci_core_service_gateway", "Object Storage", "object_storage"):
+        if forbidden in module_text:
+            raise AssertionError(f"V1 OCI module retains forbidden Object Storage dependency: {forbidden}")
+    for token in ("management_tunnel_egress", "management_wireguard_peer_cidr", "Compute Instance Run Command"):
+        if token not in module_text:
+            raise AssertionError(f"V1 management bootstrap/tunnel source is missing {token}")
     required_assignments = {
         "http": "80",
         "https": "443",
@@ -185,6 +191,18 @@ def validate_static_policy() -> None:
     ):
         if token not in caddy_live:
             raise AssertionError(f"live Caddy template missing {token}")
+    artifact_source = "\n".join((INFRA / path).read_text(encoding="utf-8") for path in (
+        "deployment/build_host_bundle.py",
+        "deployment/archive_host_bundle.py",
+        "bin/liqi-install-host-bundle",
+    ))
+    for forbidden in ("oci os object", "--namespace-name", "--bucket-name", "object_prefix"):
+        if forbidden in artifact_source:
+            raise AssertionError(f"V1 artifact path retains Object Storage dependency: {forbidden}")
+    for token in ("independent-management-storage", "operator-staged-local", "/var/lib/liqi/incoming/host"):
+        if token not in artifact_source:
+            raise AssertionError(f"V1 artifact provider is missing {token}")
+
     provider_requirements = {
         INFRA / "deployment/authorize_native_artifact.py": (
             "native/scripts/prepare_deployment_manifest.py",

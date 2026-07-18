@@ -21,7 +21,7 @@ resource "terraform_data" "capacity_guard" {
   lifecycle {
     precondition {
       condition     = var.acknowledge_capacity_availability_and_cost
-      error_message = "A1 4/24 capacity, tenancy quota, block volume and Object Storage cost must be explicitly acknowledged before producing a live plan."
+      error_message = "A1 4/24 capacity, tenancy quota and block-volume usage must be explicitly acknowledged before producing a live plan."
     }
     precondition {
       condition = (
@@ -31,6 +31,21 @@ resource "terraform_data" "capacity_guard" {
         local.capacity.boot_volume_gib + local.capacity.data_volume_gib == local.capacity.combined_storage_gib
       )
       error_message = "V1 capacity must remain A1 4 OCPU/24 GiB and 180 GiB provider storage."
+    }
+  }
+}
+
+resource "terraform_data" "management_plane_guard" {
+  input = {
+    peer_cidr   = var.management_wireguard_peer_cidr
+    peer_port   = var.management_wireguard_port
+    evidence_id = var.management_plane_evidence_id
+  }
+
+  lifecycle {
+    precondition {
+      condition     = length(trimspace(var.management_plane_evidence_id)) >= 3
+      error_message = "Independent management/storage and reviewed WireGuard peer preflight evidence is required before a live plan."
     }
   }
 }

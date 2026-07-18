@@ -207,10 +207,25 @@ class PlanValidationTests(unittest.TestCase):
                 "shape_config": [{"ocpus": 4, "memory_in_gbs": 24}],
                 "source_details": [{"boot_volume_size_in_gbs": 50}],
                 "metadata": {"user_data": encoded},
+                "agent_config": [{"plugins_config": [{"name": "Compute Instance Run Command", "desired_state": "ENABLED"}]}],
             },
         }]
         rendered = validate_v1_plan.validate_instance(resources)
         self.assertIn("liqi-bootstrap-host", rendered)
+
+    def test_management_tunnel_is_outbound_to_one_peer(self) -> None:
+        resources = [{
+            "type": "oci_core_network_security_group_security_rule",
+            "values": {
+                "direction": "EGRESS", "protocol": "17", "destination": "198.51.100.10/32",
+                "udp_options": [{"destination_port_range": [{"min": 51820, "max": 51820}]}],
+            },
+        }]
+        validate_v1_plan.validate_management_tunnel(resources)
+        resources[0]["values"]["destination"] = "0.0.0.0/0"
+        with self.assertRaises(AssertionError):
+            validate_v1_plan.validate_management_tunnel(resources)
+
 
 
 

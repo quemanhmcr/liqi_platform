@@ -20,7 +20,6 @@ EXPECTED_COUNTS = {
     "oci_core_network_security_group_security_rule": 9,
     "oci_core_route_table": 1,
     "oci_core_security_list": 1,
-    "oci_core_service_gateway": 1,
     "oci_core_subnet": 1,
     "oci_core_vcn": 1,
     "oci_core_volume": 1,
@@ -30,11 +29,10 @@ EXPECTED_COUNTS = {
     "oci_identity_policy": 1,
     "oci_kms_key": 1,
     "oci_kms_vault": 1,
-    "oci_objectstorage_bucket": 1,
-    "terraform_data": 5,
+    "terraform_data": 6,
 }
 EXPECTED_OUTPUTS = {"oci_live_v1", "host_bootstrap_sha256", "replacement_impact"}
-FORBIDDEN_TYPES = {"oci_vault_secret", "oci_database_db_system", "oci_containerengine_cluster"}
+FORBIDDEN_TYPES = {"oci_vault_secret", "oci_database_db_system", "oci_containerengine_cluster", "oci_objectstorage_bucket", "oci_core_service_gateway"}
 FORBIDDEN_TEXT = (
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----", re.I),
     re.compile(r"postgres(?:ql)?://[^\s:/]+:[^\s@/]+@", re.I),
@@ -115,6 +113,10 @@ def validate_instance(resources: list[dict[str, Any]]) -> str:
         fail("baseline cloud-init is missing guarded bootstrap/host-bundle providers")
     if "sshd.service sshd.socket" not in rendered:
         fail("baseline cloud-init does not mask SSH")
+    agent = values.get("agent_config") or []
+    plugins = [item for block in agent for item in (block.get("plugins_config") or [])]
+    if not any(item.get("name") == "Compute Instance Run Command" and item.get("desired_state") == "ENABLED" for item in plugins):
+        fail("Compute Instance Run Command must be explicitly enabled for no-SSH bootstrap")
     return rendered
 
 
@@ -122,9 +124,6 @@ def validate_storage(resources: list[dict[str, Any]]) -> None:
     volume = one(resources, "oci_core_volume")["values"]
     if int(volume.get("size_in_gbs", 0)) != 130 or volume.get("vpus_per_gb") != 0:
         fail("preserved block volume must be 130 GiB at the declared lower-cost performance tier")
-    bucket = one(resources, "oci_objectstorage_bucket")["values"]
-    if bucket.get("access_type") != "NoPublicAccess" or bucket.get("versioning") != "Enabled":
-        fail("backup bucket must be private and versioned")
     vault = one(resources, "oci_kms_vault")["values"]
     key = one(resources, "oci_kms_key")["values"]
     if vault.get("vault_type") != "DEFAULT" or key.get("protection_mode") != "SOFTWARE":
@@ -145,6 +144,25 @@ def validate_ingress(resources: list[dict[str, Any]]) -> None:
     if sorted(public_tcp) != [(80, 80), (443, 443)]:
         fail(f"public TCP ingress must be exactly 80/443, got {sorted(public_tcp)}")
 
+
+
+def validate_management_tunnel(resources: list[dict[str, Any]]) -> None:
+    candidates: list[tuple[str, int]] = []
+    for resource in resources:
+        if resource.get("type") != "oci_core_network_security_group_security_rule":
+            continue
+        values = resource.get("values", {})
+        if values.get("direction") != "EGRESS" or values.get("protocol") != "17":
+            continue
+        destination = str(values.get("destination", ""))
+        if destination == "169.254.169.254/32":
+            continue
+        for option in values.get("udp_options") or []:
+            for port_range in option.get("destination_port_range") or []:
+                if int(port_range["min"]) == int(port_range["max"]):
+                    candidates.append((destination, int(port_range["min"])))
+    if len(candidates) != 1 or not candidates[0][0].endswith("/32") or candidates[0][0] == "0.0.0.0/0":
+        fail(f"management tunnel must be one outbound-only UDP rule to an exact /32 peer, got {candidates}")
 
 def validate_outputs(plan: dict[str, Any], mode: str) -> None:
     outputs = plan.get("planned_values", {}).get("outputs", {})
@@ -183,6 +201,7 @@ def main() -> int:
         validate_instance(resources)
         validate_storage(resources)
         validate_ingress(resources)
+        validate_management_tunnel(resources)
         validate_outputs(plan, args.mode)
     except (AssertionError, ValueError, KeyError, TypeError, OSError, json.JSONDecodeError) as exc:
         print(f"ERROR v1-plan: {exc}", file=sys.stderr)

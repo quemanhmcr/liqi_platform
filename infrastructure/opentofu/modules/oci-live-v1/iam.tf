@@ -9,11 +9,14 @@ resource "oci_identity_dynamic_group" "host" {
 resource "oci_identity_policy" "host" {
   compartment_id = var.tenancy_ocid
   name           = "liqi_v1_live_host_policy"
-  description    = "Least-privilege Object Storage and Vault access for the exact v1-live host."
-  statements = concat([
-    "Allow dynamic-group ${oci_identity_dynamic_group.host.name} to read buckets in compartment id ${oci_identity_compartment.environment.id} where target.bucket.name = '${oci_objectstorage_bucket.backups.name}'",
-    "Allow dynamic-group ${oci_identity_dynamic_group.host.name} to manage objects in compartment id ${oci_identity_compartment.environment.id} where all {target.bucket.name = '${oci_objectstorage_bucket.backups.name}', any {request.permission = 'OBJECT_INSPECT', request.permission = 'OBJECT_READ', request.permission = 'OBJECT_CREATE'}}",
-    "Allow service objectstorage-${var.region} to use keys in compartment id ${oci_identity_compartment.environment.id} where target.key.id = '${oci_kms_key.main.id}'"
-  ], local.vault_secret_statements)
-  freeform_tags = local.common_tags
+  description    = "Least-privilege OCI Vault secret-bundle access for the exact v1-live host."
+  statements     = local.vault_secret_statements
+  freeform_tags  = local.common_tags
+
+  lifecycle {
+    precondition {
+      condition     = length(local.vault_secret_statements) > 0
+      error_message = "At least one exact OCI Vault secret OCID is required before a live plan."
+    }
+  }
 }
