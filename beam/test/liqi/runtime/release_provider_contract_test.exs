@@ -14,6 +14,8 @@ defmodule Liqi.Runtime.ReleaseProviderContractTest do
     assert source_gate =~ "mix deps.get --locked"
     assert source_gate =~ "shutil.rmtree('_build/test'"
     refute source_gate =~ "deps.clean --all"
+    refute source_gate =~ "mix deps.compile"
+    refute source_gate =~ "mix deps.get\n"
 
     for path <- [
           "contracts/runtime/runtime-source-result-v1.schema.json",
