@@ -8,6 +8,7 @@ Provider-owned Ecto boundary for V1. It publishes three bounded Repo modules plu
 
 - `readiness/1`
 - `request_probe/1`
+- `observe_probe/2`
 - `claim_probe_events/2`
 - `apply_probe_effect/3`
 - `fail_event/5`
