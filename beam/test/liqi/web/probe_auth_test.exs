@@ -64,4 +64,14 @@ defmodule Liqi.Web.ProbeAuthTest do
     assert response["kernel"] == "compact_sequence_diff"
     assert response["configured"]["result"] == response["reference"]["result"]
   end
+
+  test "probe authentication is explicit in HTTP and realtime contracts" do
+    openapi = File.read!("contracts/openapi/platform-v1.yaml")
+    realtime = File.read!("contracts/realtime/gateway-v1.schema.json")
+
+    assert openapi =~ "x-liqi-probe-token"
+    assert openapi =~ "/platform/v1/probes/native"
+    assert realtime =~ "x-liqi-probe-token"
+    assert realtime =~ "queryParametersForbidden"
+  end
 end
