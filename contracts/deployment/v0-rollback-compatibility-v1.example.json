@@ -1,0 +1,11 @@
+{
+  "schema_version": "liqi.deployment.v0-rollback-compatibility/v1",
+  "status": "passed",
+  "database_provider_git_sha": "0000000000000000000000000000000000000000",
+  "v0_release_id": "liqi-v0-example",
+  "from_migration": 4,
+  "to_migration": 8,
+  "v0_functions_retained": true,
+  "source_result_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "observed_at": "2026-07-18T00:00:00Z"
+}

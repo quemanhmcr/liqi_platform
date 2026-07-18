@@ -21,11 +21,11 @@
     ]
   },
   "backend": {
-    "address": "127.0.0.1:4000",
+    "address": "127.0.0.1:4100",
     "publicly_routable": false
   },
   "websocket": {
-    "path": "/socket/websocket",
+    "path": "/platform/v1/socket/websocket",
     "supported": false,
     "resume_evidence": "pending"
   },

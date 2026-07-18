@@ -1,7 +1,7 @@
 [Unit]
 Description=LIQI Phoenix/BEAM V1 release
-Requires=liqi-host-readiness.service liqi-secrets.service pgbouncer.service
-After=network-online.target liqi-host-readiness.service liqi-secrets.service pgbouncer.service
+Requires=liqi-host-readiness.service liqi-secrets.service liqi-database-credentials.service pgbouncer.service
+After=network-online.target liqi-host-readiness.service liqi-secrets.service liqi-database-credentials.service pgbouncer.service
 Wants=network-online.target
 StartLimitIntervalSec=120
 StartLimitBurst=5
@@ -11,7 +11,9 @@ Type=exec
 Slice=liqi-beam.slice
 User=liqi-beam
 Group=liqi
-EnvironmentFile=/etc/liqi/runtime/beam.env
+EnvironmentFile=-/etc/liqi/runtime/beam.env
+Environment=LIQI_RUNTIME_CONFIG_PATH=/etc/liqi/runtime/current.json
+Environment=CREDENTIALS_DIRECTORY=/run/liqi/secrets/beam
 Environment=LIQI_CREDENTIALS_DIRECTORY=/run/liqi/secrets/beam
 RuntimeDirectory=liqi/beam
 RuntimeDirectoryMode=0750

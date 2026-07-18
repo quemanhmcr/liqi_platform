@@ -17,7 +17,11 @@
     "database_compatibility",
     "rollback_target_release_id",
     "configuration_paths",
-    "created_at"
+    "created_at",
+    "database_compatibility_evidence",
+    "runtime_config_path",
+    "credential_directory",
+    "required_credentials"
   ],
   "properties": {
     "schema_version": {
@@ -192,6 +196,53 @@
     "created_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "database_compatibility_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "sha256",
+        "retained_path"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "retained_path": {
+          "type": "string",
+          "pattern": "^/var/lib/liqi/recovery/release-inputs/"
+        }
+      }
+    },
+    "runtime_config_path": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^/etc/liqi/runtime/releases/[a-z0-9][a-z0-9._-]{2,95}\\.json$"
+    },
+    "credential_directory": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^/run/liqi/secrets/[a-z0-9-]+$"
+    },
+    "required_credentials": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]{1,63}$"
+      }
     }
   }
 }

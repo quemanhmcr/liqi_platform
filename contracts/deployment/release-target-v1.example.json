@@ -38,8 +38,21 @@
   },
   "rollback_target_release_id": "liqi-v0-example",
   "configuration_paths": [
-    "/etc/liqi/runtime",
+    "/etc/liqi/runtime/releases/liqi-v1-example.json",
     "/run/liqi/secrets/beam"
   ],
-  "created_at": "2026-07-18T00:00:00Z"
+  "created_at": "2026-07-18T00:00:00Z",
+  "database_compatibility_evidence": {
+    "schema_version": "migration-readiness-v1",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "retained_path": "/var/lib/liqi/recovery/release-inputs/liqi-v1-example.migration-readiness-v1.json"
+  },
+  "runtime_config_path": "/etc/liqi/runtime/releases/liqi-v1-example.json",
+  "credential_directory": "/run/liqi/secrets/beam",
+  "required_credentials": [
+    "phoenix-secret-key-base",
+    "database-role-urls",
+    "drain-token",
+    "platform-probe-token"
+  ]
 }

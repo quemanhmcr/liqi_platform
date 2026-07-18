@@ -83,7 +83,7 @@
     "files": {
       "type": "array",
       "minItems": 10,
-      "maxItems": 128,
+      "maxItems": 160,
       "items": {
         "type": "object",
         "additionalProperties": false,
