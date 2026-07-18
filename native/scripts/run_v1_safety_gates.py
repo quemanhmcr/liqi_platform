@@ -76,7 +76,12 @@ def main() -> int:
         "rust": version(["rustc", "+1.97.1", "--version"]) if shutil.which("rustc") else "unavailable",
         "cargo": version(["cargo", "+1.97.1", "--version"]) if shutil.which("cargo") else "unavailable",
         "elixir": version(["elixir", "--version"]) if shutil.which("elixir") else "unavailable",
-        "otp": version(["erl", "-noshell", "-eval", "io:format(\"~s\", [erlang:system_info(otp_release)]), halt()."]) if shutil.which("erl") else "unavailable",
+        "otp": version([
+            "erl",
+            "-noshell",
+            "-eval",
+            'Otp=erlang:system_info(otp_release), {ok,B}=file:read_file(filename:join([code:root_dir(),"releases",Otp,"OTP_VERSION"])), io:format("~s", [string:trim(binary_to_list(B))]), halt().',
+        ]) if shutil.which("erl") else "unavailable",
         "rustler": "0.38.0",
         "nif_abi": "2.15",
     }
@@ -103,7 +108,7 @@ def main() -> int:
         print(json.dumps({"validation": "native-safety-v1", "status": "blocked", "reason": reason, "output": relative(output)}, sort_keys=True, separators=(",", ":")))
         return 69
 
-    expected_versions = {"rust": "rustc 1.97.1 ", "cargo": "cargo 1.97.1 ", "elixir": "Elixir 1.20.2", "otp": "28"}
+    expected_versions = {"rust": "rustc 1.97.1 ", "cargo": "cargo 1.97.1 ", "elixir": "Elixir 1.20.2", "otp": "28.5.0.3"}
     version_failures = []
     for name, expected in expected_versions.items():
         observed = toolchain[name]
