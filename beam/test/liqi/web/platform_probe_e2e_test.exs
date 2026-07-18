@@ -52,6 +52,16 @@ defmodule Liqi.Web.PlatformProbeE2ETest do
     assert {:ok, [{:ok, "acked"}]} = Liqi.Runtime.OutboxWorker.poll_once()
     assert MapSet.member?(Liqi.Persistence.Fake.effects(), event_id)
 
+    observation =
+      build_conn()
+      |> put_req_header("x-liqi-probe-token", "liqi-test-probe-token")
+      |> get("/platform/v1/probes/#{probe_id}?eventId=#{event_id}")
+      |> json_response(200)
+
+    assert observation["terminal"]
+    assert observation["effect_applied"]
+    assert observation["outbox_state"] == "succeeded"
+
     start_supervised!({Liqi.Realtime.Dispatcher, enabled: false})
     assert {:ok, 1} = Liqi.Realtime.Dispatcher.poll_once()
 

@@ -74,4 +74,19 @@ defmodule Liqi.Web.ProbeAuthTest do
     assert realtime =~ "x-liqi-probe-token"
     assert realtime =~ "queryParametersForbidden"
   end
+
+  test "probe observation is authorized and least privilege" do
+    probe_id = Liqi.Runtime.Id.uuid4()
+    event_id = Liqi.Runtime.Id.uuid4()
+
+    unauthorized = get(build_conn(), "/platform/v1/probes/#{probe_id}?eventId=#{event_id}")
+    assert %{"error" => %{"code" => "auth.unauthorized"}} = json_response(unauthorized, 401)
+
+    authorized =
+      build_conn()
+      |> put_req_header("x-liqi-probe-token", "liqi-test-probe-token")
+      |> get("/platform/v1/probes/#{probe_id}?eventId=#{event_id}")
+
+    assert %{"error" => %{"code" => "probe.not_found"}} = json_response(authorized, 404)
+  end
 end

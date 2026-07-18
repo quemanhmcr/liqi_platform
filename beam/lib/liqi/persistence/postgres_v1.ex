@@ -15,6 +15,8 @@ defmodule Liqi.Persistence.PostgresV1 do
   @impl true
   def request_probe(_command), do: {:error, @reason}
   @impl true
+  def observe_probe(_probe_id, _event_id), do: {:error, @reason}
+  @impl true
   def claim_probe_events(_consumer_id, _batch_size), do: {:error, @reason}
   @impl true
   def apply_probe_effect(_event_id, _claim_token, _consumer_id), do: {:error, @reason}
@@ -24,4 +26,6 @@ defmodule Liqi.Persistence.PostgresV1 do
 
   @impl true
   def read_handoff(_after_cursor, _batch_size), do: {:error, @reason}
+  @impl true
+  def observe_probe(_probe_id, _event_id), do: {:error, @reason}
 end

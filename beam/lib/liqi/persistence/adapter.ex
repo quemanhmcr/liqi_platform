@@ -3,6 +3,8 @@ defmodule Liqi.Persistence.Adapter do
 
   @callback readiness(required_migration_version :: pos_integer()) :: :ok | {:error, term()}
   @callback request_probe(Liqi.Persistence.ProbeCommand.t()) :: {:ok, map()} | {:error, term()}
+  @callback observe_probe(probe_id :: String.t(), event_id :: String.t()) ::
+              {:ok, map()} | {:error, term()}
   @callback claim_probe_events(consumer_id :: String.t(), batch_size :: pos_integer()) ::
               {:ok, [map()]} | {:error, term()}
   @callback apply_probe_effect(
@@ -19,4 +21,6 @@ defmodule Liqi.Persistence.Adapter do
             ) :: {:ok, String.t()} | {:error, term()}
   @callback read_handoff(after_cursor :: non_neg_integer(), batch_size :: pos_integer()) ::
               {:ok, [map()]} | {:error, term()}
+  @callback observe_probe(probe_id :: String.t(), event_id :: String.t()) ::
+              {:ok, map()} | {:error, term()}
 end

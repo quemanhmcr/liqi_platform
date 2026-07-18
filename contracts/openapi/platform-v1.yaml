@@ -70,6 +70,46 @@ paths:
         '429': {$ref: '#/components/responses/Error'}
         '503': {$ref: '#/components/responses/Error'}
         '504': {$ref: '#/components/responses/Error'}
+  /platform/v1/probes/{probe_id}:
+    get:
+      operationId: observePlatformProbeV1
+      security: [{ProbeToken: []}]
+      parameters:
+        - name: probe_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: eventId
+          in: query
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Least-privilege durable probe/outbox/terminal-effect observation.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [probe_id, event_id, probe_status, outbox_state, effect_applied, terminal]
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+  /platform/v1/probes/{probeId}:
+    get:
+      operationId: observePlatformProbeV1
+      parameters:
+        - {name: x-liqi-probe-token, in: header, required: true, schema: {type: string, minLength: 1, maxLength: 8192}}
+        - {name: probeId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: eventId, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Least-privilege provider observation of probe, outbox, and idempotent terminal effect.}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
   /platform/v1/probes/native:
     post:
       operationId: runNativeProbeV1
