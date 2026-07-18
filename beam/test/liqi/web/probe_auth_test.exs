@@ -84,6 +84,10 @@ defmodule Liqi.Web.ProbeAuthTest do
     assert response["parity"]
     assert response["kernel"] == "compact_sequence_diff"
     assert response["configured"]["result"] == response["reference"]["result"]
+    assert response["fallbackExercise"]["parity"]
+    assert response["fallbackExercise"]["implementation"] == "reference"
+    assert response["fallbackExercise"]["fallback"]
+    assert response["fallbackExercise"]["fallbackReason"] == "NATIVE_UNAVAILABLE"
   end
 
   test "probe authentication is explicit in HTTP and realtime contracts" do

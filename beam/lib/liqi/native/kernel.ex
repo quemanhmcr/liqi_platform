@@ -79,7 +79,16 @@ defmodule Liqi.Native.Kernel do
                  :reference
                )
 
-             diagnostic_result(configured, reference, config.native_mode)
+             fallback_exercise =
+               Liqi.Native.SequenceDiff.compact_with_native(
+                 expected_first,
+                 expected_last,
+                 observed,
+                 :native_preferred,
+                 Liqi.Native.UnavailableDiagnostic
+               )
+
+             diagnostic_result(configured, reference, fallback_exercise, config.native_mode)
            end) do
       case result do
         {:error, :capacity} -> {:error, :native_capacity}
@@ -95,6 +104,7 @@ defmodule Liqi.Native.Kernel do
   defp diagnostic_result(
          {:ok, configured_result, configured_execution},
          {:ok, reference_result, _reference_execution},
+         {:ok, fallback_result, fallback_execution},
          mode
        ) do
     parity = configured_result == reference_result
@@ -112,6 +122,13 @@ defmodule Liqi.Native.Kernel do
          result: configured_result
        },
        reference: %{result: reference_result},
+       fallbackExercise: %{
+         parity: fallback_result == reference_result,
+         implementation: Atom.to_string(fallback_execution.implementation),
+         fallback: fallback_execution.fallback,
+         fallbackReason: fallback_execution.fallback_reason,
+         result: fallback_result
+       },
        readiness: %{
          ready: readiness.ready,
          required: readiness.required,
@@ -121,11 +138,14 @@ defmodule Liqi.Native.Kernel do
      }}
   end
 
-  defp diagnostic_result({:error, error, execution}, _reference, _mode),
+  defp diagnostic_result({:error, error, execution}, _reference, _fallback, _mode),
     do: {:error, {:native_kernel, error.code, error.retryable, execution.implementation}}
 
-  defp diagnostic_result(_configured, {:error, error, _execution}, _mode),
+  defp diagnostic_result(_configured, {:error, error, _execution}, _fallback, _mode),
     do: {:error, {:reference_kernel, error.code}}
+
+  defp diagnostic_result(_configured, _reference, {:error, error, _execution}, _mode),
+    do: {:error, {:fallback_kernel, error.code}}
 
   defp encode_sequences(sequences) do
     Enum.reduce(sequences, <<>>, fn sequence, encoded ->

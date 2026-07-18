@@ -124,7 +124,7 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-                required: [kernel, kernelVersion, parity, configured, reference, readiness]
+                required: [kernel, kernelVersion, parity, configured, reference, fallbackExercise, readiness]
                 properties:
                   kernel: {const: compact_sequence_diff}
                   kernelVersion: {const: '1'}
