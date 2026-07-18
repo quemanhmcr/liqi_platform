@@ -8,6 +8,7 @@ Provider-owned Ecto boundary for V1. It publishes three bounded Repo modules plu
 
 - `readiness/1`
 - `request_probe/1`
+- `observe_probe/2`
 - `claim_probe_events/2`
 - `apply_probe_effect/3`
 - `fail_event/5`
@@ -35,6 +36,12 @@ config :liqi_persistence,
 
 config :liqi_platform,
   persistence_adapter: LiqiPersistence.RuntimeAdapter
+```
+
+The root runtime should replace its duplicate inline Oban options with exactly one child using the provider policy:
+
+```elixir
+{Oban, LiqiJobs.Config.oban_options()}
 ```
 
 Senior 1 remains owner of root Mix dependencies, lockfile, secret resolution, release configuration, and supervision topology.

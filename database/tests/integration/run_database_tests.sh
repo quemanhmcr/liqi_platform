@@ -15,5 +15,8 @@ PGDATABASE="$TEST_DATABASE" "$ROOT_DIR/database/tests/integration/committed_real
 PGDATABASE="$TEST_DATABASE" "$ROOT_DIR/database/tests/integration/concurrent_idempotency_v1.sh"
 PGDATABASE="$TEST_DATABASE" "$ROOT_DIR/database/tests/integration/committed_realtime_handoff_v1.sh"
 PGDATABASE="$TEST_DATABASE" "$ROOT_DIR/database/tests/integration/oban_schema_compatibility.sh"
+if [[ "${LIQI_RUN_BEAM_INTEGRATION:-0}" == "1" ]]; then
+  PGDATABASE="$TEST_DATABASE" "$ROOT_DIR/database/tests/integration/run_beam_provider_tests.sh"
+fi
 "$ROOT_DIR/database/tests/integration/v0_upgrade_compatibility.sh"
 printf '{"validation":"database-integration-v1","database":"%s","passed":true}\n' "$TEST_DATABASE"
