@@ -21,6 +21,8 @@ mix_path() {
   fi
 }
 
+canonical_formatter=$(mix_path "$ROOT_DIR/.formatter.exs")
+
 for role in api realtime worker; do
   printf '%s\n' 'local-disposable-trust-only' > "$temporary/$role.password"
 done
@@ -50,7 +52,7 @@ run_app() {
     cd "$app_dir"
     MIX_ENV=test "$MIX" deps.get
     MIX_ENV=test "$MIX" hex.audit
-    MIX_ENV=test "$MIX" format --check-formatted mix.exs 'config/**/*.exs' 'lib/**/*.{ex,exs}' 'test/**/*.{ex,exs}'
+    MIX_ENV=test "$MIX" format --check-formatted --dot-formatter "$canonical_formatter" mix.exs 'config/**/*.exs' 'lib/**/*.{ex,exs}' 'test/**/*.{ex,exs}'
     MIX_ENV=test "$MIX" deps.compile
     MIX_ENV=test "$MIX" compile --warnings-as-errors
     MIX_ENV=test "$MIX" test --no-compile --warnings-as-errors

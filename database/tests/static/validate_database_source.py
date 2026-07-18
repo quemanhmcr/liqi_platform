@@ -277,6 +277,11 @@ for forbidden in ("oci os ", "oci_objectstorage", "repo1-type=s3", "AWS_SHARED_C
     if forbidden in recovery_provider:
         failures.append(f"V1 recovery provider retains forbidden storage dependency: {forbidden}")
 
+beam_provider_harness = (ROOT / "tests/integration/run_beam_provider_tests.sh").read_text(encoding="utf-8")
+for token in ('canonical_formatter=$(mix_path "$ROOT_DIR/.formatter.exs")', '--dot-formatter "$canonical_formatter"'):
+    if token not in beam_provider_harness:
+        failures.append(f"BEAM provider integration formatter authority missing: {token}")
+
 beam_probe = (ROOT.parent / "beam/bin/database-restore-probe").read_text(encoding="utf-8")
 beam_probe_module = (ROOT.parent / "beam/apps/liqi_persistence/lib/liqi_persistence/restore_probe.ex").read_text(encoding="utf-8")
 for token in ("LIQI_RECOVERY_RELEASE_BIN", "LIQI_DATABASE_SOCKET_DIR", "LiqiPersistence.RestoreProbe.run!"):
