@@ -73,5 +73,10 @@
     "maxFrameBytes": 65536,
     "maxChannelsPerTransport": 1,
     "delivery": "at-least-once"
+  },
+  "x-liqi-auth": {
+    "header": "x-liqi-probe-token",
+    "queryParametersForbidden": true,
+    "secretReferenceOwner": "runtime-config-v1.security.probeTokenRef"
   }
 }

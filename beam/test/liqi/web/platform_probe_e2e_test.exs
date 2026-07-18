@@ -32,6 +32,7 @@ defmodule Liqi.Web.PlatformProbeE2ETest do
 
     conn =
       build_conn()
+      |> put_req_header("x-liqi-probe-token", "liqi-test-probe-token")
       |> put_req_header("idempotency-key", "probe-#{probe_id}")
       |> post("/platform/v1/probes", %{"clientProbeId" => probe_id})
 
@@ -41,6 +42,7 @@ defmodule Liqi.Web.PlatformProbeE2ETest do
 
     duplicate =
       build_conn()
+      |> put_req_header("x-liqi-probe-token", "liqi-test-probe-token")
       |> put_req_header("idempotency-key", "probe-#{probe_id}")
       |> post("/platform/v1/probes", %{"clientProbeId" => probe_id})
 
@@ -49,6 +51,17 @@ defmodule Liqi.Web.PlatformProbeE2ETest do
     start_supervised!({Liqi.Runtime.OutboxWorker, enabled: false})
     assert {:ok, [{:ok, "acked"}]} = Liqi.Runtime.OutboxWorker.poll_once()
     assert MapSet.member?(Liqi.Persistence.Fake.effects(), event_id)
+
+    observation =
+      build_conn()
+      |> put_req_header("x-liqi-probe-token", "liqi-test-probe-token")
+      |> get("/platform/v1/probes/#{probe_id}?eventId=#{event_id}")
+      |> json_response(200)
+
+    assert observation["terminal"]
+    assert observation["effectApplied"]
+    assert observation["outboxState"] == "succeeded"
+    assert is_binary(observation["observedAt"])
 
     start_supervised!({Liqi.Realtime.Dispatcher, enabled: false})
     assert {:ok, 1} = Liqi.Realtime.Dispatcher.poll_once()

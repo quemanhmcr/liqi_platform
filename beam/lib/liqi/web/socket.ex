@@ -4,11 +4,12 @@ defmodule Liqi.Web.Socket do
   channel("platform:v1", Liqi.Web.PlatformChannel)
 
   @impl true
-  def connect(params, socket, _connect_info) do
+  def connect(params, socket, connect_info) do
     session_id = params["sessionId"]
     device_id = params["deviceId"]
 
-    with "1" <- params["protocolVersion"],
+    with :ok <- Liqi.Runtime.ProbeAuth.authorize_headers(connect_info[:x_headers] || []),
+         "1" <- params["protocolVersion"],
          true <- Liqi.Runtime.Id.valid_uuid?(session_id),
          true <- Liqi.Runtime.Id.valid_uuid?(device_id),
          :ok <- Liqi.Runtime.AdmissionController.admit(session_id, :reconnect),

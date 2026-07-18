@@ -8,8 +8,9 @@ cleanup() {
   "$PSQL" --no-psqlrc --set=ON_ERROR_STOP=1 --quiet <<SQL >/dev/null
 DELETE FROM platform.outbox_attempts WHERE event_id = '$event_id';
 DELETE FROM platform.probe_effects_v0 WHERE event_id = '$event_id';
-DELETE FROM platform.outbox_events WHERE event_id = '$event_id';
+DELETE FROM platform.realtime_handoff_events_v0 WHERE event_id = '$event_id';
 DELETE FROM platform.probe_state_v0 WHERE probe_id = '$probe_id';
+DELETE FROM platform.outbox_events WHERE event_id = '$event_id';
 SQL
 }
 cleanup

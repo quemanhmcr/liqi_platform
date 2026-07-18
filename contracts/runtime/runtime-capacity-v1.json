@@ -108,7 +108,10 @@
   },
   "oban": {
     "defaultEnabled": false,
-    "maxConcurrency": 4,
+    "maxConcurrency": 6,
+    "activeConcurrency": 6,
+    "configuredSlots": 7,
+    "recoveryPausedByDefault": true,
     "authority": "jobs-only-not-domain-outbox"
   },
   "acceptanceTargets": {

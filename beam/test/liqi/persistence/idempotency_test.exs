@@ -22,9 +22,15 @@ defmodule Liqi.Persistence.IdempotencyTest do
     assert {:error, :idempotency_conflict} = Liqi.Persistence.Fake.request_probe(second)
   end
 
-  test "V1 production adapter fails closed until provider function seam exists" do
-    assert {:error, {:provider_contract_incomplete, :database_v1_callable_seam}} =
-             Liqi.Persistence.PostgresV1.readiness(8)
+  test "V1 production adapter publishes the complete consumer callback surface" do
+    callbacks = Liqi.Persistence.Adapter.behaviour_info(:callbacks)
+    exported = LiqiPersistence.RuntimeAdapter.__info__(:functions)
+
+    assert Enum.all?(callbacks, fn callback -> callback in exported end)
+
+    assert Liqi.Persistence.ProbeCommand.event_id(
+             elem(command(Liqi.Runtime.Id.uuid4(), "stable"), 1)
+           )
   end
 
   defp command(probe_id, key) do

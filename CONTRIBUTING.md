@@ -54,8 +54,11 @@ python scripts/operations/scan_repository_secrets.py
 Run the full repository suite before integration:
 
 ```bash
+mkdir -p .artifacts
 python -m unittest discover -s tests -p 'test_*.py' -v
 ```
+
+`.artifacts/` is an ignored runtime output directory. The command creates it in a fresh clone; no local evidence or placeholder file is committed.
 
 Build/release/native commands are allowed when resource impact is controlled. OCI resource changes, IAM/real-secret changes, live deployment, live migration, backup/restore mutation, traffic switching and live rollback require explicit approval and the owning executor.
 

@@ -37,6 +37,20 @@ for path in files:
 
 if versions != sorted(set(versions)):
     failures.append("migration versions are not unique and ordered")
+if versions and versions[-1] != 8:
+    failures.append(f"V1 required migration must be 8, observed {versions[-1]}")
+
+v0_migration_digests = {
+    "000000000001_platform_metadata.sql": "2c7bc57a430bff46c6aaaa48be3932e4bdc6a6ffb2c20c78743009609318cc27",
+    "000000000002_platform_outbox_probe.sql": "3e698ff70de80eeb346844c2f580e30be02e699dc9aad7064028fc74be18e744",
+    "000000000003_recovery_probe_and_backup_state.sql": "b8483f6df37c945ba606740c858a51970648f00f308b2e7eb6c3e8267a7e4a98",
+    "000000000004_runtime_persistence_handoffs.sql": "33fc45325a689d382e2311dcdb2c0476a6ee7927d2b038788ccfc648d90d7699",
+}
+for name, expected_digest in v0_migration_digests.items():
+    path = MIGRATIONS / name
+    observed_digest = hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else "missing"
+    if observed_digest != expected_digest:
+        failures.append(f"immutable V0 migration changed: {name}")
 
 manifest_entries: dict[str, str] = {}
 for line in MANIFEST.read_text(encoding="utf-8").splitlines() if MANIFEST.exists() else []:
@@ -77,6 +91,82 @@ for seam in (
 ):
     if seam not in migration4:
         failures.append(f"migration 4 missing provider seam: {seam}")
+
+v1_migration_requirements = {
+    "000000000005_v1_command_idempotency_and_envelope.sql": (
+        "platform.command_idempotency_v1",
+        "request_fingerprint text NOT NULL",
+        "request_fingerprint ~ '^[0-9a-f]{64}$'",
+        "platform.enqueue_outbox_v1",
+        "protocol_version smallint NOT NULL DEFAULT 0",
+        "octet_length(payload::text) <= 65536",
+    ),
+    "000000000006_v1_probe_and_realtime_handoff.sql": (
+        "platform.request_probe_v1",
+        "requested_request_fingerprint text",
+        "event.actor_key AS aggregate_key",
+        "event.payload_type AS event_type",
+        "platform.claim_outbox_v1",
+        "platform.apply_probe_effect_and_ack_v1",
+        "platform.read_realtime_handoff_v1",
+        "ERRCODE = 'LQ001'",
+        "ERRCODE = 'LQ002'",
+        "ERRCODE = 'LQ003'",
+        "ERRCODE = 'LQ004'",
+        "FOR UPDATE SKIP LOCKED",
+    ),
+    "000000000007_oban_postgresql_v14.sql": (
+        "CREATE TABLE oban.oban_jobs",
+        "CREATE UNLOGGED TABLE oban.oban_peers",
+        "CONSTRAINT attempt_range",
+        "ADD CONSTRAINT non_negative_priority CHECK (priority >= 0) NOT VALID",
+        "CREATE INDEX oban_jobs_args_index",
+        "CREATE INDEX oban_jobs_meta_index",
+        "CREATE INDEX oban_jobs_state_cancelled_at_index",
+        "CREATE INDEX oban_jobs_state_discarded_at_index",
+        "CREATE INDEX oban_jobs_state_queue_priority_scheduled_at_id_index",
+        "COMMENT ON TABLE oban.oban_jobs IS",
+        "'14'",
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON oban.oban_jobs, oban.oban_peers TO liqi_worker",
+    ),
+    "000000000008_v1_readiness_retention_and_recovery.sql": (
+        "platform.database_readiness_v1",
+        "platform.current_oban_migration_version_v1",
+        "platform.prune_command_idempotency_v1",
+        "platform.prune_outbox_v1",
+        "platform.backup_verification_state_v1",
+        "requested_batch_size > 500",
+    ),
+}
+for migration_name, required_tokens in v1_migration_requirements.items():
+    migration_text = (MIGRATIONS / migration_name).read_text(encoding="utf-8")
+    for token in required_tokens:
+        if token not in migration_text:
+            failures.append(f"{migration_name} missing V1 seam: {token}")
+
+oban_migration = (MIGRATIONS / "000000000007_oban_postgresql_v14.sql").read_text(encoding="utf-8")
+for forbidden in ("oban_jobs_notify", "CREATE TRIGGER oban_notify"):
+    if forbidden in oban_migration:
+        failures.append(f"Oban migration 14 retained removed notifier object: {forbidden}")
+
+all_migration_text = "\n".join(path.read_text(encoding="utf-8") for path in files)
+if all_migration_text.count("CREATE TABLE platform.outbox_events") != 1:
+    failures.append("platform.outbox_events must remain the single outbox authority")
+if "GRANT SELECT ON platform.outbox_events TO liqi_api" in all_migration_text:
+    failures.append("API runtime must not receive direct outbox table authority access")
+if "GRANT SELECT ON platform.command_idempotency_v1 TO liqi_api" in all_migration_text:
+    failures.append("API runtime must not receive direct idempotency table access")
+
+migration_runner = (ROOT / "bin/migrate.sh").read_text(encoding="utf-8")
+for token in (
+    'PSQL_RESOLVED=$(command -v "$PSQL")',
+    'native_path=$(cygpath -m "$PSQL_RESOLVED"',
+    'case "${native_path,,}" in',
+    '*.exe|*.bat|*.cmd)',
+    'if psql_uses_native_windows_paths; then',
+):
+    if token not in migration_runner:
+        failures.append(f"migration runner missing native psql path guard: {token}")
 
 postgres_config = (ROOT / "config/postgresql-liqi.conf").read_text(encoding="utf-8")
 for line in ["listen_addresses = ''", "max_connections = 80", "archive_timeout = '5min'", "password_encryption = 'scram-sha-256'"]:
@@ -198,7 +288,7 @@ for path in sorted((ROOT / "tests/pgtap").glob("*.sql")):
         failures.append(f"pgTAP plan missing: {path.name}")
         continue
     assertion_count = len(re.findall(
-        r"(?m)^SELECT\s+(?:ok|is|isnt|lives_ok|throws_ok|has_role|isnt_super|has_schema|schema_owner_is|hasnt_schema_privilege|hasnt_table_privilege|has_function_privilege|hasnt_function_privilege)\s*\(",
+        r"(?m)^SELECT\s+(?:ok|is|isnt|lives_ok|throws_ok|has_role|isnt_super|isnt_superuser|has_schema|schema_owner_is|hasnt_schema_privilege|hasnt_table_privilege|has_function_privilege|hasnt_function_privilege)\s*\(",
         sql,
     ))
     if int(plan_match.group(1)) != assertion_count:
@@ -223,7 +313,7 @@ if failures:
     raise SystemExit(1)
 
 print(json.dumps({
-    "validation": "database-source-v0",
+    "validation": "database-source-v1",
     "migrations": len(files),
     "latestVersion": max(versions),
     "pgbouncerMode": "transaction",

@@ -8,7 +8,9 @@ defmodule Liqi.Runtime.Config do
             http_port: 4100,
             websocket_path: "/platform/v1/socket",
             endpoint_secret_ref: nil,
+            schema_version: "1",
             database_secret_ref: nil,
+            database_credential_format: "role-url-bundle-v1",
             required_migration_version: 8,
             actor_partitions: 4,
             actor_idle_ttl_ms: 60_000,
@@ -30,9 +32,10 @@ defmodule Liqi.Runtime.Config do
             telemetry_endpoint: nil,
             shutdown_deadline_ms: 20_000,
             drain_token_ref: nil,
+            probe_token_ref: nil,
             handoff_poll_interval_ms: 50,
             handoff_batch_size: 64,
-            oban_concurrency: 4,
+            oban_concurrency: 6,
             persistence_enabled: false,
             dispatcher_enabled: false,
             outbox_worker_enabled: false,
@@ -63,6 +66,7 @@ defmodule Liqi.Runtime.Config do
   @spec from_map(map()) :: {:ok, t()} | {:error, term()}
   def from_map(%{"schemaVersion" => version} = map) when version in ["1", "0"] do
     config = %__MODULE__{
+      schema_version: version,
       environment: value(map, ["environment"], "local"),
       release_id: value(map, ["releaseId"], value(map, ["service", "version"], "dev")),
       service_identity:
@@ -72,6 +76,12 @@ defmodule Liqi.Runtime.Config do
       endpoint_secret_ref: value(map, ["http", "secretRef"], nil),
       database_secret_ref:
         value(map, ["database", "secretRef"], value(map, ["databaseSecretRef"], nil)),
+      database_credential_format:
+        value(
+          map,
+          ["database", "credentialFormat"],
+          if(version == "1", do: "role-url-bundle-v1", else: "direct-url-v0")
+        ),
       required_migration_version: value(map, ["database", "requiredMigrationVersion"], 8),
       actor_partitions: value(map, ["actors", "partitions"], 4),
       actor_idle_ttl_ms: value(map, ["actors", "idleTtlMs"], 60_000),
@@ -95,7 +105,8 @@ defmodule Liqi.Runtime.Config do
       telemetry_endpoint: value(map, ["telemetry", "endpoint"], nil),
       shutdown_deadline_ms: value(map, ["shutdown", "deadlineMs"], 20_000),
       drain_token_ref: value(map, ["shutdown", "drainTokenRef"], nil),
-      oban_concurrency: value(map, ["oban", "concurrency"], 4),
+      probe_token_ref: value(map, ["security", "probeTokenRef"], nil),
+      oban_concurrency: value(map, ["oban", "concurrency"], 6),
       persistence_enabled: value(map, ["features", "persistence"], version == "1"),
       dispatcher_enabled: value(map, ["features", "realtimeDispatcher"], version == "1"),
       outbox_worker_enabled: value(map, ["features", "outboxWorker"], version == "1"),
@@ -118,6 +129,7 @@ defmodule Liqi.Runtime.Config do
       http_port: int_env("LIQI_HTTP_PORT", 4100),
       endpoint_secret_ref: System.get_env("LIQI_ENDPOINT_SECRET_REF"),
       database_secret_ref: System.get_env("LIQI_DATABASE_SECRET_REF"),
+      database_credential_format: env("LIQI_DATABASE_CREDENTIAL_FORMAT", "role-url-bundle-v1"),
       required_migration_version: int_env("LIQI_REQUIRED_MIGRATION_VERSION", 8),
       actor_partitions: int_env("LIQI_ACTOR_PARTITIONS", 4),
       actor_idle_ttl_ms: int_env("LIQI_ACTOR_IDLE_TTL_MS", 60_000),
@@ -139,7 +151,8 @@ defmodule Liqi.Runtime.Config do
       telemetry_endpoint: System.get_env("LIQI_TELEMETRY_ENDPOINT"),
       shutdown_deadline_ms: int_env("LIQI_SHUTDOWN_DEADLINE_MS", 20_000),
       drain_token_ref: System.get_env("LIQI_DRAIN_TOKEN_REF"),
-      oban_concurrency: int_env("LIQI_OBAN_CONCURRENCY", 4),
+      probe_token_ref: System.get_env("LIQI_PROBE_TOKEN_REF"),
+      oban_concurrency: int_env("LIQI_OBAN_CONCURRENCY", 6),
       persistence_enabled: bool_env("LIQI_START_PERSISTENCE", false),
       dispatcher_enabled: bool_env("LIQI_START_REALTIME_DISPATCHER", false),
       outbox_worker_enabled: bool_env("LIQI_START_OUTBOX_WORKER", false),
@@ -190,6 +203,13 @@ defmodule Liqi.Runtime.Config do
       config.handoff_batch_size not in 1..128 ->
         {:error, :invalid_handoff_batch_size}
 
+      config.oban_concurrency != 6 ->
+        {:error, :oban_concurrency_must_match_provider_policy}
+
+      config.schema_version == "1" and
+          config.database_credential_format != "role-url-bundle-v1" ->
+        {:error, :database_credential_format_invalid}
+
       config.environment == "production" and not secret_ref?(config.database_secret_ref) ->
         {:error, :database_secret_reference_required}
 
@@ -198,6 +218,9 @@ defmodule Liqi.Runtime.Config do
 
       config.environment == "production" and not secret_ref?(config.drain_token_ref) ->
         {:error, :drain_token_reference_required}
+
+      config.environment == "production" and not secret_ref?(config.probe_token_ref) ->
+        {:error, :probe_token_reference_required}
 
       true ->
         {:ok, config}

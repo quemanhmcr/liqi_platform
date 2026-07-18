@@ -49,7 +49,18 @@
     ],
     "maximumPayloadBytes": 65536,
     "maximumMetadataBytes": 4096,
-    "maximumTraceContextBytes": 2048
+    "maximumTraceContextBytes": 2048,
+    "deadlineSemantics": {
+      "consumerUnit": "unix-epoch-milliseconds",
+      "storedType": "timestamptz",
+      "conversionOwner": "LiqiPersistence.RuntimeAdapter",
+      "expiredCommandAdmission": "reject-before-transaction"
+    }
   },
-  "terminalEffects": "consumer-must-be-idempotent-before-ack"
+  "terminalEffects": "consumer-must-be-idempotent-before-ack",
+  "consumerAliases": {
+    "actor_key": "aggregate_key",
+    "payload_type": "event_type",
+    "payload_version": "event_version"
+  }
 }

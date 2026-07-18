@@ -17,6 +17,7 @@
     "realtime",
     "native",
     "telemetry",
+    "security",
     "shutdown",
     "oban",
     "features"
@@ -72,6 +73,7 @@
       "additionalProperties": false,
       "required": [
         "secretRef",
+        "credentialFormat",
         "requiredMigrationVersion",
         "admissionConcurrency"
       ],
@@ -89,6 +91,9 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 35
+        },
+        "credentialFormat": {
+          "const": "role-url-bundle-v1"
         }
       }
     },
@@ -288,9 +293,7 @@
           "type": "boolean"
         },
         "concurrency": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 32
+          "const": 6
         }
       }
     },
@@ -311,6 +314,20 @@
         },
         "outboxWorker": {
           "type": "boolean"
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probeTokenRef"
+      ],
+      "properties": {
+        "probeTokenRef": {
+          "type": "string",
+          "pattern": "^(file|systemd-credential|oci-vault)://[^\\s]+$",
+          "maxLength": 2048
         }
       }
     }

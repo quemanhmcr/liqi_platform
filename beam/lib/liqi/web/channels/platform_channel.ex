@@ -5,9 +5,9 @@ defmodule Liqi.Web.PlatformChannel do
   def join("platform:v1", params, socket) do
     session_id = socket.assigns.session_id
     device_id = socket.assigns.device_id
-    actor_keys = normalize_actor_keys(params)
 
-    with {:ok, cursor} <- resume_cursor(params, session_id, device_id),
+    with {:ok, actor_keys} <- normalize_actor_keys(params),
+         {:ok, cursor} <- resume_cursor(params, session_id, device_id),
          {:ok, session_pid} <- Liqi.Runtime.ActorRouter.ensure_session(session_id),
          :ok <- subscribe_all(session_pid, actor_keys),
          {:ok, connection_pid} <-
@@ -39,8 +39,11 @@ defmodule Liqi.Web.PlatformChannel do
 
   @impl true
   def handle_in("subscribe", %{"actorKey" => actor_key}, socket) do
-    case Liqi.Realtime.SessionActor.subscribe(socket.assigns.session_pid, actor_key) do
-      :ok -> {:reply, {:ok, %{actorKey: actor_key}}, socket}
+    with true <- probe_actor_key?(actor_key),
+         :ok <- Liqi.Realtime.SessionActor.subscribe(socket.assigns.session_pid, actor_key) do
+      {:reply, {:ok, %{actorKey: actor_key}}, socket}
+    else
+      false -> {:reply, {:error, %{reason: "actor_key_unauthorized"}}, socket}
       {:error, reason} -> {:reply, {:error, %{reason: error_code(reason)}}, socket}
     end
   end
@@ -107,11 +110,22 @@ defmodule Liqi.Web.PlatformChannel do
     end
   end
 
-  defp normalize_actor_keys(%{"actorKeys" => keys}) when is_list(keys),
-    do: keys |> Enum.filter(&is_binary/1) |> Enum.uniq() |> Enum.take(32)
+  defp normalize_actor_keys(%{"actorKeys" => keys}) when is_list(keys) do
+    keys = keys |> Enum.filter(&is_binary/1) |> Enum.uniq() |> Enum.take(32)
 
-  defp normalize_actor_keys(%{"actorKey" => key}) when is_binary(key), do: [key]
-  defp normalize_actor_keys(_), do: []
+    if keys != [] and Enum.all?(keys, &probe_actor_key?/1),
+      do: {:ok, keys},
+      else: {:error, :actor_key_unauthorized}
+  end
+
+  defp normalize_actor_keys(%{"actorKey" => key}) when is_binary(key) do
+    if probe_actor_key?(key), do: {:ok, [key]}, else: {:error, :actor_key_unauthorized}
+  end
+
+  defp normalize_actor_keys(_), do: {:error, :actor_key_unauthorized}
+
+  defp probe_actor_key?("platform-probe:" <> probe_id), do: Liqi.Runtime.Id.valid_uuid?(probe_id)
+  defp probe_actor_key?(_), do: false
 
   defp subscribe_all(session_pid, actor_keys) do
     Enum.reduce_while(actor_keys, :ok, fn key, :ok ->
@@ -127,7 +141,9 @@ defmodule Liqi.Web.PlatformChannel do
   defp error_code(:invalid_resume_cursor), do: "resume_cursor_invalid"
   defp error_code(:device_binding_mismatch), do: "device_binding_mismatch"
   defp error_code(:access_revoked), do: "access_revoked"
+  defp error_code(:actor_key_unauthorized), do: "actor_key_unauthorized"
   defp error_code(:slow_consumer), do: "slow_consumer"
   defp error_code({:handoff_gap, _}), do: "handoff_gap"
+  defp error_code(:realtime_cursor_gap), do: "handoff_gap"
   defp error_code(_), do: "runtime_unavailable"
 end

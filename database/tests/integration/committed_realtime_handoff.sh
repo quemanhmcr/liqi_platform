@@ -25,8 +25,7 @@ writer_pid=$!
 ready=0
 for _ in {1..40}; do
   active=$("$PSQL" --no-psqlrc --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \
-    --set=writer_app="$writer_app" \
-    -c "SELECT count(*) FROM pg_stat_activity WHERE application_name = :'writer_app' AND state = 'active' AND query LIKE '%pg_sleep%'")
+    -c "SELECT count(*) FROM pg_stat_activity WHERE application_name = '$writer_app' AND state = 'active' AND query LIKE '%pg_sleep%'")
   if [[ "$active" == "1" ]]; then ready=1; break; fi
   sleep 0.1
 done

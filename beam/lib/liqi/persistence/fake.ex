@@ -40,6 +40,36 @@ defmodule Liqi.Persistence.Fake do
   end
 
   @impl true
+  def observe_probe(probe_id, event_id) do
+    ensure_started()
+
+    get(fn state ->
+      case Map.get(state.probes, probe_id) do
+        %{event_id: ^event_id} = probe ->
+          applied = MapSet.member?(state.effects, event_id)
+
+          {:ok,
+           %{
+             probe_id: probe_id,
+             event_id: event_id,
+             probe_status: if(applied, do: "completed", else: "requested"),
+             outbox_state: if(applied, do: "succeeded", else: "pending"),
+             effect_applied: applied,
+             terminal: applied,
+             aggregate_version: probe.aggregate_version,
+             observed_at: DateTime.utc_now()
+           }}
+
+        nil ->
+          {:error, :not_found}
+
+        _ ->
+          {:error, :probe_identity_mismatch}
+      end
+    end)
+  end
+
+  @impl true
   def claim_probe_events(_consumer_id, batch_size) do
     ensure_started()
 

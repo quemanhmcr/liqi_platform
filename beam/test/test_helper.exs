@@ -1,2 +1,5 @@
+System.put_env("LIQI_RUST_NATIVE_MODE", "disabled")
+System.put_env("LIQI_TEST_PROBE_TOKEN", "liqi-test-probe-token")
+System.put_env("LIQI_PROBE_TOKEN_REF", "env://LIQI_TEST_PROBE_TOKEN")
 ExUnit.start(assert_receive_timeout: 500)
 Liqi.Persistence.Fake.reset()

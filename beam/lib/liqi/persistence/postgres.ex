@@ -109,6 +109,49 @@ defmodule Liqi.Persistence.PostgresV0Compatibility do
     end
   end
 
+  @impl true
+  def observe_probe(probe_id, event_id) do
+    query = "SELECT * FROM platform.observe_probe_v0($1::uuid, $2::uuid)"
+
+    case SQL.query(Liqi.Persistence.ApiRepo, query, [probe_id, event_id], timeout: 3_000) do
+      {:ok,
+       %{
+         rows: [
+           [
+             returned_probe_id,
+             returned_event_id,
+             probe_status,
+             outbox_state,
+             effect_applied,
+             _probe_completed_at,
+             _effect_applied_at,
+             terminal,
+             observed_at
+           ]
+         ]
+       }} ->
+        {:ok,
+         %{
+           probe_id: returned_probe_id,
+           event_id: returned_event_id,
+           probe_status: probe_status,
+           outbox_state: outbox_state,
+           effect_applied: effect_applied,
+           terminal: terminal,
+           observed_at: observed_at
+         }}
+
+      {:ok, %{rows: []}} ->
+        {:error, :not_found}
+
+      {:ok, _unexpected} ->
+        {:error, :unexpected_probe_observation}
+
+      {:error, error} ->
+        {:error, classify(error)}
+    end
+  end
+
   @known_columns %{
     "handoff_id" => :handoff_id,
     "event_id" => :event_id,
@@ -126,6 +169,14 @@ defmodule Liqi.Persistence.PostgresV0Compatibility do
     "payload" => :payload,
     "metadata" => :metadata,
     "lease_expires_at" => :lease_expires_at,
+    "probe_id" => :probe_id,
+    "probe_status" => :probe_status,
+    "outbox_state" => :outbox_state,
+    "effect_applied" => :effect_applied,
+    "probe_completed_at" => :probe_completed_at,
+    "effect_applied_at" => :effect_applied_at,
+    "terminal" => :terminal,
+    "observed_at" => :observed_at,
     "recorded_at" => :recorded_at
   }
 

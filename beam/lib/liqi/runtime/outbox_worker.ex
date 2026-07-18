@@ -1,5 +1,5 @@
 defmodule Liqi.Runtime.OutboxWorker do
-  @moduledoc "Bounded V1 worker consumer of database-owned V0 outbox claim/ack semantics."
+  @moduledoc "Bounded V1 worker consumer of database-owned claim/terminal-effect semantics."
   use GenServer
 
   @consumer_id "liqi-beam-platform-probe-v1"

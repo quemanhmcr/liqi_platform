@@ -32,7 +32,10 @@ paths:
   /platform/v1/probes:
     post:
       operationId: createPlatformProbeV1
+      security: [{ProbeToken: []}]
       parameters:
+        - {$ref: '#/components/parameters/ProbeToken'}
+        - {name: x-liqi-probe-token, in: header, required: true, schema: {type: string, minLength: 1, maxLength: 8192}}
         - {name: idempotency-key, in: header, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
         - {name: x-request-id, in: header, required: false, schema: {type: string, format: uuid}}
         - {name: x-liqi-deadline-ms, in: header, required: false, schema: {type: integer, minimum: 1, maximum: 5000}}
@@ -62,11 +65,81 @@ paths:
                   status: {const: accepted}
                   actorKey: {type: string, maxLength: 160}
         '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
         '429': {$ref: '#/components/responses/Error'}
         '503': {$ref: '#/components/responses/Error'}
         '504': {$ref: '#/components/responses/Error'}
+  /platform/v1/probes/{probe_id}:
+    get:
+      operationId: observePlatformProbeV1
+      security: [{ProbeToken: []}]
+      parameters:
+        - name: probe_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: eventId
+          in: query
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Least-privilege durable probe/outbox/terminal-effect observation.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [probeId, eventId, probeStatus, outboxState, effectApplied, terminal, observedAt]
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+  /platform/v1/probes/native:
+    post:
+      operationId: runNativeProbeV1
+      security: [{ProbeToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedFirst, expectedLast, observedSequences]
+              properties:
+                expectedFirst: {type: integer, minimum: 0}
+                expectedLast: {type: integer, minimum: 0}
+                observedSequences:
+                  type: array
+                  maxItems: 2048
+                  items: {type: integer, minimum: 0}
+      responses:
+        '200':
+          description: Configured native policy and pure Elixir reference produced identical bounded results.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [kernel, kernelVersion, parity, configured, reference, fallbackExercise, readiness]
+                properties:
+                  kernel: {const: compact_sequence_diff}
+                  kernelVersion: {const: '1'}
+                  parity: {const: true}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
 components:
+  securitySchemes:
+    ProbeToken:
+      type: apiKey
+      in: header
+      name: x-liqi-probe-token
+      description: Operator-only walking-skeleton token materialized from a secret reference; never accepted in query parameters.
   schemas:
     Health:
       type: object
@@ -84,8 +157,14 @@ components:
           schema: {$ref: '../errors/error-model-v1.schema.json'}
 x-liqi-realtime:
   path: /platform/v1/socket/websocket
+  authentication: x-liqi-probe-token-handshake-header
+  actorKeyScope: platform-probe-uuid-only
   protocolVersion: '1'
+  authenticationHeader: x-liqi-probe-token
   schema: ../realtime/gateway-v1.schema.json
+  authorization:
+    header: x-liqi-probe-token
+    queryParametersForbidden: true
 x-liqi-compatibility:
   v0RollbackTarget: true
   durableDualWrite: false
