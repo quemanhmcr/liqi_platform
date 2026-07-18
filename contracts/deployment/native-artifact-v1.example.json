@@ -1,0 +1,41 @@
+{
+  "schema_version": "liqi.deployment.native-artifact/v1",
+  "artifact_id": "native-example-v1",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "crate": "liqi_native_example",
+  "target_triple": "aarch64-unknown-linux-gnu",
+  "nif_abi": "2.16",
+  "rustler_version": "0.37.0",
+  "artifact": {
+    "filename": "libliqi_native_example.so",
+    "install_relative_path": "lib/liqi_native_example.so",
+    "size_bytes": 1,
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "signature": {
+      "algorithm": "ed25519",
+      "key_id": "native-signing-v1",
+      "signature_filename": "libliqi_native_example.so.sig",
+      "signature_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "load": {
+    "probe_command": [
+      "bin/liqi_platform",
+      "rpc",
+      "Liqi.Native.probe()"
+    ],
+    "expected_module": "Liqi.Native.Example",
+    "feature_flag": "LIQI_NATIVE_EXAMPLE_ENABLED",
+    "fallback_module": "Liqi.Native.ExampleReference"
+  },
+  "safety": {
+    "scheduler_class": "regular",
+    "hard_execution_budget_us": 1000,
+    "native_memory_limit_bytes": 16777216,
+    "concurrency_limit": 4,
+    "panic_mapping_tested": true,
+    "differential_tests_passed": true,
+    "fuzz_tests_passed": true
+  },
+  "created_at": "2026-07-18T00:00:00Z"
+}

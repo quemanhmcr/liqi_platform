@@ -1,0 +1,23 @@
+{
+  "schema_version": "liqi.deployment.rollback/v1",
+  "rollback_id": "rollback-example-v1",
+  "from_release_id": "liqi-v1-example",
+  "target_release_id": "liqi-v0-example",
+  "target_git_sha": "0000000000000000000000000000000000000000",
+  "target_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "database_compatibility": "blocked",
+  "config_compatibility": "blocked",
+  "maximum_duration_seconds": 300,
+  "status": "engineering-complete-evidence-pending",
+  "started_at": "2026-07-18T00:00:00Z",
+  "completed_at": null,
+  "approval_reference": null,
+  "checks": [
+    {
+      "name": "live-rollback-evidence",
+      "status": "blocked",
+      "detail": "No approved live rollback drill has occurred."
+    }
+  ],
+  "evidence_class": "dry-run"
+}

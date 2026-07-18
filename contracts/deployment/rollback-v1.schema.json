@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liqi.example/contracts/deployment/rollback-v1.schema.json",
+  "title": "LIQI release rollback evidence V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "rollback_id",
+    "from_release_id",
+    "target_release_id",
+    "target_git_sha",
+    "target_manifest_sha256",
+    "database_compatibility",
+    "config_compatibility",
+    "maximum_duration_seconds",
+    "status",
+    "started_at",
+    "completed_at",
+    "approval_reference",
+    "checks",
+    "evidence_class"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "liqi.deployment.rollback/v1"
+    },
+    "rollback_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "from_release_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "target_release_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "target_git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "target_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "database_compatibility": {
+      "enum": [
+        "compatible",
+        "blocked",
+        "incompatible"
+      ]
+    },
+    "config_compatibility": {
+      "enum": [
+        "compatible",
+        "blocked",
+        "incompatible"
+      ]
+    },
+    "maximum_duration_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 900
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed",
+        "engineering-complete-evidence-pending"
+      ]
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "approval_reference": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 256
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "status",
+          "detail"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "failed",
+              "blocked",
+              "not-run"
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        }
+      }
+    },
+    "evidence_class": {
+      "enum": [
+        "dry-run",
+        "live-approved"
+      ]
+    }
+  }
+}

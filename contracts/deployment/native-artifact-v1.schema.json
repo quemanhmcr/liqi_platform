@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liqi.example/contracts/deployment/native-artifact-v1.schema.json",
+  "title": "LIQI native artifact installation handoff V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "git_sha",
+    "crate",
+    "target_triple",
+    "nif_abi",
+    "rustler_version",
+    "artifact",
+    "load",
+    "safety",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "liqi.deployment.native-artifact/v1"
+    },
+    "artifact_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "crate": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{1,63}$"
+    },
+    "target_triple": {
+      "const": "aarch64-unknown-linux-gnu"
+    },
+    "nif_abi": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "rustler_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "filename",
+        "install_relative_path",
+        "size_bytes",
+        "sha256",
+        "signature"
+      ],
+      "properties": {
+        "filename": {
+          "type": "string",
+          "pattern": "^lib[A-Za-z0-9_-]+\\.so$"
+        },
+        "install_relative_path": {
+          "type": "string",
+          "pattern": "^lib/[A-Za-z0-9_./-]+\\.so$"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 268435456
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "signature": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "algorithm",
+            "key_id",
+            "signature_filename",
+            "signature_sha256"
+          ],
+          "properties": {
+            "algorithm": {
+              "const": "ed25519"
+            },
+            "key_id": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$"
+            },
+            "signature_filename": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+            },
+            "signature_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      }
+    },
+    "load": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probe_command",
+        "expected_module",
+        "feature_flag",
+        "fallback_module"
+      ],
+      "properties": {
+        "probe_command": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        },
+        "expected_module": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Za-z0-9_.]+$"
+        },
+        "feature_flag": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{2,63}$"
+        },
+        "fallback_module": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Za-z0-9_.]+$"
+        }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scheduler_class",
+        "hard_execution_budget_us",
+        "native_memory_limit_bytes",
+        "concurrency_limit",
+        "panic_mapping_tested",
+        "differential_tests_passed",
+        "fuzz_tests_passed"
+      ],
+      "properties": {
+        "scheduler_class": {
+          "enum": [
+            "regular",
+            "dirty_cpu",
+            "dirty_io"
+          ]
+        },
+        "hard_execution_budget_us": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000000
+        },
+        "native_memory_limit_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1073741824
+        },
+        "concurrency_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "panic_mapping_tested": {
+          "const": true
+        },
+        "differential_tests_passed": {
+          "const": true
+        },
+        "fuzz_tests_passed": {
+          "const": true
+        }
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

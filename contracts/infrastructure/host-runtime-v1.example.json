@@ -1,0 +1,70 @@
+{
+  "schema_version": "liqi.infrastructure.host-runtime/v1",
+  "release_id": null,
+  "git_sha": "0000000000000000000000000000000000000000",
+  "observed_at": "2026-07-18T00:00:00Z",
+  "status": "engineering-complete-evidence-pending",
+  "filesystem": {
+    "release_root": "/opt/liqi/releases",
+    "current_symlink": "/opt/liqi/current",
+    "runtime_config_root": "/etc/liqi/runtime",
+    "secret_reference_root": "/etc/liqi/secrets",
+    "postgresql_root": "/var/lib/liqi/postgresql",
+    "recovery_root": "/var/lib/liqi/recovery",
+    "run_root": "/run/liqi"
+  },
+  "services": [
+    {
+      "unit": "liqi-beam.service",
+      "enabled": false,
+      "active": false,
+      "substate": "not-observed"
+    },
+    {
+      "unit": "postgresql-17.service",
+      "enabled": false,
+      "active": false,
+      "substate": "not-observed"
+    },
+    {
+      "unit": "pgbouncer.service",
+      "enabled": false,
+      "active": false,
+      "substate": "not-observed"
+    },
+    {
+      "unit": "caddy.service",
+      "enabled": false,
+      "active": false,
+      "substate": "not-observed"
+    },
+    {
+      "unit": "otelcol-contrib.service",
+      "enabled": false,
+      "active": false,
+      "substate": "not-observed"
+    }
+  ],
+  "capacity": {
+    "parent_cpu_quota_percent": 300,
+    "parent_memory_max_mib": 20480,
+    "swap_capacity_mib": 0,
+    "reserve_preserved": false
+  },
+  "security": {
+    "selinux_enforcing": false,
+    "root_login_disabled": false,
+    "password_ssh_disabled": false,
+    "public_tcp_ports": [],
+    "world_writable_runtime_paths": [],
+    "plaintext_secret_files": []
+  },
+  "checks": [
+    {
+      "name": "live-host-evidence",
+      "status": "blocked",
+      "detail": "No approved OCI apply or live deployment has occurred."
+    }
+  ],
+  "evidence_class": "source-only"
+}
