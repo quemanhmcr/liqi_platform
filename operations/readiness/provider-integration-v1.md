@@ -1,53 +1,39 @@
 # V1 provider integration contract
 
-Senior 5 consumes provider commands from `operations/readiness/provider-gates-v1.json`. The registry is descriptive and fail-closed; it does not implement provider behavior.
+Senior 5 consumes provider commands from `operations/readiness/provider-gates-v1.json`. The registry is descriptive and fail-closed; it does not implement Phoenix, PostgreSQL, native or OCI behavior.
 
 ## Provider states
 
-- `pending-provider-publication`: the owned consumer-ready command or output does not exist. `provider_commit` must be null.
-- `pending-integration`: the command exists at the recorded provider branch and exact 40-character commit, but is not yet present on the Senior 5/integrated branch.
-- `available`: the exact command and required paths are present on the integrated SHA and have passed provider/consumer validation. The original provider commit remains recorded for review provenance.
-- `pending-live-evidence`: the integrated collector exists, but the exact-release live result is still absent.
+- `pending-provider-publication`: the owned consumer-ready command or output does not exist. `provider_commit` is null.
+- `pending-integration`: the command exists at a recorded provider commit but is not yet in the integrated graph.
+- `available`: the exact command and required paths are in the integrated graph and provider/consumer source validation passed. The provider commit is retained for provenance.
+- `pending-live-evidence`: the command or verifier is integrated, but the exact-release artifact/live result is absent.
 
 None of the pending states can produce a passed checkpoint.
 
-## Publication and integration rule
+## Integrated graph
 
-A provider moves a seam through these states without skipping evidence:
-
-```text
-pending-provider-publication
-→ pending-integration
-→ available
-→ pending-live-evidence (only for a live collector awaiting an owner-run result)
-→ passed checkpoint evidence
-```
-
-A provider commit is recorded as `pending-integration` only after Senior 5 has read its communication note, reviewed the exact diff and confirmed the advertised command exists at that SHA. The entry becomes `available` only after that commit is integrated, the required paths are present on the resulting repository SHA and the command passes there.
-
-Provider output must be bound to the exact Git SHA and release ID whenever the result schema carries those fields. Live evidence must identify `evidence_mode: live`; examples, fixtures and synthetic evidence are test-only.
-
-## Current exact provider commits
-
-The current checkpoint and unresolved lifecycle gaps are listed in `operations/readiness/blocked-provider-seams-v1.md`. Recording an exact commit is not an instruction to cherry-pick blindly; the integration owner still reviews shared-file conflicts, compatibility, migrations, capacity and the commit communication footer.
-
-## Owner actions
-
-- Senior 1: integrate the published BEAM source command, then publish disposable PostgreSQL integration, release artifact verification and `live-platform-probe-v1` output.
-- Senior 2: integrate the published database contract validator, then publish disposable database integration and approved isolated `recovery-result-v1` output.
-- Senior 3: integrate the published source/artifact verifier, then publish one full safety result with property/fuzz/panic/fallback and direct A1 scheduler/latency evidence.
-- Senior 4: integrate the published infrastructure contract validator, then publish plan, host readiness and `rollback-result-v1` collectors. OCI and traffic mutation remain Senior 4-only and require explicit approval.
-
-## Blocked seam format
+The current committed provider ancestry is:
 
 ```text
-Blocked seam:
-Provider: Senior <n>
-Consumer: Senior 5
-Missing contract: <exact command/output/path>
-Why current work cannot safely continue: <semantic or evidence gap>
-Minimal provider output required: <directly consumable result>
-Temporary work that remains independent: readiness schemas, validators, load/resilience harness and runbooks
+Senior 1 runtime:        15e2dd5a263decb91308a0d1783c4610bd7dc62d
+Senior 2 database:       168f6b3be66ff36eac4b4944f8d6940b6d2026ce
+Senior 3 native:         7478e31a4de48e278f0d08885bfaab56d5d88762
+Senior 4 infrastructure: 19b06788e0a5d7695fc2f89102af8e75129d39af
 ```
 
-No readiness-owned provider wrapper, permissive fallback or fixture is accepted as production evidence.
+All four commits are ancestors of `v1/production-readiness`. Exact provider evidence must still be generated on the final composite SHA; evidence from a provider-only or earlier integration SHA is supporting material, not a final checkpoint pass.
+
+## Current gate classification
+
+Source gates for runtime, database, native and infrastructure are `available`. The Senior 1 disposable PostgreSQL composite integration gate is also `available` and includes an explicit database-provider integration check.
+
+Artifact and live collectors remain `pending-live-evidence`. The standalone Senior 2 disposable database evidence command, Senior 2 isolated restore wrapper and Senior 3 full safety command remain `pending-provider-publication` because no directly consumable owner output exists at those seams.
+
+## Evidence and mutation rule
+
+Provider output must be bound to the exact Git SHA and release ID whenever its schema carries those fields. Live evidence must identify live execution; examples, fixtures, synthetic results and local non-promotable packages are test-only.
+
+Source validation, local builds, disposable databases and read-only plan inspection do not authorize OCI mutation. OCI apply, secret/IAM changes, live migration, deployment, traffic switching, restore and rollback execution require explicit approval and the owning Senior 4/Senior 2 executor.
+
+The unresolved seams and removal conditions are listed in `operations/readiness/blocked-provider-seams-v1.md`.

@@ -89,7 +89,6 @@ jobs:
           --release-id "$LIQI_RELEASE_ID"
           --output .artifacts/v1/checkpoints/source.json
           --evidence-dir .artifacts/v1/provider-gates
-          --allow-blocked
 
       - name: Upload source checkpoint
         if: always()

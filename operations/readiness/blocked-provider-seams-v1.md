@@ -1,38 +1,36 @@
-# V1 blocked provider seams
+# V1 provider integration and remaining evidence seams
 
-This is a machine-reviewable integration checkpoint, not a substitute implementation. Exact provider commits are recorded only where the directly consumable source command exists. `pending-integration` still blocks Senior 5 until that commit is integrated and passes on the resulting repository SHA.
+The committed provider graph is integrated on `v1/production-readiness`. Source publication is no longer blocked for Senior 1, Senior 2, Senior 3 or Senior 4. The registry remains fail-closed for commands or live results that are still absent.
 
-## Published, pending integration
+## Integrated provider commits
 
-| Provider | Exact commit | Consumer seam | Current limitation |
+| Provider | Exact provider commit | Integrated capability | Current evidence state |
 |---|---|---|---|
-| Senior 1 | `9a95350c516baa0b6e079685e1dcab1a49799bdf` | `MIX_ENV=test mix compile --warnings-as-errors && MIX_ENV=test mix test --seed 0 && mix hex.audit && python scripts/operations/validate_contracts.py` | Source walking skeleton only; disposable PostgreSQL integration, release artifact verification and live platform probe command are not published. |
-| Senior 2 | `ac759bb3435ef4633265d8eab75bd26768c0aac9` | `python database/tests/contract/validate_v1_contracts.py` | Source contracts only; disposable PostgreSQL integration and approved isolated restore result are not published. |
-| Senior 3 | `7478e31a4de48e278f0d08885bfaab56d5d88762` | `bash native/tests/run-source-validation.sh --rust-only` | Source/Rust safety is available after integration; full Elixir, fuzz-duration, A1 latency and scheduler evidence remain pending. |
-| Senior 3 | `7478e31a4de48e278f0d08885bfaab56d5d88762` | `python native/scripts/verify_artifact.py --manifest <path>` | Verifier exists; signed ARM64 artifact, SBOM, provenance and Sigstore bundle must be produced by the approved provider flow. |
-| Senior 4 | `2be16b0ff7159ad0827194c0f72f5a540245a085` | `python infrastructure/validation/validate_v1_contracts.py` | Source contracts explicitly remain `engineering-complete-evidence-pending`; plan, host, activation and rollback evidence are not published. |
+| Senior 1 | `15e2dd5a263decb91308a0d1783c4610bd7dc62d` | BEAM source gate, disposable PostgreSQL runtime integration, release verifier and live platform probe | Source and disposable integration published; Linux ARM64 artifact and live endpoint evidence pending. |
+| Senior 2 | `168f6b3be66ff36eac4b4944f8d6940b6d2026ce` | PostgreSQL V1 authority, migrations 5–8, outbox, Oban, readiness and recovery status | Source contracts integrated; a standalone CI-consumable database integration result and approved isolated restore result remain unpublished. |
+| Senior 3 | `7478e31a4de48e278f0d08885bfaab56d5d88762` | Bounded sequence-diff core/NIF, Rust source gate and artifact verifier | Rust source passes; full Linux ARM64 Rustler, fuzz/A1 scheduler/latency and signed artifact evidence pending. |
+| Senior 4 | `19b06788e0a5d7695fc2f89102af8e75129d39af` | OCI source/contracts, deterministic host bundle, plan/apply controls, release staging and rollback controller | Source passes without mutation; reviewed live plan, deployed host, activation, edge and rollback evidence pending. |
 
-## Still missing provider publication
-
-```text
-Blocked seam:
-Provider: Senior 1
-Consumer: Senior 5
-Missing contract: disposable PostgreSQL runtime integration, release artifact verification and live platform probe commands
-Why current work cannot safely continue: the published source walking skeleton uses a fail-closed database adapter and a local E2E probe; it does not prove live PostgreSQL, release packaging or OCI endpoint semantics.
-Minimal provider output required: commands registered under runtime-integration, runtime-artifact and runtime-live-probe
-Temporary work that remains independent: exact source checkpoint, load/reconnect workload and live evidence schemas
-```
-
+## Remaining owner seams
 
 ```text
 Blocked seam:
 Provider: Senior 2
 Consumer: Senior 5
-Missing contract: disposable database integration command and approved isolated restore/PITR result
-Why current work cannot safely continue: outbox, Oban, migration, connection and restore semantics must be proven by the authority owner.
-Minimal provider output required: database-integration and database-recovery commands in the registry
-Temporary work that remains independent: recovery acceptance validator and exact-release composer
+Missing contract: one CI-consumable disposable PostgreSQL integration command with exact-SHA machine-readable output
+Why current work cannot safely continue: the composite Senior 1 integration proves consumption, but it does not replace an independently attributable Senior 2 provider result.
+Minimal provider output required: database-integration result registered as available
+Temporary work that remains independent: source checkpoint and runtime composite integration evidence
+```
+
+```text
+Blocked seam:
+Provider: Senior 2
+Consumer: Senior 5
+Missing contract: approved isolated restore/PITR wrapper producing recovery-result-v1
+Why current work cannot safely continue: backup freshness and recovery status do not prove restore, migration/invariant checks, read-only probe or cleanup.
+Minimal provider output required: exact-release isolated restore evidence with approval reference
+Temporary work that remains independent: recovery schema, validator and runbook
 ```
 
 ```text
@@ -40,8 +38,8 @@ Blocked seam:
 Provider: Senior 3
 Consumer: Senior 5
 Missing contract: one command producing full property/fuzz/panic/fallback/A1 scheduler and latency evidence
-Why current work cannot safely continue: source tests and an artifact verifier do not prove live ARM64/BEAM safety.
-Minimal provider output required: native-safety result bound to the exact release and host shape
+Why current work cannot safely continue: Windows/Rust source tests do not prove Linux ARM64 Rustler scheduling or production artifact behavior.
+Minimal provider output required: native-safety result and signed ARM64 artifact evidence bound to the exact release
 Temporary work that remains independent: artifact identity and fallback acceptance contracts
 ```
 
@@ -49,10 +47,10 @@ Temporary work that remains independent: artifact identity and fallback acceptan
 Blocked seam:
 Provider: Senior 4
 Consumer: Senior 5
-Missing contract: reviewed OCI plan, live host readiness, activation and rollback collectors
-Why current work cannot safely continue: examples cannot prove live endpoint, drift, cost/security, retained rollback target or approved mutations.
-Minimal provider output required: infrastructure-plan, host-readiness and rollback-evidence commands
-Temporary work that remains independent: protected workflows, mutation log validation and cutover composer
+Missing contract: reviewed live plan, deployed host readiness, activation/edge and rollback exercise evidence
+Why current work cannot safely continue: source validation and deterministic local bundles do not prove live OCI state, drift, cost/security, retained rollback target or cutover behavior.
+Minimal provider output required: provider-owned live evidence for infrastructure-plan, host-readiness and rollback-evidence
+Temporary work that remains independent: protected workflows, mutation-log validation and final composer
 ```
 
-Removal condition: delete each block only after its exact provider commit is integrated, the registered command is marked `available`, and provider/consumer contract tests pass. No fixture or readiness-owned wrapper satisfies this condition.
+Removal condition: remove a block only after the registered provider command is available, runs on the exact composite SHA/release, and returns schema-valid non-fixture evidence. No readiness-owned emulation satisfies this condition.

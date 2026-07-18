@@ -31,30 +31,40 @@ class ReadinessV1Tests(unittest.TestCase):
   return args,out
  def test_source_contracts_validate(self):
   self.invoke(PYTHON,'operations/bin/validate_readiness_v1.py')
- def test_provider_registry_records_exact_pending_integration_commits(self):
+ def test_provider_registry_records_integrated_commits_and_pending_evidence(self):
   registry=json.loads((ROOT/'operations/readiness/provider-gates-v1.json').read_text(encoding='utf-8'))
   gates={item['id']:item for item in registry['gates']}
-  expected={
-   'runtime-source':'9a95350c516baa0b6e079685e1dcab1a49799bdf',
-   'database-source':'ac759bb3435ef4633265d8eab75bd26768c0aac9',
+  integrated={
+   'runtime-source':'15e2dd5a263decb91308a0d1783c4610bd7dc62d',
+   'runtime-integration':'15e2dd5a263decb91308a0d1783c4610bd7dc62d',
+   'database-source':'168f6b3be66ff36eac4b4944f8d6940b6d2026ce',
    'native-source':'7478e31a4de48e278f0d08885bfaab56d5d88762',
-   'native-artifact':'7478e31a4de48e278f0d08885bfaab56d5d88762',
-   'infrastructure-source':'2be16b0ff7159ad0827194c0f72f5a540245a085',
+   'infrastructure-source':'19b06788e0a5d7695fc2f89102af8e75129d39af',
   }
-  for ident,commit in expected.items():
-   self.assertEqual('pending-integration',gates[ident]['provider_state'])
+  for ident,commit in integrated.items():
+   self.assertEqual('available',gates[ident]['provider_state'])
    self.assertEqual(commit,gates[ident]['provider_commit'])
+  for ident in ('runtime-artifact','runtime-live-probe','native-artifact','infrastructure-plan','host-readiness','rollback-evidence'):
+   self.assertEqual('pending-live-evidence',gates[ident]['provider_state'])
+   self.assertIsNotNone(gates[ident]['provider_commit'])
   for gate in gates.values():
    if gate['provider_state']=='pending-provider-publication':
     self.assertIsNone(gate['provider_commit'])
 
  def test_unpublished_provider_seams_are_blocked_with_owners(self):
+  registry=json.loads((ROOT/'operations/readiness/provider-gates-v1.json').read_text(encoding='utf-8'))
+  gates={item['owner']:dict(item) for item in registry['gates'] if item['id'] in {'runtime-source','database-integration','native-safety','infrastructure-source'}}
+  for gate in gates.values():
+   gate['stages']=['source']
+   gate['provider_state']='pending-provider-publication'
+   gate['provider_commit']=None
   with tempfile.TemporaryDirectory() as tmp:
-   out=Path(tmp)/'checkpoint.json'
-   self.invoke(PYTHON,'operations/bin/run_provider_gates_v1.py','--stage','source','--output',str(out),'--evidence-dir',str(Path(tmp)/'evidence'),'--allow-blocked')
+   root=Path(tmp);registry_path=root/'registry.json';out=root/'checkpoint.json'
+   registry_path.write_text(json.dumps({'schema_version':'provider-gates-v1','registry_version':'test','gates':list(gates.values())}),encoding='utf-8')
+   self.invoke(PYTHON,'operations/bin/run_provider_gates_v1.py','--registry',str(registry_path),'--stage','source','--output',str(out),'--evidence-dir',str(root/'evidence'),'--allow-blocked')
    doc=json.loads(out.read_text());self.assertEqual('blocked',doc['status']);self.assertEqual({'Senior 1','Senior 2','Senior 3','Senior 4'},{item['owner'] for item in doc['blockers']})
    codes={item['owner']:item['code'] for item in doc['blockers']}
-   for owner in ('Senior 1','Senior 2','Senior 3','Senior 4'):self.assertEqual('PROVIDER_COMMIT_NOT_INTEGRATED',codes[owner])
+   for owner in ('Senior 1','Senior 2','Senior 3','Senior 4'):self.assertEqual('PROVIDER_SEAM_UNPUBLISHED',codes[owner])
  def test_missing_evidence_is_not_ready(self):
   with tempfile.TemporaryDirectory() as tmp:
    out=Path(tmp)/'final.json'
