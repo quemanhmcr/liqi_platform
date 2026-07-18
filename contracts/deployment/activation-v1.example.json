@@ -1,0 +1,24 @@
+{
+  "schema_version": "liqi.deployment.activation/v1",
+  "deployment_id": "deploy-example-v1",
+  "release_id": "liqi-v1-example",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "previous_release_id": "liqi-v0-example",
+  "rollback_target_release_id": "liqi-v0-example",
+  "state": "planned",
+  "status": "engineering-complete-evidence-pending",
+  "started_at": "2026-07-18T00:00:00Z",
+  "completed_at": null,
+  "approval_reference": null,
+  "checks": [
+    {
+      "name": "provider-artifacts",
+      "status": "blocked",
+      "duration_ms": 0,
+      "detail": "Senior 1 and Senior 3 V1 artifacts are not published."
+    }
+  ],
+  "traffic_enabled": false,
+  "evidence_class": "dry-run"
+}

@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liqi.example/contracts/deployment/activation-v1.schema.json",
+  "title": "LIQI release activation evidence V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "deployment_id",
+    "release_id",
+    "git_sha",
+    "manifest_sha256",
+    "previous_release_id",
+    "rollback_target_release_id",
+    "state",
+    "status",
+    "started_at",
+    "completed_at",
+    "approval_reference",
+    "checks",
+    "traffic_enabled",
+    "evidence_class"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "liqi.deployment.activation/v1"
+    },
+    "deployment_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "previous_release_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "rollback_target_release_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "state": {
+      "enum": [
+        "planned",
+        "staged",
+        "preflight-passed",
+        "activated",
+        "health-gated",
+        "traffic-enabled",
+        "verified",
+        "activation-failed",
+        "draining",
+        "rolled-back"
+      ]
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed",
+        "engineering-complete-evidence-pending"
+      ]
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "approval_reference": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 256
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "status",
+          "duration_ms",
+          "detail"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "failed",
+              "blocked",
+              "not-run"
+            ]
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3600000
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        }
+      }
+    },
+    "traffic_enabled": {
+      "type": "boolean"
+    },
+    "evidence_class": {
+      "enum": [
+        "dry-run",
+        "live-approved"
+      ]
+    }
+  }
+}

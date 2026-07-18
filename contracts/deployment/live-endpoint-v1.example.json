@@ -1,0 +1,52 @@
+{
+  "schema_version": "liqi.deployment.live-endpoint/v1",
+  "environment": "v1-live",
+  "classification": "production-shaped-development",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "release_id": "liqi-v1-example",
+  "hostname": "v1-live.example.invalid",
+  "public_ports": [
+    80,
+    443
+  ],
+  "tls": {
+    "mode": "public-acme",
+    "issuer": "ACME issuer pending DNS prerequisite",
+    "certificate_status": "pending",
+    "renewal_command": [
+      "caddy",
+      "reload",
+      "--config",
+      "/etc/caddy/Caddyfile"
+    ]
+  },
+  "backend": {
+    "address": "127.0.0.1:4000",
+    "publicly_routable": false
+  },
+  "websocket": {
+    "path": "/socket/websocket",
+    "supported": false,
+    "resume_evidence": "pending"
+  },
+  "health": {
+    "public_path": "/health/live",
+    "public_detail_level": "binary-no-dependency-detail",
+    "internal_path": "/health/ready"
+  },
+  "security": {
+    "admin_api_public": false,
+    "http_redirect": true,
+    "request_body_limit_bytes": 1048576,
+    "header_limit_bytes": 32768,
+    "security_headers": [
+      "Strict-Transport-Security",
+      "X-Content-Type-Options",
+      "Referrer-Policy",
+      "Content-Security-Policy"
+    ]
+  },
+  "status": "engineering-complete-evidence-pending",
+  "observed_at": "2026-07-18T00:00:00Z",
+  "evidence_class": "source-only"
+}

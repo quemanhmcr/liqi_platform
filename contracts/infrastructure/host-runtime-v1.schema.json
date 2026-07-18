@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liqi.example/contracts/infrastructure/host-runtime-v1.schema.json",
+  "title": "LIQI host runtime V1 readiness evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "release_id",
+    "git_sha",
+    "observed_at",
+    "status",
+    "filesystem",
+    "services",
+    "capacity",
+    "security",
+    "checks",
+    "evidence_class"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "liqi.infrastructure.host-runtime/v1"
+    },
+    "release_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "ready",
+        "not-ready",
+        "engineering-complete-evidence-pending"
+      ]
+    },
+    "filesystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_root",
+        "current_symlink",
+        "runtime_config_root",
+        "secret_reference_root",
+        "postgresql_root",
+        "recovery_root",
+        "run_root"
+      ],
+      "properties": {
+        "release_root": {
+          "const": "/opt/liqi/releases"
+        },
+        "current_symlink": {
+          "const": "/opt/liqi/current"
+        },
+        "runtime_config_root": {
+          "const": "/etc/liqi/runtime"
+        },
+        "secret_reference_root": {
+          "const": "/etc/liqi/secrets"
+        },
+        "postgresql_root": {
+          "const": "/var/lib/liqi/postgresql"
+        },
+        "recovery_root": {
+          "const": "/var/lib/liqi/recovery"
+        },
+        "run_root": {
+          "const": "/run/liqi"
+        }
+      }
+    },
+    "services": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "unit",
+          "enabled",
+          "active",
+          "substate"
+        ],
+        "properties": {
+          "unit": {
+            "enum": [
+              "liqi-beam.service",
+              "postgresql-17.service",
+              "pgbouncer.service",
+              "caddy.service",
+              "otelcol-contrib.service"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "substate": {
+            "type": "string",
+            "maxLength": 64
+          }
+        }
+      }
+    },
+    "capacity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parent_cpu_quota_percent",
+        "parent_memory_max_mib",
+        "swap_capacity_mib",
+        "reserve_preserved"
+      ],
+      "properties": {
+        "parent_cpu_quota_percent": {
+          "const": 300
+        },
+        "parent_memory_max_mib": {
+          "const": 20480
+        },
+        "swap_capacity_mib": {
+          "const": 0
+        },
+        "reserve_preserved": {
+          "type": "boolean"
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selinux_enforcing",
+        "root_login_disabled",
+        "password_ssh_disabled",
+        "public_tcp_ports",
+        "world_writable_runtime_paths",
+        "plaintext_secret_files"
+      ],
+      "properties": {
+        "selinux_enforcing": {
+          "type": "boolean"
+        },
+        "root_login_disabled": {
+          "type": "boolean"
+        },
+        "password_ssh_disabled": {
+          "type": "boolean"
+        },
+        "public_tcp_ports": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "uniqueItems": true
+        },
+        "world_writable_runtime_paths": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "plaintext_secret_files": {
+          "type": "array",
+          "maxItems": 0
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "status",
+          "detail"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "failed",
+              "blocked"
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 1024
+          }
+        }
+      }
+    },
+    "evidence_class": {
+      "enum": [
+        "source-only",
+        "live-read-only"
+      ]
+    }
+  }
+}
