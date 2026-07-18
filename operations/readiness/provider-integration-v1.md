@@ -33,10 +33,11 @@ The current checkpoint and unresolved lifecycle gaps are listed in `operations/r
 
 ## Owner actions
 
-- Senior 1: integrate the published BEAM source command, then publish disposable PostgreSQL integration, release artifact verification and `live-platform-probe-v1` output.
-- Senior 2: integrate the published database contract validator, then publish disposable database integration and approved isolated `recovery-result-v1` output.
-- Senior 3: integrate the published source/artifact verifier, then publish one full safety result with property/fuzz/panic/fallback and direct A1 scheduler/latency evidence.
-- Senior 4: integrate the published infrastructure contract validator, then publish plan, host readiness and `rollback-result-v1` collectors. OCI and traffic mutation remain Senior 4-only and require explicit approval.
+- Senior 1: retain exact-SHA source/disposable integration evidence; verify the signed ARM64 Mix release when Senior 4 supplies it; run `live-platform-probe-v1` only after an approved deployment.
+- Senior 2: retain the integrated source/database runner and publish an approved isolated `recovery-result-v1` collector and result.
+- Senior 3: retain the integrated source/artifact verifier and publish one full safety result with Linux ARM64 Rustler, property/fuzz/panic/fallback and direct A1 scheduler/latency evidence.
+- Senior 4: publish the signed ARM64 release inputs plus plan, host-readiness and `rollback-result-v1` collectors. OCI and traffic mutation remain Senior 4-only and require explicit approval.
+- Senior 5: consume only `available` commands, preserve `pending-live-evidence`, and never promote examples or local packaging into production evidence.
 
 ## Blocked seam format
 

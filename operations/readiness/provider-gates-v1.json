@@ -1,34 +1,32 @@
 {
   "schema_version": "provider-gates-v1",
-  "registry_version": "1.0.0",
+  "registry_version": "1.1.0",
   "gates": [
     {
       "id": "runtime-source",
       "owner": "Senior 1",
-      "seam": "MIX_ENV=test mix compile/test + hex audit + contract validation",
+      "seam": "beam/scripts/validate-v1-source.sh --output",
       "stages": [
         "source"
       ],
-      "provider_state": "pending-integration",
+      "provider_state": "available",
       "mutation_class": "read-only",
       "required_paths": [
-        ".tool-versions",
-        "mix.exs",
-        "mix.lock",
-        "beam/lib/liqi/application.ex",
-        "beam/test/liqi/web/platform_probe_e2e_test.exs"
+        "beam/scripts/validate-v1-source.sh",
+        "contracts/runtime/runtime-source-result-v1.schema.json"
       ],
       "argv": [
         "bash",
-        "-lc",
-        "MIX_ENV=test mix compile --warnings-as-errors && MIX_ENV=test mix test --seed 0 && mix hex.audit && python scripts/operations/validate_contracts.py"
+        "beam/scripts/validate-v1-source.sh",
+        "--output",
+        "{output}"
       ],
       "required_environment": [],
       "timeout_seconds": 900,
-      "result_schema": null,
-      "action_required": "Integrate exact runtime provider commit 9a95350c516baa0b6e079685e1dcab1a49799bdf, provision OTP 28.1.1/Elixir 1.18.4 from .tool-versions, then run the advertised source command before marking available.",
+      "result_schema": "contracts/runtime/runtime-source-result-v1.schema.json",
+      "action_required": "Run this exact source gate on the integrated SHA with OTP 28.5.0.3 and Elixir 1.20.2; retain its machine-readable result as source checkpoint evidence.",
       "provider_branch": "v1/beam-runtime-realtime",
-      "provider_commit": "9a95350c516baa0b6e079685e1dcab1a49799bdf"
+      "provider_commit": "15e2dd5a263decb91308a0d1783c4610bd7dc62d"
     },
     {
       "id": "runtime-integration",
@@ -37,7 +35,7 @@
       "stages": [
         "integration"
       ],
-      "provider_state": "pending-provider-publication",
+      "provider_state": "available",
       "mutation_class": "disposable-database",
       "required_paths": [
         "beam/scripts/run-v1-integration.sh"
@@ -52,10 +50,10 @@
         "LIQI_TEST_DATABASE_URL"
       ],
       "timeout_seconds": 1800,
-      "result_schema": null,
-      "action_required": "Publish the provider-owned disposable PostgreSQL runtime integration command.",
+      "result_schema": "contracts/runtime/runtime-integration-result-v1.schema.json",
+      "action_required": "Run against an explicitly supplied loopback trust-authenticated disposable PostgreSQL 17 cluster and retain the exact-SHA result.",
       "provider_branch": "v1/beam-runtime-realtime",
-      "provider_commit": null
+      "provider_commit": "15e2dd5a263decb91308a0d1783c4610bd7dc62d"
     },
     {
       "id": "runtime-artifact",
@@ -64,7 +62,7 @@
       "stages": [
         "artifact"
       ],
-      "provider_state": "pending-provider-publication",
+      "provider_state": "available",
       "mutation_class": "build",
       "required_paths": [
         "beam/scripts/verify-v1-release.sh"
@@ -78,13 +76,14 @@
         "{output}"
       ],
       "required_environment": [
-        "LIQI_RELEASE_MANIFEST"
+        "LIQI_RELEASE_MANIFEST",
+        "LIQI_RELEASE_TRUST_DIR"
       ],
       "timeout_seconds": 1800,
-      "result_schema": null,
-      "action_required": "Publish release identity, ARM64 compatibility, BEAM settings and mix release verification.",
+      "result_schema": "contracts/runtime/runtime-artifact-result-v1.schema.json",
+      "action_required": "Supply the signed ARM64 Mix release manifest and trusted Ed25519 public-key directory; the verifier remains blocked until those provider artifacts exist.",
       "provider_branch": "v1/beam-runtime-realtime",
-      "provider_commit": null
+      "provider_commit": "15e2dd5a263decb91308a0d1783c4610bd7dc62d"
     },
     {
       "id": "runtime-live-probe",
@@ -95,7 +94,7 @@
         "promotion",
         "post-cutover"
       ],
-      "provider_state": "pending-provider-publication",
+      "provider_state": "pending-live-evidence",
       "mutation_class": "live-read-only",
       "required_paths": [
         "beam/bin/platform-probe"
@@ -111,13 +110,14 @@
       ],
       "required_environment": [
         "LIQI_BASE_URL",
-        "LIQI_RELEASE_ID"
+        "LIQI_RELEASE_ID",
+        "LIQI_PROBE_AUTH_TOKEN_REF"
       ],
       "timeout_seconds": 900,
       "result_schema": "contracts/readiness/live-platform-probe-v1.schema.json",
-      "action_required": "Publish the live provider probe; Senior 5 will not reproduce Phoenix/realtime/native semantics.",
+      "action_required": "After an approved OCI staging deployment, run the read-only HTTPS/WebSocket probe with a protected token reference and bind the result to the exact release.",
       "provider_branch": "v1/beam-runtime-realtime",
-      "provider_commit": null
+      "provider_commit": "15e2dd5a263decb91308a0d1783c4610bd7dc62d"
     },
     {
       "id": "database-source",
@@ -126,7 +126,7 @@
       "stages": [
         "source"
       ],
-      "provider_state": "pending-integration",
+      "provider_state": "available",
       "mutation_class": "read-only",
       "required_paths": [
         "database/tests/contract/validate_v1_contracts.py",
@@ -141,38 +141,40 @@
       "required_environment": [],
       "timeout_seconds": 900,
       "result_schema": null,
-      "action_required": "Integrate exact provider commit ac759bb3435ef4633265d8eab75bd26768c0aac9, review its communication note, then mark this gate available only after the command passes on the integrated SHA.",
+      "action_required": "Run the integrated database contract validator on the exact composite SHA and retain its source-checkpoint log.",
       "provider_branch": "v1/durable-data-work",
-      "provider_commit": "ac759bb3435ef4633265d8eab75bd26768c0aac9"
+      "provider_commit": "168f6b3be66ff36eac4b4944f8d6940b6d2026ce"
     },
     {
       "id": "database-integration",
       "owner": "Senior 2",
-      "seam": "database/tests/integration/run-v1-database-tests.sh --output",
+      "seam": "database/tests/integration/run_database_tests.sh",
       "stages": [
         "integration"
       ],
-      "provider_state": "pending-provider-publication",
+      "provider_state": "available",
       "mutation_class": "disposable-database",
       "required_paths": [
-        "database/tests/integration/run-v1-database-tests.sh"
+        "database/tests/integration/run_database_tests.sh",
+        "database/tests/integration/bootstrap_test_database.sh",
+        "database/tests/pgtap"
       ],
       "argv": [
         "bash",
-        "database/tests/integration/run-v1-database-tests.sh",
-        "--database-url",
-        "{env:LIQI_TEST_DATABASE_URL}",
-        "--output",
-        "{output}"
+        "database/tests/integration/run_database_tests.sh"
       ],
       "required_environment": [
-        "LIQI_TEST_DATABASE_URL"
+        "LIQI_TEST_DATABASE",
+        "LIQI_V0_UPGRADE_DATABASE",
+        "PGHOST",
+        "PGPORT",
+        "PGUSER"
       ],
       "timeout_seconds": 1800,
       "result_schema": null,
-      "action_required": "Publish the disposable PostgreSQL V1 authority/outbox/Oban integration command.",
+      "action_required": "Run only against explicitly named disposable loopback PostgreSQL databases with pgTAP/pg_prove installed; retain the provider log and clean the primary test database after collection.",
       "provider_branch": "v1/durable-data-work",
-      "provider_commit": null
+      "provider_commit": "168f6b3be66ff36eac4b4944f8d6940b6d2026ce"
     },
     {
       "id": "database-recovery",
@@ -214,7 +216,7 @@
       "stages": [
         "source"
       ],
-      "provider_state": "pending-integration",
+      "provider_state": "available",
       "mutation_class": "read-only",
       "required_paths": [
         "native/tests/run-source-validation.sh",
@@ -229,7 +231,7 @@
       "required_environment": [],
       "timeout_seconds": 1800,
       "result_schema": null,
-      "action_required": "Integrate exact provider commit 7478e31a4de48e278f0d08885bfaab56d5d88762, then run the Rust-only source gate on Linux with Rust 1.97.1 before marking available.",
+      "action_required": "Run the Rust-only source gate on the integrated SHA. A Linux ARM64 Rustler target check and direct A1 evidence remain separate requirements.",
       "provider_branch": "v1/native-rustler",
       "provider_commit": "7478e31a4de48e278f0d08885bfaab56d5d88762"
     },
@@ -265,7 +267,7 @@
       "stages": [
         "artifact"
       ],
-      "provider_state": "pending-integration",
+      "provider_state": "available",
       "mutation_class": "build",
       "required_paths": [
         "native/scripts/verify_artifact.py",
@@ -282,34 +284,34 @@
       ],
       "timeout_seconds": 1800,
       "result_schema": null,
-      "action_required": "Integrate exact provider commit 7478e31a4de48e278f0d08885bfaab56d5d88762. Senior 4 must supply a signed ARM64 manifest/SBOM/provenance/Sigstore bundle; verification alone does not create an artifact.",
+      "action_required": "Supply the signed ARM64 native manifest, artifact, SBOM, provenance and Sigstore bundle; verification availability does not claim artifact production.",
       "provider_branch": "v1/native-rustler",
       "provider_commit": "7478e31a4de48e278f0d08885bfaab56d5d88762"
     },
     {
       "id": "infrastructure-source",
       "owner": "Senior 4",
-      "seam": "infrastructure/validation/validate_v1_contracts.py",
+      "seam": "infrastructure/validation/validate_v1_source.py",
       "stages": [
         "source"
       ],
-      "provider_state": "pending-integration",
+      "provider_state": "available",
       "mutation_class": "read-only",
       "required_paths": [
+        "infrastructure/validation/validate_v1_source.py",
         "infrastructure/validation/validate_v1_contracts.py",
-        "contracts/infrastructure/oci-live-v1.schema.json",
-        "contracts/deployment/rollback-v1.schema.json"
+        "infrastructure/validation/test_v1_deployment.py"
       ],
       "argv": [
         "python",
-        "infrastructure/validation/validate_v1_contracts.py"
+        "infrastructure/validation/validate_v1_source.py"
       ],
       "required_environment": [],
       "timeout_seconds": 900,
       "result_schema": null,
-      "action_required": "Integrate exact provider commit 2be16b0ff7159ad0827194c0f72f5a540245a085 and keep its engineering-complete-evidence-pending semantics; examples are not live evidence.",
+      "action_required": "Run the integrated source/build-contract validator. It performs no OCI or host mutation and does not replace plan, host, activation or rollback evidence.",
       "provider_branch": "v1/oci-live-runtime",
-      "provider_commit": "2be16b0ff7159ad0827194c0f72f5a540245a085"
+      "provider_commit": "f4b4563b0d6a5a3dd02c4ffb2a9915c6fb270aad"
     },
     {
       "id": "infrastructure-plan",

@@ -1,13 +1,13 @@
 # ADR 1005: V1 runtime provider publication checkpoint
 
-- Status: Accepted for provider publication; integration, artifact and live evidence pending
+- Status: Accepted; source and disposable integration evidence passed; ARM64 artifact and live evidence pending
 - Date: 2026-07-18
 - Decision owner: Senior 1
 - Consumers: Senior 2, Senior 3, Senior 4, Senior 5
 
 ## Context
 
-The BEAM runtime now consumes the committed PostgreSQL, jobs and native provider seams and publishes all four Senior 1 provider commands. The production-readiness registry still references the initial runtime skeleton commit and old OTP/Elixir versions, so it cannot be treated as proof that the current provider branch was integrated. Source evidence is generated outside Git and must be bound to the exact composite SHA after this checkpoint commit.
+The BEAM runtime consumes the committed PostgreSQL, jobs, native and infrastructure source seams and publishes all four Senior 1 provider commands. The readiness registry is now bound to composite SHA `15e2dd5a263decb91308a0d1783c4610bd7dc62d`, OTP 28.5.0.3 and Elixir 1.20.2. Provider-local evidence remains outside Git and is not itself a production verdict.
 
 ## Published provider seams
 
@@ -55,19 +55,19 @@ Minimal provider output required: versioned mapping names and owner-readable mat
 
 Temporary work that remains independent: local/test references remain supported; production validation fails closed when required references are absent.
 
-### Readiness registry integration
+### Live and artifact evidence transfer
 
-Provider: Senior 5
+Provider: Senior 4 and Senior 5
 
-Consumer: V1 readiness composition
+Consumer: V1 artifact, live-staging, promotion and post-cutover checkpoints
 
-Missing output: registry entries for the current Senior 1 provider commit, OTP 28.5.0.3 / Elixir 1.20.2, the four published commands, and `LIQI_PROBE_AUTH_TOKEN_REF` for live probes.
+Missing output: signed AArch64 Mix release inputs, approved deployment identity, protected probe credential materialization, host/rollback collectors and final readiness composition.
 
-Why current work cannot safely continue: the current registry still points to the initial runtime skeleton and marks integration, artifact and live commands unpublished.
+Why current work cannot safely continue: source and disposable integration evidence prove the committed software graph, but not AArch64 ERTS, OCI edge behavior, retained rollback or exact-release live semantics.
 
-Minimal provider output required: a Senior 5-owned registry commit that marks seams available only after running them on the integrated SHA.
+Minimal provider output required: signed release manifest/trust directory, approved OCI deployment, `LIQI_PROBE_AUTH_TOKEN_REF`, plan/host/rollback evidence and Senior 5 composition.
 
-Temporary work that remains independent: Senior 1 can generate provider-local evidence, but it is not a readiness verdict and is not committed as production evidence.
+Temporary work that remains independent: the provider commands are registered and fail closed when their required inputs are absent.
 
 ## Evidence classification
 

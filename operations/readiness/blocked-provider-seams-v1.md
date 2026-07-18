@@ -1,58 +1,64 @@
-# V1 blocked provider seams
+# V1 provider seam checkpoint
 
-This is a machine-reviewable integration checkpoint, not a substitute implementation. Exact provider commits are recorded only where the directly consumable source command exists. `pending-integration` still blocks Senior 5 until that commit is integrated and passes on the resulting repository SHA.
+This checkpoint records commands integrated on composite runtime SHA `15e2dd5a263decb91308a0d1783c4610bd7dc62d`. `available` means the provider command exists on the integrated graph and can be invoked by the readiness runner; it does not mean artifact or live evidence has passed.
 
-## Published, pending integration
+## Integrated provider commands
 
-| Provider | Exact commit | Consumer seam | Current limitation |
+| Provider | Exact provider commit | Consumer seam | State |
 |---|---|---|---|
-| Senior 1 | `9a95350c516baa0b6e079685e1dcab1a49799bdf` | `MIX_ENV=test mix compile --warnings-as-errors && MIX_ENV=test mix test --seed 0 && mix hex.audit && python scripts/operations/validate_contracts.py` | Source walking skeleton only; disposable PostgreSQL integration, release artifact verification and live platform probe command are not published. |
-| Senior 2 | `ac759bb3435ef4633265d8eab75bd26768c0aac9` | `python database/tests/contract/validate_v1_contracts.py` | Source contracts only; disposable PostgreSQL integration and approved isolated restore result are not published. |
-| Senior 3 | `7478e31a4de48e278f0d08885bfaab56d5d88762` | `bash native/tests/run-source-validation.sh --rust-only` | Source/Rust safety is available after integration; full Elixir, fuzz-duration, A1 latency and scheduler evidence remain pending. |
-| Senior 3 | `7478e31a4de48e278f0d08885bfaab56d5d88762` | `python native/scripts/verify_artifact.py --manifest <path>` | Verifier exists; signed ARM64 artifact, SBOM, provenance and Sigstore bundle must be produced by the approved provider flow. |
-| Senior 4 | `2be16b0ff7159ad0827194c0f72f5a540245a085` | `python infrastructure/validation/validate_v1_contracts.py` | Source contracts explicitly remain `engineering-complete-evidence-pending`; plan, host, activation and rollback evidence are not published. |
+| Senior 1 | `15e2dd5a263decb91308a0d1783c4610bd7dc62d` | `beam/scripts/validate-v1-source.sh --output` | Available; exact-SHA source evidence passed. |
+| Senior 1 | `15e2dd5a263decb91308a0d1783c4610bd7dc62d` | `beam/scripts/run-v1-integration.sh --output` | Available; disposable PostgreSQL 17 consumer/provider evidence passed. |
+| Senior 1 | `15e2dd5a263decb91308a0d1783c4610bd7dc62d` | `beam/scripts/verify-v1-release.sh --manifest ... --output` | Available verifier; signed ARM64 Mix release input is pending. |
+| Senior 1 | `15e2dd5a263decb91308a0d1783c4610bd7dc62d` | `beam/bin/platform-probe --output` | Collector integrated; exact-release live evidence is pending. |
+| Senior 2 | `168f6b3be66ff36eac4b4944f8d6940b6d2026ce` | database source and disposable integration commands | Available; source and composite disposable database evidence passed. |
+| Senior 3 | `7478e31a4de48e278f0d08885bfaab56d5d88762` | native source and artifact verification commands | Available; Windows source run passed with the Rustler ARM64 check correctly blocked pending Linux. |
+| Senior 4 | `f4b4563b0d6a5a3dd02c4ffb2a9915c6fb270aad` | `python infrastructure/validation/validate_v1_source.py` | Available; source validation passed with no OCI or host mutation. |
 
-## Still missing provider publication
+## Remaining blocked seams
 
 ```text
 Blocked seam:
-Provider: Senior 1
-Consumer: Senior 5
-Missing contract: disposable PostgreSQL runtime integration, release artifact verification and live platform probe commands
-Why current work cannot safely continue: the published source walking skeleton uses a fail-closed database adapter and a local E2E probe; it does not prove live PostgreSQL, release packaging or OCI endpoint semantics.
-Minimal provider output required: commands registered under runtime-integration, runtime-artifact and runtime-live-probe
-Temporary work that remains independent: exact source checkpoint, load/reconnect workload and live evidence schemas
+Provider: Senior 1 / Senior 4
+Consumer: Senior 5 artifact checkpoint
+Missing evidence: signed AArch64 Mix release manifest, archive, signatures and trusted public key material
+Why current work cannot safely continue: a local Windows release proves packaging layout only and cannot prove AArch64 ERTS or deployable signature identity.
+Minimal provider output required: LIQI_RELEASE_MANIFEST and LIQI_RELEASE_TRUST_DIR inputs accepted by runtime-artifact.
 ```
 
+```text
+Blocked seam:
+Provider: Senior 1 / Senior 4
+Consumer: Senior 5 live-staging and promotion checkpoints
+Missing evidence: approved OCI deployment plus exact-release HTTPS/WebSocket platform probe
+Why current work cannot safely continue: source and local integration cannot prove edge routing, secret materialization, drain/restart/resume or live authorization behavior.
+Minimal provider output required: LIQI_BASE_URL, LIQI_RELEASE_ID and LIQI_PROBE_AUTH_TOKEN_REF for runtime-live-probe after approved deployment.
+```
 
 ```text
 Blocked seam:
 Provider: Senior 2
-Consumer: Senior 5
-Missing contract: disposable database integration command and approved isolated restore/PITR result
-Why current work cannot safely continue: outbox, Oban, migration, connection and restore semantics must be proven by the authority owner.
-Minimal provider output required: database-integration and database-recovery commands in the registry
-Temporary work that remains independent: recovery acceptance validator and exact-release composer
+Consumer: Senior 5 recovery checkpoint
+Missing contract: approved isolated restore/PITR collector producing recovery-result-v1 evidence
+Why current work cannot safely continue: disposable migrations and database tests do not prove backup freshness, RPO or RTO.
+Minimal provider output required: database-recovery command and approved isolated restore result; never restore over live.
 ```
 
 ```text
 Blocked seam:
 Provider: Senior 3
-Consumer: Senior 5
-Missing contract: one command producing full property/fuzz/panic/fallback/A1 scheduler and latency evidence
-Why current work cannot safely continue: source tests and an artifact verifier do not prove live ARM64/BEAM safety.
-Minimal provider output required: native-safety result bound to the exact release and host shape
-Temporary work that remains independent: artifact identity and fallback acceptance contracts
+Consumer: Senior 5 integration and artifact checkpoints
+Missing evidence: full native safety result, Linux ARM64 Rustler target check, signed ARM64 native artifact and direct A1 scheduler/latency evidence
+Why current work cannot safely continue: Rust source/property/clippy checks and an artifact verifier do not prove production ARM64/BEAM scheduler behavior.
+Minimal provider output required: native-safety command and signed native artifact bundle bound to the exact release.
 ```
 
 ```text
 Blocked seam:
 Provider: Senior 4
-Consumer: Senior 5
-Missing contract: reviewed OCI plan, live host readiness, activation and rollback collectors
-Why current work cannot safely continue: examples cannot prove live endpoint, drift, cost/security, retained rollback target or approved mutations.
-Minimal provider output required: infrastructure-plan, host-readiness and rollback-evidence commands
-Temporary work that remains independent: protected workflows, mutation log validation and cutover composer
+Consumer: Senior 5 promotion/cutover checkpoints
+Missing contracts: reviewed OCI plan, live host-readiness collector and rollback-result collector
+Why current work cannot safely continue: source validators and examples cannot prove live drift, host capacity, retained rollback target or approved mutations.
+Minimal provider output required: infrastructure-plan, host-readiness and rollback-evidence commands with exact-release results.
 ```
 
-Removal condition: delete each block only after its exact provider commit is integrated, the registered command is marked `available`, and provider/consumer contract tests pass. No fixture or readiness-owned wrapper satisfies this condition.
+No fixture, example, local Windows package or readiness-owned wrapper satisfies a live or ARM64 evidence requirement.
