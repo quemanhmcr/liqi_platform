@@ -65,6 +65,14 @@ class ReleaseBoundaryTests(unittest.TestCase):
                 release_control.database_version(path)
 
 
+    def test_runtime_artifact_result_must_bind_exact_archive(self) -> None:
+        provider = {"artifact": {"sha256": "a" * 64}}
+        result = {"status": "passed", "blockers": [], "release_id": "liqi-v1-example", "git_sha": "b" * 40, "artifact_sha256": "a" * 64}
+        stage_mix_release.verify_runtime_result(result, provider, "liqi-v1-example", "b" * 40)
+        result["artifact_sha256"] = "c" * 64
+        with self.assertRaises(RuntimeError):
+            stage_mix_release.verify_runtime_result(result, provider, "liqi-v1-example", "b" * 40)
+
     def test_database_readiness_accepts_committed_v1_contract(self) -> None:
         document = json.loads((ROOT / "contracts/database/migration-readiness-v1.example.json").read_text(encoding="utf-8"))
         with tempfile.TemporaryDirectory() as directory:

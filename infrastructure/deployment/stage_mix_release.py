@@ -159,6 +159,17 @@ def credential_names(runtime: dict[str, Any]) -> list[str]:
     return names
 
 
+def verify_runtime_result(result: dict[str, Any], provider: dict[str, Any], release_id: str, git_sha: str) -> None:
+    if not (
+        result["status"] == "passed"
+        and not result["blockers"]
+        and result["release_id"] == release_id
+        and result["git_sha"] == git_sha
+        and result["artifact_sha256"] == provider["artifact"]["sha256"]
+    ):
+        raise RuntimeError("runtime artifact result is not passed and bound to this exact release archive")
+
+
 def database_version(contract_doc: dict[str, Any], readiness: dict[str, Any], runtime: dict[str, Any]) -> int:
     required = int(contract_doc["requiredMigration"])
     if contract_doc["status"] != "accepted" or contract_doc["compatibility"]["postgresqlMajor"] != 17:
@@ -269,8 +280,7 @@ def main() -> int:
     git_sha = wrapper["git_sha"]
     if not IDENT.fullmatch(release_id) or provider["release_id"] != release_id or provider["git_sha"] != git_sha:
         raise RuntimeError("deployment/provider release identity mismatch")
-    if runtime_result["status"] != "passed" or runtime_result["blockers"] or runtime_result["release_id"] != release_id or runtime_result["git_sha"] != git_sha:
-        raise RuntimeError("runtime artifact result is not passed for this release")
+    verify_runtime_result(runtime_result, provider, release_id, git_sha)
     if runtime["releaseId"] != release_id or runtime["environment"] != "production":
         raise RuntimeError("runtime config release identity/environment mismatch")
     names = credential_names(runtime)
