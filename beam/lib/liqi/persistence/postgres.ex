@@ -63,17 +63,6 @@ defmodule Liqi.Persistence.PostgresV0Compatibility do
   end
 
   @impl true
-  def observe_probe(probe_id, event_id) do
-    query = "SELECT * FROM platform.observe_probe_v0($1::uuid, $2::uuid)"
-
-    case SQL.query(Liqi.Persistence.ApiRepo, query, [probe_id, event_id], timeout: 3_000) do
-      {:ok, %{rows: []}} -> {:error, :not_found}
-      {:ok, result} -> {:ok, result |> rows() |> List.first()}
-      {:error, error} -> {:error, classify(error)}
-    end
-  end
-
-  @impl true
   def claim_probe_events(consumer_id, batch_size) do
     query = "SELECT * FROM platform.claim_outbox_v0($1, $2, 30)"
 

@@ -14,7 +14,6 @@ defmodule Liqi.Web.ErrorModel do
     "runtime.unavailable" => "The runtime is temporarily unavailable.",
     "database.unavailable" => "The durable authority is unavailable.",
     "idempotency.conflict" => "The idempotency key conflicts with existing durable content.",
-    "probe.not_found" => "The platform probe was not found.",
     "internal.error" => "An internal error occurred."
   }
 

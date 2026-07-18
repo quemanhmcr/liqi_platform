@@ -91,7 +91,7 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-                required: [probe_id, event_id, probe_status, outbox_state, effect_applied, terminal]
+                required: [probeId, eventId, probeStatus, outboxState, effectApplied, terminal, observedAt]
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}

@@ -26,6 +26,4 @@ defmodule Liqi.Persistence.PostgresV1 do
 
   @impl true
   def read_handoff(_after_cursor, _batch_size), do: {:error, @reason}
-  @impl true
-  def observe_probe(_probe_id, _event_id), do: {:error, @reason}
 end

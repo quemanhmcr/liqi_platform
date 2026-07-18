@@ -5,6 +5,27 @@ defmodule Liqi.Web.ProbeAuthTest do
 
   @endpoint Liqi.Web.Endpoint
 
+  test "custom materialized credential directory is a one-window systemd alias" do
+    directory =
+      Path.join(System.tmp_dir!(), "liqi-credentials-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(directory)
+    File.write!(Path.join(directory, "probe-token"), "materialized-token\n")
+    old_standard = System.get_env("CREDENTIALS_DIRECTORY")
+    old_alias = System.get_env("LIQI_CREDENTIALS_DIRECTORY")
+    System.delete_env("CREDENTIALS_DIRECTORY")
+    System.put_env("LIQI_CREDENTIALS_DIRECTORY", directory)
+
+    on_exit(fn ->
+      restore_env("CREDENTIALS_DIRECTORY", old_standard)
+      restore_env("LIQI_CREDENTIALS_DIRECTORY", old_alias)
+      File.rm_rf!(directory)
+    end)
+
+    assert {:ok, "materialized-token"} =
+             Liqi.Runtime.SecretRef.resolve_value("systemd-credential://probe-token")
+  end
+
   test "HTTP platform probe fails closed without the scoped token" do
     conn = post(build_conn(), "/platform/v1/probes", %{"clientProbeId" => Liqi.Runtime.Id.uuid4()})
     assert %{"error" => %{"code" => "auth.unauthorized"}} = json_response(conn, 401)
@@ -89,4 +110,7 @@ defmodule Liqi.Web.ProbeAuthTest do
 
     assert %{"error" => %{"code" => "probe.not_found"}} = json_response(authorized, 404)
   end
+
+  defp restore_env(name, nil), do: System.delete_env(name)
+  defp restore_env(name, value), do: System.put_env(name, value)
 end

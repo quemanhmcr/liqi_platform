@@ -59,8 +59,9 @@ defmodule Liqi.Web.PlatformProbeE2ETest do
       |> json_response(200)
 
     assert observation["terminal"]
-    assert observation["effect_applied"]
-    assert observation["outbox_state"] == "succeeded"
+    assert observation["effectApplied"]
+    assert observation["outboxState"] == "succeeded"
+    assert is_binary(observation["observedAt"])
 
     start_supervised!({Liqi.Realtime.Dispatcher, enabled: false})
     assert {:ok, 1} = Liqi.Realtime.Dispatcher.poll_once()
