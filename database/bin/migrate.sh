@@ -13,6 +13,19 @@ require_command() {
 require_command "$PSQL"
 require_command sha256sum
 
+psql_include_path() {
+  local path=$1
+  [[ "$path" != *"'"* && "$path" != *$'\n'* ]] || {
+    echo "migration path contains unsupported quote or newline: $path" >&2
+    exit 65
+  }
+  if [[ "$PSQL" == *.exe ]] && command -v cygpath >/dev/null 2>&1; then
+    cygpath -m "$path"
+  else
+    printf '%s\n' "$path"
+  fi
+}
+
 : "${PGDATABASE:=liqi}"
 export PGDATABASE
 
@@ -63,6 +76,7 @@ SQL
     name=${name%.sql}
     checksum=$(awk -v file="$file_name" '$2 == file || $2 == "*" file {print $1}' "$MANIFEST")
     file_path=$(cd "$MIGRATION_DIR" && pwd)/$file_name
+    include_path=$(psql_include_path "$file_path")
     cat <<SQL
 SELECT to_regclass('platform.schema_migrations') IS NOT NULL AS registry_exists \\gset
 \\if :registry_exists
@@ -91,7 +105,7 @@ RETURNING run_id::text AS migration_run_id
 \\unset migration_run_id
 \\endif
 BEGIN;
-\\i $file_path
+\\i '$include_path'
 INSERT INTO platform.schema_migrations (version, name, checksum_sha256)
 VALUES ($version, '$name', '$checksum');
 COMMIT;

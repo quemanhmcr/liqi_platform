@@ -12,7 +12,8 @@
     "read",
     "gapRepair",
     "retention",
-    "delivery"
+    "delivery",
+    "consumerAliases"
   ],
   "properties": {
     "$schema": {
@@ -113,6 +114,13 @@
     },
     "delivery": {
       "const": "at-least-once-idempotent-consumer"
+    },
+    "consumerAliases": {
+      "const": {
+        "actor_key": "aggregate_key",
+        "payload_type": "event_type",
+        "payload_version": "event_version"
+      }
     }
   }
 }

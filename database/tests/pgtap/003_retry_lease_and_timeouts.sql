@@ -5,7 +5,7 @@ SELECT ok(
     EXISTS (
         SELECT 1 FROM pg_db_role_setting
         WHERE setrole = 'liqi_api'::regrole
-          AND setdatabase = current_database()::regdatabase
+          AND setdatabase = (SELECT oid FROM pg_database WHERE datname = current_database())
           AND 'statement_timeout=5s' = ANY(setconfig)
     ),
     'API statement timeout is applied'
@@ -14,7 +14,7 @@ SELECT ok(
     EXISTS (
         SELECT 1 FROM pg_db_role_setting
         WHERE setrole = 'liqi_worker'::regrole
-          AND setdatabase = current_database()::regdatabase
+          AND setdatabase = (SELECT oid FROM pg_database WHERE datname = current_database())
           AND 'lock_timeout=5s' = ANY(setconfig)
     ),
     'worker lock timeout is applied'
@@ -23,7 +23,7 @@ SELECT ok(
     EXISTS (
         SELECT 1 FROM pg_db_role_setting
         WHERE setrole = 'liqi_readonly'::regrole
-          AND setdatabase = current_database()::regdatabase
+          AND setdatabase = (SELECT oid FROM pg_database WHERE datname = current_database())
           AND 'default_transaction_read_only=on' = ANY(setconfig)
     ),
     'read-only role defaults to read-only transactions'

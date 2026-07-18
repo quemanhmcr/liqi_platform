@@ -12,6 +12,15 @@
     "maximumLength": 128,
     "caseSensitive": true
   },
+  "requestFingerprint": {
+    "algorithm": "sha256",
+    "encoding": "lowercase-hex",
+    "length": 64,
+    "ownership": "consumer-command-module",
+    "input": "consumer-versioned-stable-command-representation",
+    "databaseBehavior": "opaque-exact-compare",
+    "interoperability": "not-a-cross-language-canonical-json-contract"
+  },
   "serialization": "transaction-advisory-lock-by-scope-and-key",
   "requestConflict": {
     "sameFingerprint": "return-original-durable-outcome",
@@ -26,5 +35,12 @@
     "days": 30,
     "pruneBatchMaximum": 500
   },
-  "outcome": "stored-json-and-event-identity-returned-on-duplicate"
+  "outcome": "stored-json-and-event-identity-returned-on-duplicate",
+  "fingerprint": {
+    "source": "consumer-supplied-logical-command",
+    "algorithm": "sha256",
+    "encoding": "lowercase-hex",
+    "length": 64,
+    "storage": "validated-verbatim"
+  }
 }

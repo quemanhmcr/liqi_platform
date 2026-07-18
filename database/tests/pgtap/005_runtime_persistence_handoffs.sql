@@ -56,8 +56,11 @@ SELECT throws_ok(
 );
 RESET ROLE;
 
-SET ROLE liqi_worker;
 CREATE TEMP TABLE runtime_handoff_claim AS
+SELECT * FROM platform.claim_outbox_v0('shape-only', 1, 30) WITH NO DATA;
+GRANT SELECT, INSERT ON runtime_handoff_claim TO liqi_worker;
+SET ROLE liqi_worker;
+INSERT INTO runtime_handoff_claim
 SELECT * FROM platform.claim_outbox_v0('pgtap-runtime-handoff-worker', 1, 30);
 SELECT is((SELECT count(*) FROM runtime_handoff_claim), 1::bigint, 'worker independently claims the durable outbox event');
 SELECT is(
@@ -97,7 +100,7 @@ RESET ROLE;
 SET ROLE liqi_api;
 SELECT platform.enqueue_outbox_v0(
     '00000000-0000-4000-8000-000000000205',
-    0,
+    0::smallint,
     'platform.unsupported.v0',
     0,
     clock_timestamp(),
@@ -108,7 +111,7 @@ SELECT platform.enqueue_outbox_v0(
     'platform-unsupported',
     '{}'::jsonb,
     '{}'::jsonb,
-    8
+    8::smallint
 );
 SELECT throws_ok(
     $$SELECT platform.publish_realtime_handoff_v0('00000000-0000-4000-8000-000000000205')$$,

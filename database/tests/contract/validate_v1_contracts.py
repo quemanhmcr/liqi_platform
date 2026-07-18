@@ -52,12 +52,118 @@ for pool, role in (("command", "liqi_api"), ("realtime", "liqi_realtime"), ("job
 if runtime["connectionBudget"]["pgbouncerServerCapacity"] + runtime["connectionBudget"]["directReservation"] + runtime["connectionBudget"]["reservedHeadroom"] != runtime["connectionBudget"]["postgresMaxConnections"]:
     errors.append("PostgreSQL connection accounting does not close exactly")
 
+compatibility = runtime["compatibility"]
+if compatibility["ectoSql"] != ">=3.14,<3.15":
+    errors.append("Ecto SQL must remain on the audited 3.14 line")
+if compatibility["postgrex"] != ">=0.22.3,<0.23":
+    errors.append("Postgrex must remain at or above the 0.22.3 security floor")
+if compatibility["decimal"] != ">=3.0,<4.0":
+    errors.append("Decimal must remain outside the vulnerable pre-3.0 range")
+
+seams = runtime["callableSeams"]
+expected_signatures = {
+    "readiness": "platform.database_readiness_v1(bigint,integer)",
+    "requestProbe": "platform.request_probe_v1(uuid,uuid,text,text,text,bigint,timestamptz,uuid,uuid,jsonb,timestamptz,jsonb)",
+    "observeProbe": "platform.observe_probe_v1(uuid,uuid)",
+    "claimOutbox": "platform.claim_outbox_v1(text,integer,integer)",
+    "applyProbeEffect": "platform.apply_probe_effect_and_ack_v1(uuid,uuid,text)",
+    "failOutbox": "platform.fail_outbox_v1(uuid,uuid,text,text,timestamptz)",
+    "readHandoff": "platform.read_realtime_handoff_v1(bigint,integer)",
+}
+for name, signature in expected_signatures.items():
+    if seams.get(name, {}).get("signature") != signature:
+        errors.append(f"callable signature changed for {name}")
+
+required_columns = {
+    "requestProbe": {"probe_id", "event_id", "aggregate_version", "handoff_cursor", "duplicate", "status", "outcome"},
+    "observeProbe": {"probe_id", "event_id", "aggregate_version", "probe_status", "outbox_state", "effect_applied", "handoff_cursor", "terminal", "observed_at"},
+    "claimOutbox": {"event_type", "aggregate_key", "payload_type", "actor_key", "event_version", "payload_version"},
+    "readHandoff": {"handoff_id", "event_type", "aggregate_key", "payload_type", "actor_key", "event_version", "payload_version"},
+}
+for seam_name, columns in required_columns.items():
+    observed = set(seams.get(seam_name, {}).get("resultColumns", []))
+    if not columns <= observed:
+        errors.append(f"{seam_name} result columns do not satisfy the runtime callback: {sorted(columns - observed)}")
+
+if seams["requestProbe"].get("errors") != {
+    "idempotencyConflict": "LQ001",
+    "staleAggregateVersion": "LQ002",
+}:
+    errors.append("command conflict SQLSTATE mapping changed")
+if seams["observeProbe"].get("errors") != {
+    "notFound": "empty-result",
+    "identityMismatch": "LQ003",
+}:
+    errors.append("probe observation not-found/identity-mismatch semantics changed")
+if seams["readHandoff"].get("errors") != {"cursorGap": "LQ004"}:
+    errors.append("realtime cursor gap SQLSTATE mapping changed")
+
+consumer = runtime["consumerIntegration"]
+expected_callbacks = [
+    "readiness/1",
+    "request_probe/1",
+    "observe_probe/2",
+    "claim_probe_events/2",
+    "apply_probe_effect/3",
+    "fail_event/5",
+    "read_handoff/2",
+]
+if consumer != {
+    "module": "LiqiPersistence.RuntimeAdapter",
+    "callbacks": expected_callbacks,
+    "repoOwnership": "runtime-configured-single-pool-set",
+    "commandIdentity": "consumer-module-event_id/1",
+    "providerStartupDefault": "disabled-until-runtime-owner-configures-supervision",
+}:
+    errors.append("Senior 1 persistence consumer integration contract changed")
+
 if outbox["delivery"] != "at-least-once" or "exactly" in json.dumps(outbox).lower():
     errors.append("outbox must claim only at-least-once delivery")
 if handoff["delivery"] != "at-least-once-idempotent-consumer":
     errors.append("realtime handoff delivery semantics invalid")
 if idempotency["aggregateVersion"]["stale"] != "LQ002":
     errors.append("stale aggregate error code must be LQ002")
+fingerprint = idempotency["requestFingerprint"]
+if fingerprint != {
+    "algorithm": "sha256",
+    "encoding": "lowercase-hex",
+    "length": 64,
+    "ownership": "consumer-command-module",
+    "input": "consumer-versioned-stable-command-representation",
+    "databaseBehavior": "opaque-exact-compare",
+    "interoperability": "not-a-cross-language-canonical-json-contract",
+}:
+    errors.append("request fingerprint ownership or opaque comparison semantics changed")
+deadline = outbox["envelope"]["deadlineSemantics"]
+if deadline != {
+    "consumerUnit": "unix-epoch-milliseconds",
+    "storedType": "timestamptz",
+    "conversionOwner": "LiqiPersistence.RuntimeAdapter",
+    "expiredCommandAdmission": "reject-before-transaction",
+}:
+    errors.append("runtime/database deadline conversion semantics changed")
+callbacks = runtime["consumerIntegration"]["callbacks"]
+if callbacks != [
+    "readiness/1",
+    "request_probe/1",
+    "observe_probe/2",
+    "claim_probe_events/2",
+    "apply_probe_effect/3",
+    "fail_event/5",
+    "read_handoff/2",
+]:
+    errors.append("Senior 1 persistence callback surface changed")
+if idempotency["fingerprint"] != {
+    "source": "consumer-supplied-logical-command",
+    "algorithm": "sha256",
+    "encoding": "lowercase-hex",
+    "length": 64,
+    "storage": "validated-verbatim",
+}:
+    errors.append("idempotency fingerprint semantics changed")
+expected_aliases = {"actor_key": "aggregate_key", "payload_type": "event_type", "payload_version": "event_version"}
+if outbox["consumerAliases"] != expected_aliases or handoff["consumerAliases"] != expected_aliases:
+    errors.append("outbox/handoff consumer aliases diverge")
 if oban["compatibility"]["migrationVersion"] != 14 or oban["storage"]["prefix"] != "oban":
     errors.append("Oban storage version/prefix mismatch")
 if sum(queue["concurrency"] for queue in oban["queues"]) != 7:

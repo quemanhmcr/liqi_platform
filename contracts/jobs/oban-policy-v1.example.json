@@ -19,7 +19,7 @@
   "compatibility": {
     "oban": ">=2.23,<2.24",
     "migrationVersion": 14,
-    "elixirMinimum": "1.15",
+    "elixirMinimum": "1.20",
     "postgresqlMinimum": 14
   },
   "storage": {

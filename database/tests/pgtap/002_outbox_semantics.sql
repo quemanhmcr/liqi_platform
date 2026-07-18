@@ -13,8 +13,11 @@ SELECT is((SELECT count(*) FROM platform.outbox_events), 1::bigint, 'outbox row 
 SELECT is((SELECT state FROM platform.outbox_events), 'pending', 'event starts pending');
 SELECT is((SELECT attempt_count FROM platform.outbox_events), 0::smallint, 'attempt count starts at zero');
 
-SET ROLE liqi_worker;
 CREATE TEMP TABLE claimed AS
+SELECT * FROM platform.claim_outbox_v0('shape-only', 1, 30) WITH NO DATA;
+GRANT SELECT, INSERT ON claimed TO liqi_worker;
+SET ROLE liqi_worker;
+INSERT INTO claimed
 SELECT * FROM platform.claim_outbox_v0('pgtap-worker', 1, 30);
 SELECT is((SELECT count(*) FROM claimed), 1::bigint, 'worker claims one event');
 SELECT is((SELECT attempt_no FROM claimed), 1::smallint, 'first lease is attempt one');

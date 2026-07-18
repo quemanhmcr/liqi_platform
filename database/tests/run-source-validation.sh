@@ -2,6 +2,7 @@
 set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tools/validate_database_contract.py"
+PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tests/contract/validate_v1_contracts.py"
 PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tools/validate_database_capacity.py"
 if [[ -f "$ROOT_DIR/contracts/platform/oci-host-v0.example.json" ]]; then
   PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tools/validate_oci_host_adapter.py" \
