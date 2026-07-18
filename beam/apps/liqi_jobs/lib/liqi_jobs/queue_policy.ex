@@ -11,8 +11,7 @@ defmodule LiqiJobs.QueuePolicy do
   def queues, do: @queues
 
   def configured_concurrency,
-    do:
-      Enum.reduce(@queues, 0, fn {_name, opts}, total -> total + Keyword.fetch!(opts, :limit) end)
+    do: Enum.reduce(@queues, 0, fn {_name, opts}, total -> total + Keyword.fetch!(opts, :limit) end)
 
   def active_concurrency, do: configured_concurrency() - 1
 end
