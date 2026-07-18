@@ -79,7 +79,8 @@
             "algorithm",
             "key_id",
             "signature_filename",
-            "signature_sha256"
+            "signature_sha256",
+            "signed_payload"
           ],
           "properties": {
             "algorithm": {
@@ -96,6 +97,9 @@
             "signature_sha256": {
               "type": "string",
               "pattern": "^[0-9a-f]{64}$"
+            },
+            "signed_payload": {
+              "const": "artifact-bytes"
             }
           }
         }

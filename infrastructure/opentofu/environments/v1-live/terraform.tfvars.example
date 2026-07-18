@@ -1,0 +1,30 @@
+tenancy_ocid            = "ocid1.tenancy.oc1..replace"
+region                  = "ap-singapore-2"
+availability_domain     = "replace:AP-SINGAPORE-2-AD-1"
+oracle_linux_image_ocid = "ocid1.image.oc1.ap-singapore-2.replace"
+source_git_sha           = "0000000000000000000000000000000000000000"
+
+# Source validation can run with these values. A reviewed live plan requires true.
+acknowledge_capacity_availability_and_cost = false
+
+operation_mode           = "plan"
+apply_approval_reference = ""
+
+# Reserved public IP is disabled until cost/quota approval is explicit.
+enable_reserved_public_ip      = false
+acknowledge_reserved_public_ip = false
+
+# Secret OCIDs are metadata only. Never place secret values in this file.
+vault_secret_ocids = []
+
+# Must reference machine evidence from the OCI Object Storage lock capability test.
+state_backend_lock_evidence_id = ""
+
+# Public fixture only. A live plan rejects this key ID and requires an explicitly reviewed production key.
+host_bundle_signing_key_id = "source-validation-v1"
+host_bundle_signing_public_key_pem = <<-EOT
+-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAwbBTDMMthdP+z7De2hI0J4m9DlJLnF0e2lXVy+IdN7U=
+-----END PUBLIC KEY-----
+EOT
+acknowledge_host_bundle_signing_key = false

@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liqi.example/contracts/infrastructure/host-bundle-v1.schema.json",
+  "title": "LIQI V1 deterministic host runtime bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "git_sha",
+    "target_triple",
+    "artifact",
+    "signing",
+    "files",
+    "installation",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "liqi.infrastructure.host-bundle/v1"
+    },
+    "bundle_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "target_triple": {
+      "const": "aarch64-unknown-linux-gnu"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "filename",
+        "size_bytes",
+        "sha256"
+      ],
+      "properties": {
+        "filename": {
+          "type": "string",
+          "pattern": "^liqi-host-bundle-[a-z0-9._-]+\\.tar\\.gz$"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 268435456
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "signing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "key_id",
+        "signature_filename",
+        "signed_payload"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "ed25519"
+        },
+        "key_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$"
+        },
+        "signature_filename": {
+          "type": "string",
+          "pattern": "^liqi-host-bundle-[a-z0-9._-]+\\.json\\.sig$"
+        },
+        "signed_payload": {
+          "const": "exact-manifest-bytes"
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_path",
+          "target_path",
+          "mode",
+          "owner",
+          "group",
+          "size_bytes",
+          "sha256"
+        ],
+        "properties": {
+          "source_path": {
+            "type": "string",
+            "pattern": "^payload/[A-Za-z0-9_@./-]+$"
+          },
+          "target_path": {
+            "type": "string",
+            "pattern": "^/(etc|usr|opt)/[A-Za-z0-9_@./-]+$"
+          },
+          "mode": {
+            "type": "string",
+            "pattern": "^0[4-7][0-7]{2}$"
+          },
+          "owner": {
+            "type": "string",
+            "pattern": "^[a-z_][a-z0-9_-]{0,31}$"
+          },
+          "group": {
+            "type": "string",
+            "pattern": "^[a-z_][a-z0-9_-]{0,31}$"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16777216
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "installation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "installer",
+        "object_prefix",
+        "approval_required",
+        "build_on_host",
+        "activates_release"
+      ],
+      "properties": {
+        "installer": {
+          "const": "/usr/local/libexec/liqi-install-host-bundle"
+        },
+        "object_prefix": {
+          "type": "string",
+          "pattern": "^artifacts/host/[a-z0-9][a-z0-9._-]{2,95}/$"
+        },
+        "approval_required": {
+          "const": true
+        },
+        "build_on_host": {
+          "const": false
+        },
+        "activates_release": {
+          "const": false
+        }
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

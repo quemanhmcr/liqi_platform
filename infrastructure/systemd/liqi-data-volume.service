@@ -1,0 +1,15 @@
+[Unit]
+Description=Prepare and mount preserved LIQI data volume
+DefaultDependencies=no
+After=systemd-udev-settle.service
+Before=local-fs.target liqi-host-readiness.service
+Wants=systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/liqi-prepare-data-volume
+RemainAfterExit=yes
+TimeoutStartSec=15min
+
+[Install]
+WantedBy=local-fs.target

@@ -1,0 +1,117 @@
+{
+  "schema_version": "liqi.infrastructure.host-bundle/v1",
+  "bundle_id": "host-example-v1",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "target_triple": "aarch64-unknown-linux-gnu",
+  "artifact": {
+    "filename": "liqi-host-bundle-host-example-v1.tar.gz",
+    "size_bytes": 1,
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "signing": {
+    "algorithm": "ed25519",
+    "key_id": "source-validation-v1",
+    "signature_filename": "liqi-host-bundle-host-example-v1.json.sig",
+    "signed_payload": "exact-manifest-bytes"
+  },
+  "files": [
+    {
+      "source_path": "payload/usr/local/libexec/example-0",
+      "target_path": "/usr/local/libexec/example-0",
+      "mode": "0755",
+      "owner": "root",
+      "group": "root",
+      "size_bytes": 1,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "source_path": "payload/usr/local/libexec/example-1",
+      "target_path": "/usr/local/libexec/example-1",
+      "mode": "0755",
+      "owner": "root",
+      "group": "root",
+      "size_bytes": 1,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "source_path": "payload/usr/local/libexec/example-2",
+      "target_path": "/usr/local/libexec/example-2",
+      "mode": "0755",
+      "owner": "root",
+      "group": "root",
+      "size_bytes": 1,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "source_path": "payload/usr/local/libexec/example-3",
+      "target_path": "/usr/local/libexec/example-3",
+      "mode": "0755",
+      "owner": "root",
+      "group": "root",
+      "size_bytes": 1,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "source_path": "payload/usr/local/libexec/example-4",
+      "target_path": "/usr/local/libexec/example-4",
+      "mode": "0755",
+      "owner": "root",
+      "group": "root",
+      "size_bytes": 1,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "source_path": "payload/usr/local/libexec/example-5",
+      "target_path": "/usr/local/libexec/example-5",
+      "mode": "0755",
+      "owner": "root",
+      "group": "root",
+      "size_bytes": 1,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "source_path": "payload/usr/local/libexec/example-6",
+      "target_path": "/usr/local/libexec/example-6",
+      "mode": "0755",
+      "owner": "root",
+      "group": "root",
+      "size_bytes": 1,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "source_path": "payload/usr/local/libexec/example-7",
+      "target_path": "/usr/local/libexec/example-7",
+      "mode": "0755",
+      "owner": "root",
+      "group": "root",
+      "size_bytes": 1,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "source_path": "payload/usr/local/libexec/example-8",
+      "target_path": "/usr/local/libexec/example-8",
+      "mode": "0755",
+      "owner": "root",
+      "group": "root",
+      "size_bytes": 1,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "source_path": "payload/usr/local/libexec/example-9",
+      "target_path": "/usr/local/libexec/example-9",
+      "mode": "0755",
+      "owner": "root",
+      "group": "root",
+      "size_bytes": 1,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "installation": {
+    "installer": "/usr/local/libexec/liqi-install-host-bundle",
+    "object_prefix": "artifacts/host/host-example-v1/",
+    "approval_required": true,
+    "build_on_host": false,
+    "activates_release": false
+  },
+  "created_at": "2026-07-18T00:00:00Z"
+}

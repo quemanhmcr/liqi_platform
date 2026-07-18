@@ -39,7 +39,7 @@
       "substate": "not-observed"
     },
     {
-      "unit": "otelcol-contrib.service",
+      "unit": "otelcol.service",
       "enabled": false,
       "active": false,
       "substate": "not-observed"

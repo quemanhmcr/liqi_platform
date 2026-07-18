@@ -98,7 +98,7 @@
               "postgresql-17.service",
               "pgbouncer.service",
               "caddy.service",
-              "otelcol-contrib.service"
+              "otelcol.service"
             ]
           },
           "enabled": {

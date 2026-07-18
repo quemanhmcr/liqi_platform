@@ -1,0 +1,242 @@
+#!/usr/bin/env python3
+"""Download, verify and stage a signed LIQI V1 host runtime bundle."""
+from __future__ import annotations
+
+import argparse
+import grp
+import hashlib
+import json
+import os
+import pwd
+import re
+import shutil
+import subprocess
+import tarfile
+import tempfile
+from datetime import datetime, timezone
+from pathlib import Path, PurePosixPath
+
+IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{2,95}$")
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--namespace", required=True)
+    parser.add_argument("--bucket", required=True)
+    parser.add_argument("--bundle-id", required=True)
+    parser.add_argument("--approval-reference", required=True)
+    parser.add_argument("--execute", action="store_true")
+    parser.add_argument("--public-key", type=Path, default=Path("/etc/liqi/trust/host-bundle-ed25519.pub.pem"))
+    parser.add_argument("--key-id-file", type=Path, default=Path("/etc/liqi/trust/host-bundle-key-id"))
+    return parser.parse_args()
+
+
+def run(argv: list[str], *, timeout: int = 120, capture: bool = False) -> str:
+    result = subprocess.run(
+        argv,
+        text=True,
+        stdout=subprocess.PIPE if capture else None,
+        stderr=subprocess.PIPE if capture else None,
+        check=False,
+        timeout=timeout,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip() if capture else ""
+        raise RuntimeError(detail or f"command failed: {' '.join(argv)}")
+    return (result.stdout or "").strip()
+
+
+def sha256(path: Path) -> str:
+    value = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            value.update(chunk)
+    return value.hexdigest()
+
+
+def download(namespace: str, bucket: str, name: str, target: Path) -> None:
+    run([
+        "/usr/bin/oci", "os", "object", "get", "--auth", "instance_principal",
+        "--namespace-name", namespace, "--bucket-name", bucket,
+        "--name", name, "--file", str(target),
+    ], timeout=180, capture=True)
+
+
+def validate_manifest(document: object, bundle_id: str, key_id: str) -> dict[str, object]:
+    if not isinstance(document, dict) or document.get("schema_version") != "liqi.infrastructure.host-bundle/v1":
+        raise RuntimeError("unsupported host bundle manifest")
+    if document.get("bundle_id") != bundle_id or not IDENTIFIER.fullmatch(bundle_id):
+        raise RuntimeError("bundle identity mismatch")
+    if document.get("target_triple") != "aarch64-unknown-linux-gnu":
+        raise RuntimeError("host bundle target triple mismatch")
+    signing = document.get("signing")
+    if not isinstance(signing, dict) or signing.get("algorithm") != "ed25519" or signing.get("key_id") != key_id:
+        raise RuntimeError("host bundle signing key identity mismatch")
+    artifact = document.get("artifact")
+    if not isinstance(artifact, dict) or not SHA256.fullmatch(str(artifact.get("sha256", ""))):
+        raise RuntimeError("invalid host bundle artifact identity")
+    files = document.get("files")
+    if not isinstance(files, list) or not (10 <= len(files) <= 128):
+        raise RuntimeError("invalid host bundle file inventory")
+    targets: set[str] = set()
+    sources: set[str] = set()
+    for item in files:
+        if not isinstance(item, dict):
+            raise RuntimeError("invalid host bundle file record")
+        source = str(item.get("source_path", ""))
+        target = str(item.get("target_path", ""))
+        source_parts = PurePosixPath(source).parts
+        target_path = PurePosixPath(target)
+        if not source.startswith("payload/") or ".." in source_parts or target_path.is_absolute() is False:
+            raise RuntimeError("unsafe host bundle path")
+        if not target.startswith(("/etc/", "/usr/", "/opt/")) or ".." in target_path.parts:
+            raise RuntimeError("host bundle target escapes approved roots")
+        if source in sources or target in targets:
+            raise RuntimeError("duplicate host bundle path")
+        sources.add(source)
+        targets.add(target)
+        if not re.fullmatch(r"0[4-7][0-7]{2}", str(item.get("mode", ""))):
+            raise RuntimeError("invalid host bundle mode")
+        if not SHA256.fullmatch(str(item.get("sha256", ""))) or int(item.get("size_bytes", 0)) <= 0:
+            raise RuntimeError("invalid host bundle file identity")
+    return document
+
+
+def verify_signature(manifest: Path, signature: Path, public_key: Path) -> None:
+    run([
+        "/usr/bin/openssl", "pkeyutl", "-verify", "-rawin", "-pubin",
+        "-inkey", str(public_key), "-in", str(manifest), "-sigfile", str(signature),
+    ], timeout=30, capture=True)
+
+
+def extract_verified(archive: Path, manifest: dict[str, object], destination: Path) -> None:
+    expected = {str(item["source_path"]): item for item in manifest["files"]}
+    with tarfile.open(archive, mode="r:gz") as tar:
+        members = tar.getmembers()
+        names = {member.name for member in members}
+        if names != set(expected):
+            raise RuntimeError("host bundle archive inventory mismatch")
+        for member in members:
+            if not member.isfile() or member.issym() or member.islnk():
+                raise RuntimeError("host bundle may contain only regular files")
+            parts = PurePosixPath(member.name).parts
+            if ".." in parts or PurePosixPath(member.name).is_absolute():
+                raise RuntimeError("unsafe archive member")
+            source = tar.extractfile(member)
+            if source is None:
+                raise RuntimeError("unable to read archive member")
+            data = source.read()
+            record = expected[member.name]
+            if len(data) != int(record["size_bytes"]) or hashlib.sha256(data).hexdigest() != record["sha256"]:
+                raise RuntimeError(f"archive member checksum mismatch: {member.name}")
+            target = destination / member.name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
+            os.chmod(target, int(str(record["mode"]), 8))
+
+
+def install_files(staging: Path, manifest: dict[str, object]) -> None:
+    for record in manifest["files"]:
+        source = staging / str(record["source_path"])
+        target = Path(str(record["target_path"]))
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary = target.with_name(f".{target.name}.liqi-new")
+        shutil.copyfile(source, temporary)
+        os.chmod(temporary, int(str(record["mode"]), 8))
+        os.replace(temporary, target)
+
+
+def apply_ownership(manifest: dict[str, object]) -> None:
+    for record in manifest["files"]:
+        target = Path(str(record["target_path"]))
+        uid = pwd.getpwnam(str(record["owner"])).pw_uid
+        gid = grp.getgrnam(str(record["group"])).gr_gid
+        os.chown(target, uid, gid)
+        os.chmod(target, int(str(record["mode"]), 8))
+
+
+def write_evidence(args: argparse.Namespace, manifest: dict[str, object], manifest_path: Path, signature_path: Path) -> None:
+    evidence = {
+        "schema_version": "liqi.infrastructure.host-bundle-install-result/v1",
+        "bundle_id": args.bundle_id,
+        "git_sha": manifest["git_sha"],
+        "approval_reference": args.approval_reference,
+        "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "manifest_sha256": sha256(manifest_path),
+        "signature_sha256": sha256(signature_path),
+        "artifact_sha256": manifest["artifact"]["sha256"],
+        "status": "staged",
+        "release_activated": False,
+        "database_initialized": False,
+    }
+    output = Path("/var/lib/liqi/recovery/host-bundle-install-result-v1.json")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = output.with_suffix(".tmp")
+    temporary.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.chmod(temporary, 0o640)
+    temporary.replace(output)
+
+
+def main() -> int:
+    args = parse_args()
+    if os.geteuid() != 0:
+        raise SystemExit("host bundle installation requires root")
+    if not args.execute or len(args.approval_reference.strip()) < 3:
+        raise SystemExit("refusing mutation without --execute and explicit approval reference")
+    if not IDENTIFIER.fullmatch(args.bundle_id):
+        raise SystemExit("invalid bundle ID")
+    if not args.public_key.is_file() or not args.key_id_file.is_file():
+        raise SystemExit("host bundle trust root is missing")
+    key_id = args.key_id_file.read_text(encoding="utf-8").strip()
+    if not IDENTIFIER.fullmatch(key_id):
+        raise SystemExit("invalid trusted key ID")
+
+    prefix = f"artifacts/host/{args.bundle_id}/"
+    manifest_name = f"liqi-host-bundle-{args.bundle_id}.json"
+    archive_name = f"liqi-host-bundle-{args.bundle_id}.tar.gz"
+    signature_name = f"{manifest_name}.sig"
+
+    with tempfile.TemporaryDirectory(prefix="liqi-host-bundle-") as directory:
+        workspace = Path(directory)
+        manifest_path = workspace / manifest_name
+        signature_path = workspace / signature_name
+        archive_path = workspace / archive_name
+        download(args.namespace, args.bucket, prefix + manifest_name, manifest_path)
+        download(args.namespace, args.bucket, prefix + signature_name, signature_path)
+        verify_signature(manifest_path, signature_path, args.public_key)
+        manifest = validate_manifest(json.loads(manifest_path.read_text(encoding="utf-8")), args.bundle_id, key_id)
+        if manifest["signing"]["signature_filename"] != signature_name or manifest["artifact"]["filename"] != archive_name:
+            raise RuntimeError("host bundle object filenames do not match manifest")
+        download(args.namespace, args.bucket, prefix + archive_name, archive_path)
+        if archive_path.stat().st_size != int(manifest["artifact"]["size_bytes"]) or sha256(archive_path) != manifest["artifact"]["sha256"]:
+            raise RuntimeError("host bundle archive checksum mismatch")
+        staging = workspace / "staging"
+        extract_verified(archive_path, manifest, staging)
+        # Install provider scripts/config first so the package installer has its pinned inputs.
+        install_files(staging, manifest)
+        run(["/usr/local/libexec/liqi-install-runtime-packages"], timeout=1800)
+        # RPM installation may create or replace vendor configuration. Re-apply the
+        # signed bundle so the exact manifest remains the final host source of truth.
+        install_files(staging, manifest)
+        apply_ownership(manifest)
+        run(["/usr/bin/systemctl", "daemon-reload"])
+        units = [
+            "/etc/systemd/system/liqi-beam.service",
+            "/etc/systemd/system/liqi-secrets.service",
+            "/etc/systemd/system/liqi-host-readiness.service",
+            "/etc/systemd/system/caddy.service",
+        ]
+        run(["/usr/bin/systemd-analyze", "verify", *units], timeout=60, capture=True)
+        run(["/usr/bin/caddy", "validate", "--config", "/etc/caddy/Caddyfile"], timeout=30, capture=True)
+        run(["/usr/bin/otelcol", "validate", "--config", "/etc/otelcol/config.yaml"], timeout=30, capture=True)
+        run(["/usr/bin/restorecon", "-RF", "/usr/local/libexec", "/usr/local/share/liqi", "/etc/caddy", "/etc/otelcol", "/etc/systemd/system"], timeout=60)
+        run(["/usr/bin/systemctl", "enable", "--now", "caddy.service", "otelcol.service"], timeout=60)
+        write_evidence(args, manifest, manifest_path, signature_path)
+
+    print(json.dumps({"status": "staged", "bundle_id": args.bundle_id, "release_activated": False}))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

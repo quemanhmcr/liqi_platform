@@ -10,7 +10,11 @@ ROOT = Path(__file__).resolve().parents[2]
 PAIRS = [
     ("contracts/infrastructure/oci-live-v1.schema.json", "contracts/infrastructure/oci-live-v1.example.json"),
     ("contracts/infrastructure/host-runtime-v1.schema.json", "contracts/infrastructure/host-runtime-v1.example.json"),
+    ("contracts/infrastructure/secret-mapping-v1.schema.json", "contracts/infrastructure/secret-mapping-v1.example.json"),
+    ("contracts/infrastructure/host-bundle-v1.schema.json", "contracts/infrastructure/host-bundle-v1.example.json"),
     ("contracts/deployment/mix-release-v1.schema.json", "contracts/deployment/mix-release-v1.example.json"),
+    ("contracts/deployment/release-target-v1.schema.json", "contracts/deployment/release-target-v1.example.json"),
+    ("contracts/deployment/installed-release-v1.schema.json", "contracts/deployment/installed-release-v1.example.json"),
     ("contracts/deployment/native-artifact-v1.schema.json", "contracts/deployment/native-artifact-v1.example.json"),
     ("contracts/deployment/activation-v1.schema.json", "contracts/deployment/activation-v1.example.json"),
     ("contracts/deployment/rollback-v1.schema.json", "contracts/deployment/rollback-v1.example.json"),

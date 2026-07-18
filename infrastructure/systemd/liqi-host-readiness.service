@@ -1,0 +1,21 @@
+[Unit]
+Description=Validate LIQI V1 host runtime prerequisites
+After=liqi-data-volume.service network-online.target postgresql-17.service pgbouncer.service caddy.service otelcol.service
+Requires=liqi-data-volume.service postgresql-17.service pgbouncer.service caddy.service otelcol.service
+Wants=network-online.target
+Before=liqi-secrets.service liqi-beam.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/liqi-host-readiness --output /run/liqi/host-runtime-v1.json
+RemainAfterExit=yes
+TimeoutStartSec=60s
+UMask=0027
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/run/liqi
+
+[Install]
+WantedBy=multi-user.target

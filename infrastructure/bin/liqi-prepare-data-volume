@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 027
+
+readonly DEVICE='/dev/oracleoci/oraclevdb'
+readonly MOUNTPOINT='/var/lib/liqi'
+readonly DEADLINE_SECONDS=600
+start="$(date +%s)"
+
+while [[ ! -b "$DEVICE" ]]; do
+  if (( $(date +%s) - start >= DEADLINE_SECONDS )); then
+    echo "preserved data volume did not appear at $DEVICE" >&2
+    exit 1
+  fi
+  sleep 5
+done
+
+filesystem="$(blkid -o value -s TYPE "$DEVICE" || true)"
+if [[ -z "$filesystem" ]]; then
+  mkfs.xfs -f -m reflink=1,crc=1 "$DEVICE"
+elif [[ "$filesystem" != 'xfs' ]]; then
+  echo "refusing unexpected filesystem $filesystem on $DEVICE" >&2
+  exit 1
+fi
+
+uuid="$(blkid -o value -s UUID "$DEVICE")"
+install -d -o root -g root -m 0755 "$MOUNTPOINT"
+if ! grep -qE "^UUID=${uuid}[[:space:]]" /etc/fstab; then
+  printf 'UUID=%s %s xfs defaults,nofail,nodev,nosuid 0 2\n' "$uuid" "$MOUNTPOINT" >> /etc/fstab
+fi
+mountpoint -q "$MOUNTPOINT" || mount "$MOUNTPOINT"
+
+install -d -o root -g root -m 0755 "$MOUNTPOINT"
+install -d -o root -g liqi -m 0750 "$MOUNTPOINT/recovery"
+if id postgres >/dev/null 2>&1; then
+  install -d -o postgres -g postgres -m 0700 "$MOUNTPOINT/postgresql"
+else
+  install -d -o root -g root -m 0700 "$MOUNTPOINT/postgresql"
+fi

@@ -1,0 +1,15 @@
+[Unit]
+Description=LIQI PostgreSQL and PgBouncer slice
+Before=slices.target
+
+[Slice]
+Slice=liqi-platform.slice
+CPUAccounting=yes
+MemoryAccounting=yes
+TasksAccounting=yes
+CPUQuota=100%
+CPUWeight=150
+MemoryHigh=7G
+MemoryMax=8G
+MemorySwapMax=0
+TasksMax=2048

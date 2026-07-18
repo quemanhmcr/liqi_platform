@@ -13,7 +13,8 @@
       "algorithm": "ed25519",
       "key_id": "release-signing-v1",
       "signature_filename": "liqi-v1-example.tar.gz.sig",
-      "signature_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "signature_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "signed_payload": "artifact-bytes"
     }
   },
   "runtime": {
@@ -60,5 +61,12 @@
     "immutable_after_install": true,
     "build_on_host": false
   },
-  "created_at": "2026-07-18T00:00:00Z"
+  "created_at": "2026-07-18T00:00:00Z",
+  "manifest_signature": {
+    "algorithm": "ed25519",
+    "key_id": "release-manifest-v1",
+    "signature_filename": "liqi-v1-example.json.sig",
+    "signed_payload": "exact-manifest-bytes"
+  },
+  "rollback_target_release_id": "liqi-v0-example"
 }

@@ -1,0 +1,17 @@
+# Non-secret partial backend settings for a separately approved, versioned state bucket.
+# Supply credentials only through AWS_SHARED_CREDENTIALS_FILE with mode 0600.
+bucket = "replace-with-approved-state-bucket"
+key    = "liqi-platform/v1-live/opentofu.tfstate"
+region = "ap-singapore-2"
+
+endpoints = {
+  s3 = "https://replace-namespace.compat.objectstorage.ap-singapore-2.oraclecloud.com"
+}
+
+use_path_style              = true
+use_lockfile                = true
+skip_credentials_validation = true
+skip_region_validation      = true
+skip_requesting_account_id  = true
+skip_metadata_api_check     = true
+encrypt                     = true
