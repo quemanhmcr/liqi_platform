@@ -299,6 +299,22 @@ class PlatformProbeTest(unittest.TestCase):
         with patch.object(probe, "GIT_EXECUTABLE", None):
             self.assertEqual(probe.git_sha(), "0" * 40)
 
+    def test_phoenix_frame_requires_exactly_five_elements(self):
+        payload = b'["1","1","platform:v1","phx_reply",{},"extra"]'
+        frame = bytes([0x81, len(payload)]) + payload
+        websocket = probe.WebSocket(ReceiveSocket(frame))  # type: ignore[arg-type]
+        with self.assertRaises(probe.ProbeFailure) as raised:
+            websocket.recv_json(1.0)
+        self.assertEqual(raised.exception.failure_class, "invalid_phoenix_frame")
+
+    def test_new_text_frame_before_continuation_is_rejected(self):
+        first = bytes([0x01, 1]) + b"["
+        second = bytes([0x81, 1]) + b"]"
+        websocket = probe.WebSocket(ReceiveSocket(first + second))  # type: ignore[arg-type]
+        with self.assertRaises(probe.ProbeFailure) as raised:
+            websocket.recv_text(1.0)
+        self.assertEqual(raised.exception.failure_class, "websocket_protocol_error")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -264,8 +264,10 @@ class HttpClient:
                 return HttpResponse(response.status, headers_value, payload)
         except HTTPError as error:
             payload = error.read(MAX_HTTP_BODY + 1)
+            if len(payload) > MAX_HTTP_BODY:
+                raise ProbeFailure("http_body_too_large", "endpoint error response exceeded 1 MiB")
             headers_value = {key.lower(): value for key, value in error.headers.items()}
-            bounded_payload = payload[:MAX_HTTP_BODY]
+            bounded_payload = payload
             self.recorder.inspect_secrets(bounded_payload)
             self.recorder.inspect_secrets("\n".join(f"{key}:{value}" for key, value in headers_value.items()))
             return HttpResponse(error.code, headers_value, bounded_payload)
@@ -389,7 +391,7 @@ class WebSocket:
             value = json.loads(payload)
         except json.JSONDecodeError as error:
             raise ProbeFailure("invalid_websocket_json", "WebSocket frame contained invalid JSON") from error
-        if not isinstance(value, list) or len(value) < 5:
+        if not isinstance(value, list) or len(value) != 5:
             raise ProbeFailure("invalid_phoenix_frame", "Phoenix frame must be a five-element array")
         return value
 
@@ -408,6 +410,10 @@ class WebSocket:
             if opcode == 0xA:
                 continue
             if opcode == 0x1:
+                if text_started:
+                    raise ProbeFailure(
+                        "websocket_protocol_error", "new text frame started before continuation completed"
+                    )
                 text_started = True
                 fragments.extend(payload)
             elif opcode == 0x0 and text_started:
