@@ -5,7 +5,10 @@ resolve_secret = fn
     File.read!(path) |> String.trim()
 
   "systemd-credential://" <> name ->
-    directory = System.fetch_env!("CREDENTIALS_DIRECTORY")
+    directory =
+      System.get_env("CREDENTIALS_DIRECTORY") ||
+        System.fetch_env!("LIQI_CREDENTIALS_DIRECTORY")
+
     File.read!(Path.join(directory, name)) |> String.trim()
 
   other ->

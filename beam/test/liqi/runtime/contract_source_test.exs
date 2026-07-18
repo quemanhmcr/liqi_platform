@@ -78,4 +78,25 @@ defmodule Liqi.Runtime.ContractSourceTest do
       assert {:ok, _} = path |> File.read!() |> Jason.decode()
     end
   end
+
+  test "live platform probe is direct, bounded, and keeps credentials out of argv and query" do
+    executable = File.read!("beam/bin/platform-probe")
+    implementation = File.read!("beam/scripts/platform_probe.py")
+    source_gate = File.read!("beam/scripts/validate-v1-source.sh")
+    runtime_config = File.read!("beam/config/runtime.exs")
+
+    assert executable =~ "beam.scripts.platform_probe"
+    assert implementation =~ "LIQI_PROBE_AUTH_TOKEN"
+    assert implementation =~ "x-liqi-probe-token"
+    assert implementation =~ "MAX_WS_FRAME"
+    assert implementation =~ "socket.create_connection"
+    assert implementation =~ "ssl.create_default_context"
+    refute implementation =~ "--auth-token"
+    refute implementation =~ "?token="
+    refute implementation =~ "&token="
+    refute implementation =~ "authToken"
+    assert source_gate =~ "python -m unittest discover -s beam/tests"
+    assert runtime_config =~ "CREDENTIALS_DIRECTORY"
+    assert runtime_config =~ "LIQI_CREDENTIALS_DIRECTORY"
+  end
 end
