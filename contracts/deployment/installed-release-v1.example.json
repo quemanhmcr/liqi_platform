@@ -10,5 +10,7 @@
   "status": "planned",
   "approval_reference": null,
   "installed_at": "2026-07-18T00:00:00Z",
-  "mutation_performed": false
+  "mutation_performed": false,
+  "runtime_config_path": "/etc/liqi/runtime/releases/liqi-v1-example.json",
+  "runtime_config_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
 }

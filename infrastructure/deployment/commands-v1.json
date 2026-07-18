@@ -5,58 +5,228 @@
   "commands": [
     {
       "id": "source-validation",
-      "command": ["python", "infrastructure/validation/validate_v1_source.py"],
+      "command": [
+        "python",
+        "infrastructure/validation/validate_v1_source.py"
+      ],
       "working_directory": "repository-root",
       "mutation": "none",
       "output": "stdout"
     },
     {
       "id": "read-only-live-plan",
-      "command": ["infrastructure/deployment/plan_v1_live.sh", "--backend-config", "<backend.hcl>", "--var-file", "<live.tfvars>", "--output-dir", "<evidence-dir>"],
-      "working_directory": "repository-root",
-      "required_environment": ["TF_ENCRYPTION", "AWS_SHARED_CREDENTIALS_FILE", "OCI provider authentication"],
+      "command": [
+        "infrastructure/deployment/plan_v1_live.sh",
+        "--backend-config",
+        "<backend.hcl>",
+        "--var-file",
+        "<live.tfvars>",
+        "--output-dir",
+        "<evidence-dir>"
+      ],
+      "working_directory": "repository-root-clean",
+      "required_environment": [
+        "TF_ENCRYPTION",
+        "AWS_SHARED_CREDENTIALS_FILE",
+        "OCI provider authentication"
+      ],
       "mutation": "read-only",
       "output": "v1-live.plan-result.json"
     },
     {
       "id": "approved-oci-apply",
-      "command": ["infrastructure/deployment/apply_v1_live.sh", "--plan-result", "<v1-live.plan-result.json>", "--approval-reference", "<approval>", "--execute"],
-      "working_directory": "repository-root",
-      "required_environment": ["TF_ENCRYPTION", "AWS_SHARED_CREDENTIALS_FILE", "OCI provider authentication"],
+      "command": [
+        "infrastructure/deployment/apply_v1_live.sh",
+        "--plan-result",
+        "<v1-live.plan-result.json>",
+        "--approval-reference",
+        "<approval>",
+        "--execute"
+      ],
+      "working_directory": "repository-root-clean",
+      "required_environment": [
+        "TF_ENCRYPTION",
+        "AWS_SHARED_CREDENTIALS_FILE",
+        "OCI provider authentication"
+      ],
       "mutation": "approval-required",
       "output": "v1-live.apply-result.json"
     },
     {
       "id": "build-host-bundle",
-      "command": ["python", "infrastructure/deployment/build_host_bundle.py", "--git-sha", "<exact-sha>", "--bundle-id", "<bundle-id>", "--key-id", "<key-id>", "--signing-key", "<private-key-file>", "--output-dir", "<artifact-dir>"],
+      "command": [
+        "python",
+        "infrastructure/deployment/build_host_bundle.py",
+        "--git-sha",
+        "<exact-sha>",
+        "--bundle-id",
+        "<bundle-id>",
+        "--key-id",
+        "<key-id>",
+        "--signing-key",
+        "<private-key-file>",
+        "--output-dir",
+        "<artifact-dir>"
+      ],
       "working_directory": "repository-root-clean",
       "mutation": "local-artifact-only",
       "output": "signed host bundle, manifest and signature"
     },
     {
+      "id": "prepare-mix-deployment",
+      "command": [
+        "python",
+        "infrastructure/deployment/prepare_mix_deployment.py",
+        "--provider-manifest",
+        "<Senior-1-mix-release-v1.json>",
+        "--provider-trust-dir",
+        "<Senior-1-public-key-dir>",
+        "--runtime-config",
+        "<runtime-config-v1.json>",
+        "--database-contract",
+        "<database-runtime-v1.json>",
+        "--migration-readiness",
+        "<migration-readiness-v1.json>",
+        "--native-manifest",
+        "<Senior-3-native-artifact-v1.json>",
+        "--rollback-target-descriptor",
+        "<release-target-v1.json>",
+        "--deployment-key-id",
+        "<deployment-key-id>",
+        "--deployment-signing-key",
+        "<private-key-file>",
+        "--output-dir",
+        "<deployment-artifact-dir>"
+      ],
+      "working_directory": "repository-root-clean",
+      "mutation": "local-artifact-only",
+      "output": "signed mix-deployment-v1 wrapper and self-contained provider artifacts",
+      "failure_policy": "reject provider evidence that is not passed and reject rollback migration gaps"
+    },
+    {
       "id": "stage-mix-release",
-      "command": ["python", "infrastructure/deployment/stage_mix_release.py", "--manifest", "<mix-manifest>", "--artifact-dir", "<artifact-dir>", "--trust-dir", "<trust-dir>", "--output", "<installed-release-evidence>"],
+      "command": [
+        "python",
+        "infrastructure/deployment/stage_mix_release.py",
+        "--deployment-wrapper",
+        "<mix-deployment-v1.json>",
+        "--artifact-dir",
+        "<deployment-artifact-dir>",
+        "--deployment-trust-dir",
+        "<Senior-4-public-key-dir>",
+        "--provider-trust-dir",
+        "<Senior-1-public-key-dir>",
+        "--output",
+        "<installed-release-v1.json>"
+      ],
       "working_directory": "repository-root-or-host",
       "mutation": "dry-run-unless---execute-and-approval-reference",
-      "output": "installed-release-v1"
+      "output": "installed-release-v1",
+      "verification": "Senior 3 native/scripts/verify_artifact.py with Sigstore evidence"
+    },
+    {
+      "id": "retain-v0-rollback",
+      "command": [
+        "python",
+        "infrastructure/deployment/adapt_v0_rollback.py",
+        "--release-manifest",
+        "<release-manifest-v0.json>",
+        "--deployment-spec",
+        "<deployment-spec-v0.json>",
+        "--health-target",
+        "<health-gate-target-v0.json>",
+        "--upgrade-compatibility-result",
+        "<Senior-2-v0-upgrade-result.json>",
+        "--database-provider-git-sha",
+        "<exact-Senior-2-sha>",
+        "--release-path",
+        "<installed-v0-release-path>",
+        "--output",
+        "<v0-retention-result.json>"
+      ],
+      "working_directory": "host",
+      "mutation": "dry-run-unless---execute-and-approval-reference",
+      "output": "V0 release-target-v1 compatibility descriptor"
+    },
+    {
+      "id": "database-auth-activation",
+      "command": [
+        "/usr/local/libexec/liqi-configure-database-credentials",
+        "apply",
+        "--bundle",
+        "<vault-bundle>",
+        "--approval-reference",
+        "<approval>",
+        "--execute",
+        "--output",
+        "<result.json>"
+      ],
+      "working_directory": "host",
+      "mutation": "approval-required",
+      "output": "database-credentials-v1"
     },
     {
       "id": "release-control",
-      "command": ["python", "infrastructure/deployment/release_control.py", "activate|rollback", "--deployment-id", "<id>", "--host-readiness", "<host-evidence>", "--database-readiness", "<database-evidence>", "--rollback-output", "<rollback-evidence>"],
+      "command": [
+        "python",
+        "infrastructure/deployment/release_control.py",
+        "activate|rollback",
+        "--deployment-id",
+        "<id>",
+        "--target-release-id",
+        "<release-id>",
+        "--host-readiness",
+        "<host-runtime-v1.json>",
+        "--database-readiness",
+        "<migration-readiness-v1.json>",
+        "--activation-output",
+        "<activation-v1.json>",
+        "--rollback-output",
+        "<rollback-v1.json>"
+      ],
       "working_directory": "host",
       "mutation": "dry-run-unless---execute-and-approval-reference",
-      "output": "activation-v1 and rollback-v1"
+      "output": "activation-v1 and rollback-v1",
+      "failure_policy": "atomically restore release and runtime-config symlinks after failed activation"
     },
     {
       "id": "traffic-enable",
-      "command": ["python", "infrastructure/deployment/configure_live_edge.py", "--hostname", "<hostname>", "--acme-email", "<email>", "--activation-evidence", "<activation.json>", "--rendered-output", "<Caddyfile.rendered>", "--evidence-output", "<live-endpoint.json>"],
+      "command": [
+        "python",
+        "infrastructure/deployment/configure_live_edge.py",
+        "--hostname",
+        "<hostname>",
+        "--acme-email",
+        "<email>",
+        "--activation-evidence",
+        "<activation-v1.json>",
+        "--runtime-config",
+        "<runtime-config-v1.json>",
+        "--rendered-output",
+        "<Caddyfile.rendered>",
+        "--evidence-output",
+        "<live-endpoint-v1.json>"
+      ],
       "working_directory": "host",
       "mutation": "dry-run-unless---execute-and-approval-reference",
       "output": "live-endpoint-v1"
     },
     {
       "id": "backup-timer-enable",
-      "command": ["python", "infrastructure/deployment/enable_backup_timers.py", "--backup-status", "<backup-status.json>", "--backup-status-checksum", "<backup-status.sha256>", "--restore-result", "<restore-result.json>", "--restore-result-checksum", "<restore-result.sha256>", "--output", "<timer-result.json>"],
+      "command": [
+        "python",
+        "infrastructure/deployment/enable_backup_timers.py",
+        "--backup-status",
+        "<backup-status.json>",
+        "--backup-status-checksum",
+        "<backup-status.sha256>",
+        "--restore-result",
+        "<restore-result.json>",
+        "--restore-result-checksum",
+        "<restore-result.sha256>",
+        "--output",
+        "<timer-result.json>"
+      ],
       "working_directory": "host",
       "mutation": "dry-run-unless---execute-and-approval-reference",
       "output": "backup-timer-enable-result-v1"

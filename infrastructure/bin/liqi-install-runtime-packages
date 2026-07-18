@@ -18,6 +18,9 @@ readonly CADDY_SHA512='bd06996e1612cf5e9770dc7134313067ef3fdfde43b1a219600490600
 readonly OTEL_VERSION='0.156.0'
 readonly OTEL_URL="https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${OTEL_VERSION}/otelcol_${OTEL_VERSION}_linux_arm64.rpm"
 readonly OTEL_SHA256='c32b61c2ab0819312483425bf4a937c18bd1849704c89da909bc9bcd2cdf4c63'
+readonly COSIGN_VERSION='3.1.2'
+readonly COSIGN_URL='https://github.com/sigstore/cosign/releases/download/v3.1.2/cosign-linux-arm64'
+readonly COSIGN_SHA256='90e7ae0b5dfd60f20816b52c012addf7fc055ebcc7bea4ce81c428ca8518c302'
 readonly WORKDIR='/var/tmp/liqi-runtime-install'
 readonly EVIDENCE='/var/lib/liqi/recovery/host-package-evidence-v1.json'
 
@@ -72,6 +75,11 @@ curl --proto '=https' --tlsv1.2 --fail --location --retry 3 "$OTEL_URL" -o "$WOR
 printf '%s  %s\n' "$OTEL_SHA256" "$WORKDIR/otelcol.rpm" | sha256sum --check --strict
 rpm --upgrade --replacepkgs "$WORKDIR/otelcol.rpm"
 
+curl --proto '=https' --tlsv1.2 --fail --location --retry 3 "$COSIGN_URL" -o "$WORKDIR/cosign"
+printf '%s  %s\n' "$COSIGN_SHA256" "$WORKDIR/cosign" | sha256sum --check --strict
+install -o root -g root -m 0755 "$WORKDIR/cosign" /usr/bin/cosign
+[[ "$(/usr/bin/cosign version --json | jq -r '.gitVersion' | sed 's/^v//')" == "$COSIGN_VERSION" ]]
+
 install -d -o caddy -g caddy -m 0750 /var/lib/caddy /var/log/caddy /run/caddy
 install -d -o root -g liqi -m 0750 \
   /opt/liqi /opt/liqi/releases /etc/liqi /etc/liqi/runtime /etc/liqi/secrets /etc/liqi/trust \
@@ -109,6 +117,7 @@ doc = {
         "postgres": run("/usr/pgsql-17/bin/postgres", "--version"),
         "pgbouncer": run("/usr/bin/pgbouncer", "--version").splitlines()[0],
         "otelcol": run("/usr/bin/otelcol", "--version").splitlines()[0],
+        "cosign": run("/usr/bin/cosign", "version", "--json"),
     },
 }
 path = Path(sys.argv[1])

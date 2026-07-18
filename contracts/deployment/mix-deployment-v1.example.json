@@ -1,0 +1,43 @@
+{
+  "schema_version": "liqi.deployment.mix-deployment/v1",
+  "release_id": "liqi-v1-example",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "provider_manifest": {
+    "schema_version": "liqi.deployment.mix-release/v1",
+    "filename": "liqi-v1-example.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "runtime_artifact_result": {
+    "schema_version": "runtime-artifact-result-v1",
+    "filename": "liqi-v1-example.runtime-artifact.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "runtime_config": {
+    "schema_version": "1",
+    "filename": "liqi-v1-example.runtime-config.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "database_contract": {
+    "schema_version": "database-runtime-v1",
+    "filename": "database-runtime-v1.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "migration_readiness": {
+    "schema_version": "migration-readiness-v1",
+    "filename": "migration-readiness-v1.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "native_artifacts": [],
+  "rollback_target": {
+    "release_id": "liqi-v0-example",
+    "descriptor_filename": "liqi-v0-example.release-target.json",
+    "descriptor_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "signature": {
+    "algorithm": "ed25519",
+    "key_id": "deployment-signing-v1",
+    "signature_filename": "liqi-v1-example.deployment.sig",
+    "signed_payload": "exact-wrapper-bytes"
+  },
+  "created_at": "2026-07-18T00:00:00Z"
+}

@@ -17,6 +17,8 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 INFRA = ROOT / "infrastructure"
 ENV = INFRA / "opentofu/environments/v1-live"
 SCHEMA = ROOT / "contracts/infrastructure/host-bundle-v1.schema.json"
@@ -157,9 +159,74 @@ def validate_static_policy() -> None:
     caddy_live = (INFRA / "caddy/Caddyfile.v1-live.tftpl").read_text(encoding="utf-8")
     if 'respond "LIQI edge is staged but traffic is not enabled" 503' not in caddy_fail:
         raise AssertionError("staged Caddy configuration is not fail-closed")
-    for token in ("admin off", "127.0.0.1:4000", "request_body", "max_header_size 32KB"):
+    for token in (
+        "admin off",
+        "${backend_address}",
+        "max_size ${request_body_limit_bytes}",
+        "max_header_size ${header_limit_bytes}",
+        "request>headers>X-Liqi-Probe-Token delete",
+    ):
         if token not in caddy_live:
             raise AssertionError(f"live Caddy template missing {token}")
+    provider_requirements = {
+        INFRA / "deployment/prepare_mix_deployment.py": (
+            "contracts/runtime/runtime-artifact-result-v1.schema.json",
+            "contracts/database/migration-readiness-v1.schema.json",
+            "contracts/native/native-artifact-v1.schema.json",
+        ),
+        INFRA / "deployment/stage_mix_release.py": (
+            "native/scripts/verify_artifact.py",
+            "runtime-config-v1.schema.json",
+            "migration-readiness-v1.schema.json",
+        ),
+    }
+    for provider_path, required_tokens in provider_requirements.items():
+        provider_text = provider_path.read_text(encoding="utf-8")
+        for token in required_tokens:
+            if token not in provider_text:
+                raise AssertionError(f"{provider_path} does not consume committed provider seam {token}")
+    duplicate_native = json.loads((ROOT / "contracts/deployment/native-artifact-v1.schema.json").read_text(encoding="utf-8"))
+    if duplicate_native["properties"]["compatibility_adapter"]["const"] is not True:
+        raise AssertionError("deployment native contract must remain an explicit compatibility adapter")
+
+    bundle_targets = {record[1] for record in __import__("infrastructure.deployment.build_host_bundle", fromlist=["FILES"]).FILES}
+    for target in (
+        "/usr/local/lib/liqi-native/native/scripts/verify_artifact.py",
+        "/usr/local/share/liqi/contracts/runtime/runtime-config-v1.schema.json",
+        "/usr/local/lib/liqi-database/contracts/database/migration-readiness-v1.schema.json",
+        "/usr/local/lib/liqi-native/contracts/native/native-artifact-v1.schema.json",
+        "/usr/local/libexec/liqi-configure-database-credentials",
+        "/etc/systemd/system/liqi-database-credentials.service",
+        "/usr/local/share/liqi/contracts/deployment/mix-deployment-v1.schema.json",
+        "/usr/local/share/liqi/contracts/infrastructure/database-credentials-v1.schema.json",
+    ):
+        if target not in bundle_targets:
+            raise AssertionError(f"signed host bundle is missing direct provider dependency: {target}")
+    package_manifest = json.loads((INFRA / "packages/oracle-linux-9-aarch64-v1.json").read_text(encoding="utf-8"))
+    packages = {item["name"]: item for item in package_manifest["packages"]}
+    if packages.get("PostgreSQL", {}).get("version") != "17.10":
+        raise AssertionError("PostgreSQL reviewed minor pin changed")
+    if "cosign" not in packages or not re.fullmatch(r"[0-9a-f]{64}", packages["cosign"].get("sha256", "")):
+        raise AssertionError("cosign ARM64 verifier is not checksum pinned")
+    beam_unit = (systemd / "liqi-beam.service").read_text(encoding="utf-8")
+    for token in (
+        "LIQI_RUNTIME_CONFIG_PATH=/etc/liqi/runtime/current.json",
+        "CREDENTIALS_DIRECTORY=/run/liqi/secrets/beam",
+        "liqi-database-credentials.service",
+    ):
+        if token not in beam_unit:
+            raise AssertionError(f"BEAM unit is not bound to Senior 1 runtime config semantics: {token}")
+    if "127.0.0.1:4000" in caddy_live or "/socket/websocket" in caddy_live:
+        raise AssertionError("Caddy contains stale draft runtime semantics")
+    database_credential_unit = (systemd / "liqi-database-credentials.service").read_text(encoding="utf-8")
+    database_credential_provider = (INFRA / "bin/liqi-configure-database-credentials").read_text(encoding="utf-8")
+    for token in ("restore-transient --execute", "Before=pgbouncer.service liqi-beam.service"):
+        if token not in database_credential_unit:
+            raise AssertionError(f"database credential unit missing fail-closed lifecycle: {token}")
+    for token in ("database-role-urls", "pgbouncer-userlist.txt", "SCRAM-SHA-256$", "approval-reference"):
+        if token not in database_credential_provider:
+            raise AssertionError(f"database credential provider missing contract token: {token}")
+
     otel = yaml.safe_load((INFRA / "otel/otelcol-v1.yaml").read_text(encoding="utf-8"))
     protocols = otel["receivers"]["otlp"]["protocols"]
     if protocols["grpc"]["endpoint"] != "127.0.0.1:4317" or protocols["http"]["endpoint"] != "127.0.0.1:4318":

@@ -38,5 +38,8 @@
     "differential_tests_passed": true,
     "fuzz_tests_passed": true
   },
-  "created_at": "2026-07-18T00:00:00Z"
+  "created_at": "2026-07-18T00:00:00Z",
+  "compatibility_adapter": true,
+  "provider_contract": "contracts/native/native-artifact-v1.schema.json",
+  "removal_condition": "Remove after the Mix release provider emits the immutable install path directly."
 }

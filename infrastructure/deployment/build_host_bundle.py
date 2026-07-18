@@ -23,6 +23,7 @@ BASE_FILES: tuple[tuple[str, str, int, str, str], ...] = (
     ("infrastructure/bin/liqi-install-runtime-packages", "/usr/local/libexec/liqi-install-runtime-packages", 0o755, "root", "root"),
     ("infrastructure/bin/liqi-prepare-data-volume", "/usr/local/libexec/liqi-prepare-data-volume", 0o755, "root", "root"),
     ("infrastructure/bin/liqi-materialize-secrets", "/usr/local/libexec/liqi-materialize-secrets", 0o755, "root", "root"),
+    ("infrastructure/bin/liqi-configure-database-credentials", "/usr/local/libexec/liqi-configure-database-credentials", 0o755, "root", "root"),
     ("infrastructure/bin/liqi-host-readiness", "/usr/local/libexec/liqi-host-readiness", 0o755, "root", "root"),
     ("infrastructure/bin/liqi-release-command", "/usr/local/libexec/liqi-release-command", 0o755, "root", "root"),
     ("infrastructure/deployment/stage_mix_release.py", "/usr/local/libexec/liqi-stage-mix-release", 0o755, "root", "root"),
@@ -40,6 +41,7 @@ BASE_FILES: tuple[tuple[str, str, int, str, str], ...] = (
     ("infrastructure/systemd/liqi-data-volume.service", "/etc/systemd/system/liqi-data-volume.service", 0o644, "root", "root"),
     ("infrastructure/systemd/liqi-host-readiness.service", "/etc/systemd/system/liqi-host-readiness.service", 0o644, "root", "root"),
     ("infrastructure/systemd/liqi-secrets.service", "/etc/systemd/system/liqi-secrets.service", 0o644, "root", "root"),
+    ("infrastructure/systemd/liqi-database-credentials.service", "/etc/systemd/system/liqi-database-credentials.service", 0o644, "root", "root"),
     ("infrastructure/systemd/liqi-beam.service", "/etc/systemd/system/liqi-beam.service", 0o644, "root", "root"),
     ("services/systemd/liqi-api.service", "/etc/systemd/system/liqi-api.service", 0o644, "root", "root"),
     ("services/systemd/liqi-realtime.service", "/etc/systemd/system/liqi-realtime.service", 0o644, "root", "root"),
@@ -65,7 +67,10 @@ BASE_FILES: tuple[tuple[str, str, int, str, str], ...] = (
     ("infrastructure/packages/oracle-linux-9-aarch64-v1.json", "/usr/local/share/liqi/host-packages-v1.json", 0o640, "root", "liqi"),
     ("contracts/infrastructure/host-runtime-v1.schema.json", "/usr/local/share/liqi/contracts/infrastructure/host-runtime-v1.schema.json", 0o644, "root", "root"),
     ("contracts/infrastructure/secret-mapping-v1.schema.json", "/usr/local/share/liqi/contracts/infrastructure/secret-mapping-v1.schema.json", 0o644, "root", "root"),
+    ("contracts/infrastructure/database-credentials-v1.schema.json", "/usr/local/share/liqi/contracts/infrastructure/database-credentials-v1.schema.json", 0o644, "root", "root"),
     ("contracts/deployment/mix-release-v1.schema.json", "/usr/local/share/liqi/contracts/deployment/mix-release-v1.schema.json", 0o644, "root", "root"),
+    ("contracts/deployment/mix-deployment-v1.schema.json", "/usr/local/share/liqi/contracts/deployment/mix-deployment-v1.schema.json", 0o644, "root", "root"),
+    ("contracts/deployment/v0-rollback-compatibility-v1.schema.json", "/usr/local/share/liqi/contracts/deployment/v0-rollback-compatibility-v1.schema.json", 0o644, "root", "root"),
     ("contracts/deployment/native-artifact-v1.schema.json", "/usr/local/share/liqi/contracts/deployment/native-artifact-v1.schema.json", 0o644, "root", "root"),
     ("contracts/deployment/release-target-v1.schema.json", "/usr/local/share/liqi/contracts/deployment/release-target-v1.schema.json", 0o644, "root", "root"),
     ("contracts/deployment/installed-release-v1.schema.json", "/usr/local/share/liqi/contracts/deployment/installed-release-v1.schema.json", 0o644, "root", "root"),
@@ -102,7 +107,45 @@ def database_files() -> tuple[tuple[str, str, int, str, str], ...]:
         records.append((repository_path, "/usr/local/lib/liqi-database/" + repository_path, 0o644, "root", "root"))
     return tuple(records)
 
-FILES = BASE_FILES + database_files()
+
+PROVIDER_CONTRACT_FILES = (
+    "contracts/runtime/runtime-config-v1.schema.json",
+    "contracts/runtime/runtime-artifact-result-v1.schema.json",
+    "contracts/database/database-runtime-v1.schema.json",
+    "contracts/database/migration-readiness-v1.schema.json",
+    "contracts/native/native-artifact-v1.schema.json",
+)
+
+NATIVE_SOURCE_ROOTS = (
+    "native/scripts",
+)
+
+
+def provider_files() -> tuple[tuple[str, str, int, str, str], ...]:
+    records: list[tuple[str, str, int, str, str]] = []
+    for repository_path in PROVIDER_CONTRACT_FILES:
+        source = ROOT / repository_path
+        if not source.is_file():
+            raise FileNotFoundError(repository_path)
+        if repository_path.startswith("contracts/runtime/"):
+            target = "/usr/local/share/liqi/contracts/runtime/" + source.name
+        elif repository_path.startswith("contracts/database/"):
+            target = "/usr/local/lib/liqi-database/contracts/database/" + source.name
+        else:
+            target = "/usr/local/lib/liqi-native/contracts/native/" + source.name
+        records.append((repository_path, target, 0o644, "root", "root"))
+    for relative_root in NATIVE_SOURCE_ROOTS:
+        for source in sorted((ROOT / relative_root).rglob("*")):
+            if not source.is_file() or "__pycache__" in source.parts:
+                continue
+            repository_path = source.relative_to(ROOT).as_posix()
+            target = "/usr/local/lib/liqi-native/" + repository_path
+            executable = source.suffix in {".sh", ".py"} or source.read_bytes().startswith(b"#!")
+            records.append((repository_path, target, 0o755 if executable else 0o644, "root", "root"))
+    return tuple(records)
+
+
+FILES = BASE_FILES + database_files() + provider_files()
 
 
 def parse_args() -> argparse.Namespace:

@@ -8,21 +8,24 @@
 			read_body 30s
 			idle 5m
 		}
-		max_header_size 32KB
+		max_header_size ${header_limit_bytes}B
 		0rtt off
 	}
 }
 
 ${hostname} {
 	log {
-		format json
+		format filter {
+			request>headers>X-Liqi-Probe-Token delete
+			wrap json
+		}
 	}
 
 	@admin path /admin /admin/* /debug /debug/* /metrics
 	respond @admin 404
 
 	request_body {
-		max_size 1MB
+		max_size ${request_body_limit_bytes}B
 	}
 
 	header {
@@ -35,7 +38,7 @@ ${hostname} {
 
 	@public_liveness path /health/live
 	handle @public_liveness {
-		reverse_proxy 127.0.0.1:4000 {
+		reverse_proxy ${backend_address} {
 			transport http {
 				dial_timeout 2s
 				response_header_timeout 3s
@@ -44,7 +47,7 @@ ${hostname} {
 	}
 
 	handle {
-		reverse_proxy 127.0.0.1:4000 {
+		reverse_proxy ${backend_address} {
 			transport http {
 				dial_timeout 3s
 				response_header_timeout 30s

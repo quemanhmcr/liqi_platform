@@ -50,8 +50,8 @@
     "plaintext_secrets_forbidden": true
   },
   "database_compatibility": {
-    "minimum_migration": 4,
-    "maximum_migration": 4,
+    "minimum_migration": 8,
+    "maximum_migration": 8,
     "rollback_safe_through": 4
   },
   "native_artifacts": [],
