@@ -12,6 +12,19 @@ require_command() {
 }
 require_command "$PSQL"
 require_command sha256sum
+PSQL_RESOLVED=$(command -v "$PSQL")
+
+psql_uses_native_windows_paths() {
+  command -v cygpath >/dev/null 2>&1 || return 1
+
+  local native_path
+  native_path=$(cygpath -m "$PSQL_RESOLVED" 2>/dev/null) || return 1
+
+  case "${native_path,,}" in
+    *.exe|*.bat|*.cmd) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
 psql_include_path() {
   local path=$1
@@ -19,7 +32,7 @@ psql_include_path() {
     echo "migration path contains unsupported quote or newline: $path" >&2
     exit 65
   }
-  if [[ "$PSQL" == *.exe ]] && command -v cygpath >/dev/null 2>&1; then
+  if psql_uses_native_windows_paths; then
     cygpath -m "$path"
   else
     printf '%s\n' "$path"

@@ -157,6 +157,17 @@ if "GRANT SELECT ON platform.outbox_events TO liqi_api" in all_migration_text:
 if "GRANT SELECT ON platform.command_idempotency_v1 TO liqi_api" in all_migration_text:
     failures.append("API runtime must not receive direct idempotency table access")
 
+migration_runner = (ROOT / "bin/migrate.sh").read_text(encoding="utf-8")
+for token in (
+    'PSQL_RESOLVED=$(command -v "$PSQL")',
+    'native_path=$(cygpath -m "$PSQL_RESOLVED"',
+    'case "${native_path,,}" in',
+    '*.exe|*.bat|*.cmd)',
+    'if psql_uses_native_windows_paths; then',
+):
+    if token not in migration_runner:
+        failures.append(f"migration runner missing native psql path guard: {token}")
+
 postgres_config = (ROOT / "config/postgresql-liqi.conf").read_text(encoding="utf-8")
 for line in ["listen_addresses = ''", "max_connections = 80", "archive_timeout = '5min'", "password_encryption = 'scram-sha-256'"]:
     if line not in postgres_config:
