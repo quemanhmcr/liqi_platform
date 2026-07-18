@@ -144,5 +144,6 @@ defmodule Liqi.Web.PlatformChannel do
   defp error_code(:actor_key_unauthorized), do: "actor_key_unauthorized"
   defp error_code(:slow_consumer), do: "slow_consumer"
   defp error_code({:handoff_gap, _}), do: "handoff_gap"
+  defp error_code(:realtime_cursor_gap), do: "handoff_gap"
   defp error_code(_), do: "runtime_unavailable"
 end

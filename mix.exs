@@ -38,6 +38,8 @@ defmodule LiqiPlatform.MixProject do
       {:telemetry, "~> 1.3"},
       {:telemetry_metrics, "~> 1.1"},
       {:telemetry_poller, "~> 1.3"},
+      {:liqi_persistence, path: "beam/apps/liqi_persistence"},
+      {:liqi_jobs, path: "beam/apps/liqi_jobs"},
       {:liqi_native, path: "native/elixir"}
     ]
   end

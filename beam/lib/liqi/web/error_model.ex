@@ -5,6 +5,7 @@ defmodule Liqi.Web.ErrorModel do
   @messages %{
     "auth.unauthorized" => "Authentication is required for this platform probe.",
     "probe.not_found" => "The platform probe was not found.",
+    "probe.identity_mismatch" => "The platform probe identity does not match the durable event.",
     "validation.failed" => "The request is invalid.",
     "deadline.exceeded" => "The request deadline was exceeded.",
     "capacity.endpoint" => "The endpoint is at capacity.",

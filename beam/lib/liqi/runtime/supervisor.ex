@@ -81,22 +81,7 @@ defmodule Liqi.Runtime.Supervisor do
     )
   end
 
-  defp oban_child(_config) do
-    {Oban,
-     repo: Liqi.Persistence.WorkerRepo,
-     name: Liqi.Oban,
-     prefix: "oban",
-     notifier: Oban.Notifiers.PG,
-     peer: false,
-     queues: [maintenance: 1, push: 2, provider: 1, media: 1, cleanup: 1, recovery: 1],
-     plugins: [
-       {Oban.Plugins.Pruner, max_age: 2_592_000, limit: 500},
-       Oban.Plugins.Lifeline
-     ],
-     stage_interval: 1_000,
-     shutdown_grace_period: 60_000,
-     log: false}
-  end
+  defp oban_child(_config), do: {Oban, LiqiJobs.Config.oban_options()}
 
   defp maybe_add(children, true, child), do: children ++ [child]
   defp maybe_add(children, false, _child), do: children

@@ -17,6 +17,11 @@
       "retryable": false
     },
     {
+      "code": "probe.identity_mismatch",
+      "httpStatus": 409,
+      "retryable": false
+    },
+    {
       "code": "idempotency.conflict",
       "httpStatus": 409,
       "retryable": false

@@ -9,7 +9,8 @@
     "secretRef": "systemd-credential://phoenix-secret-key-base"
   },
   "database": {
-    "secretRef": "systemd-credential://database-url",
+    "secretRef": "systemd-credential://database-role-urls",
+    "credentialFormat": "role-url-bundle-v1",
     "requiredMigrationVersion": 8,
     "admissionConcurrency": 24
   },
@@ -53,7 +54,7 @@
   },
   "oban": {
     "enabled": false,
-    "concurrency": 4
+    "concurrency": 6
   },
   "features": {
     "persistence": true,

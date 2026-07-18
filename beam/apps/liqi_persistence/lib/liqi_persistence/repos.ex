@@ -41,7 +41,12 @@ defmodule LiqiPersistence.Repos do
   def worker, do: fetch!(:worker)
 
   @spec provider_children() :: [module()]
-  def provider_children, do: Map.values(@defaults)
+  def provider_children do
+    :liqi_persistence
+    |> Application.get_env(:repos, @defaults)
+    |> Map.values()
+    |> Enum.uniq()
+  end
 
   defp fetch!(role) do
     :liqi_persistence

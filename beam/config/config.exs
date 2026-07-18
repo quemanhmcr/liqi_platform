@@ -3,12 +3,22 @@ import Config
 config :liqi_platform,
   ecto_repos: [Liqi.Persistence.ApiRepo, Liqi.Persistence.RealtimeRepo, Liqi.Persistence.WorkerRepo],
   runtime_config_provider: Liqi.Runtime.Config,
-  persistence_adapter: Liqi.Persistence.PostgresV1,
+  persistence_adapter: LiqiPersistence.RuntimeAdapter,
   start_endpoint: false,
   start_persistence: false,
   start_oban: false,
   start_dispatcher: false,
   start_outbox_worker: false
+
+config :liqi_persistence,
+  start_repos: false,
+  repos: %{
+    command: Liqi.Persistence.ApiRepo,
+    realtime: Liqi.Persistence.RealtimeRepo,
+    worker: Liqi.Persistence.WorkerRepo
+  }
+
+config :liqi_jobs, start_oban: false
 
 config :liqi_platform, Liqi.Web.Endpoint,
   url: [host: "localhost"],

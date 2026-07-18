@@ -31,7 +31,6 @@ defmodule LiqiPersistence.Config do
       port: integer_env!("LIQI_DATABASE_PORT", 6432),
       database: System.get_env("LIQI_DATABASE_NAME", "liqi"),
       username: role_config.username,
-      password: read_secret!(role_config.password_env),
       pool_size: role_config.pool_size,
       prepare: :unnamed,
       queue_target: 50,
@@ -42,6 +41,7 @@ defmodule LiqiPersistence.Config do
       show_sensitive_data_on_connection_error: false,
       telemetry_prefix: [:liqi, :persistence, role]
     ]
+    |> Keyword.put(:password, read_secret!(role_config.password_env))
   end
 
   @spec pool_sizes() :: %{command: 12, realtime: 4, worker: 6}

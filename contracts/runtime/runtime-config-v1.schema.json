@@ -73,6 +73,7 @@
       "additionalProperties": false,
       "required": [
         "secretRef",
+        "credentialFormat",
         "requiredMigrationVersion",
         "admissionConcurrency"
       ],
@@ -90,6 +91,9 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 35
+        },
+        "credentialFormat": {
+          "const": "role-url-bundle-v1"
         }
       }
     },
@@ -289,9 +293,7 @@
           "type": "boolean"
         },
         "concurrency": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 32
+          "const": 6
         }
       }
     },

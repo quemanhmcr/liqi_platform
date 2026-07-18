@@ -26,7 +26,7 @@ defmodule Liqi.Web.ProbeObservationController do
         render_error(conn, 404, "probe.not_found")
 
       {:error, :probe_identity_mismatch} ->
-        render_error(conn, 409, "idempotency.conflict")
+        render_error(conn, 409, "probe.identity_mismatch")
 
       {:error, :database_unavailable} ->
         render_error(conn, 503, "database.unavailable", retryable: true)
