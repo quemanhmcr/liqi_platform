@@ -1,0 +1,505 @@
+{
+  "schema_version": "slo-v1",
+  "classification": "working-objectives-not-external-sla",
+  "window_days": 28,
+  "objectives": [
+    {
+      "id": "api-availability",
+      "owner": "Senior 1",
+      "sli_source": "phoenix.http.requests",
+      "window": "28d",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "ratio",
+        "operator": ">=",
+        "value": 0.995,
+        "unit": "ratio"
+      },
+      "alert": {
+        "warning": "api-availability approaches the V1 objective",
+        "critical": "api-availability violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/api-slo-v1.md",
+      "degraded_mode": "Reject excess work before transaction; preserve health and rollback paths."
+    },
+    {
+      "id": "durable-write-success",
+      "owner": "Senior 2",
+      "sli_source": "liqi.durable_write.result",
+      "window": "28d",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "ratio",
+        "operator": ">=",
+        "value": 0.999,
+        "unit": "ratio"
+      },
+      "alert": {
+        "warning": "durable-write-success approaches the V1 objective",
+        "critical": "durable-write-success violates the V1 objective",
+        "severity": "SEV1"
+      },
+      "runbook": "operations/runbooks/durable-write-v1.md",
+      "degraded_mode": "Reject before transaction with retryable idempotent error; never acknowledge an uncommitted write."
+    },
+    {
+      "id": "api-latency-p95",
+      "owner": "Senior 1",
+      "sli_source": "phoenix.http.duration",
+      "window": "1h",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "percentile",
+        "operator": "<=",
+        "value": 250,
+        "unit": "milliseconds",
+        "percentile": "p95"
+      },
+      "alert": {
+        "warning": "api-latency-p95 approaches the V1 objective",
+        "critical": "api-latency-p95 violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/api-slo-v1.md",
+      "degraded_mode": "Apply admission control and preserve command-plane capacity."
+    },
+    {
+      "id": "api-latency-p99",
+      "owner": "Senior 1",
+      "sli_source": "phoenix.http.duration",
+      "window": "1h",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "percentile",
+        "operator": "<=",
+        "value": 750,
+        "unit": "milliseconds",
+        "percentile": "p99"
+      },
+      "alert": {
+        "warning": "api-latency-p99 approaches the V1 objective",
+        "critical": "api-latency-p99 violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/api-slo-v1.md",
+      "degraded_mode": "Shed low-priority work and stop cohort expansion."
+    },
+    {
+      "id": "commit-to-deliver-p95",
+      "owner": "Senior 1",
+      "sli_source": "liqi.realtime.commit_to_deliver",
+      "window": "1h",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "percentile",
+        "operator": "<=",
+        "value": 250,
+        "unit": "milliseconds",
+        "percentile": "p95"
+      },
+      "alert": {
+        "warning": "commit-to-deliver-p95 approaches the V1 objective",
+        "critical": "commit-to-deliver-p95 violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/realtime-delivery-v1.md",
+      "degraded_mode": "Delay realtime delivery while retaining durable outbox and resume repair."
+    },
+    {
+      "id": "commit-to-deliver-p99",
+      "owner": "Senior 1",
+      "sli_source": "liqi.realtime.commit_to_deliver",
+      "window": "1h",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "percentile",
+        "operator": "<=",
+        "value": 1000,
+        "unit": "milliseconds",
+        "percentile": "p99"
+      },
+      "alert": {
+        "warning": "commit-to-deliver-p99 approaches the V1 objective",
+        "critical": "commit-to-deliver-p99 violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/realtime-delivery-v1.md",
+      "degraded_mode": "Disconnect slow consumers and require resume/gap repair before command-plane impact."
+    },
+    {
+      "id": "outbox-age-p99",
+      "owner": "Senior 2",
+      "sli_source": "liqi.outbox.oldest_age",
+      "window": "15m",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "percentile",
+        "operator": "<=",
+        "value": 2000,
+        "unit": "milliseconds",
+        "percentile": "p99"
+      },
+      "alert": {
+        "warning": "outbox-age-p99 approaches the V1 objective",
+        "critical": "outbox-age-p99 violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/outbox-worker-backlog-v1.md",
+      "degraded_mode": "Pause non-critical background work and preserve committed outbox rows."
+    },
+    {
+      "id": "oban-queue-age-p99",
+      "owner": "Senior 2",
+      "sli_source": "oban.queue.age",
+      "window": "15m",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "percentile",
+        "operator": "<=",
+        "value": 5000,
+        "unit": "milliseconds",
+        "percentile": "p99"
+      },
+      "alert": {
+        "warning": "oban-queue-age-p99 approaches the V1 objective",
+        "critical": "oban-queue-age-p99 violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/outbox-worker-backlog-v1.md",
+      "degraded_mode": "Reduce producer admission and prioritize recovery-safe queues."
+    },
+    {
+      "id": "realtime-resume-success",
+      "owner": "Senior 1",
+      "sli_source": "liqi.session.resume.result",
+      "window": "1h",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "ratio",
+        "operator": ">=",
+        "value": 0.99,
+        "unit": "ratio"
+      },
+      "alert": {
+        "warning": "realtime-resume-success approaches the V1 objective",
+        "critical": "realtime-resume-success violates the V1 objective",
+        "severity": "SEV1"
+      },
+      "runbook": "operations/runbooks/reconnect-slow-consumer-v1.md",
+      "degraded_mode": "Fall back to bounded gap repair or controlled disconnect."
+    },
+    {
+      "id": "slow-consumer-rate",
+      "owner": "Senior 1",
+      "sli_source": "liqi.realtime.slow_consumer",
+      "window": "1h",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "ratio",
+        "operator": "<=",
+        "value": 0.01,
+        "unit": "ratio"
+      },
+      "alert": {
+        "warning": "slow-consumer-rate approaches the V1 objective",
+        "critical": "slow-consumer-rate violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/reconnect-slow-consumer-v1.md",
+      "degraded_mode": "Coalesce ephemeral traffic and disconnect before durable queue overflow."
+    },
+    {
+      "id": "actor-mailbox-age-p99",
+      "owner": "Senior 1",
+      "sli_source": "beam.actor.mailbox.age",
+      "window": "15m",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "percentile",
+        "operator": "<=",
+        "value": 250,
+        "unit": "milliseconds",
+        "percentile": "p99"
+      },
+      "alert": {
+        "warning": "actor-mailbox-age-p99 approaches the V1 objective",
+        "critical": "actor-mailbox-age-p99 violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/beam-saturation-v1.md",
+      "degraded_mode": "Stop new actor admission and drain overloaded partitions."
+    },
+    {
+      "id": "beam-run-queue-p99",
+      "owner": "Senior 1",
+      "sli_source": "beam.run_queue",
+      "window": "15m",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "percentile",
+        "operator": "<=",
+        "value": 8,
+        "unit": "count",
+        "percentile": "p99"
+      },
+      "alert": {
+        "warning": "beam-run-queue-p99 approaches the V1 objective",
+        "critical": "beam-run-queue-p99 violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/beam-saturation-v1.md",
+      "degraded_mode": "Disable non-essential native/background work and preserve one OCPU host reserve."
+    },
+    {
+      "id": "beam-scheduler-utilization-p99",
+      "owner": "Senior 1",
+      "sli_source": "beam.scheduler.utilization",
+      "window": "15m",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "percentile",
+        "operator": "<=",
+        "value": 85,
+        "unit": "percent",
+        "percentile": "p99"
+      },
+      "alert": {
+        "warning": "beam-scheduler-utilization-p99 approaches the V1 objective",
+        "critical": "beam-scheduler-utilization-p99 violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/beam-saturation-v1.md",
+      "degraded_mode": "Apply admission limits before scheduler collapse."
+    },
+    {
+      "id": "native-latency-p99",
+      "owner": "Senior 3",
+      "sli_source": "liqi.native.duration",
+      "window": "15m",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "percentile",
+        "operator": "<=",
+        "value": 500,
+        "unit": "microseconds",
+        "percentile": "p99"
+      },
+      "alert": {
+        "warning": "native-latency-p99 approaches the V1 objective",
+        "critical": "native-latency-p99 violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/native-degradation-v1.md",
+      "degraded_mode": "Disable the kernel feature flag and use the pure Elixir reference path."
+    },
+    {
+      "id": "native-fallback-error-rate",
+      "owner": "Senior 3",
+      "sli_source": "liqi.native.fallback.result",
+      "window": "1h",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "ratio",
+        "operator": "<=",
+        "value": 0.001,
+        "unit": "ratio"
+      },
+      "alert": {
+        "warning": "native-fallback-error-rate approaches the V1 objective",
+        "critical": "native-fallback-error-rate violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/native-degradation-v1.md",
+      "degraded_mode": "Keep native disabled and fail the affected capability closed if parity is unknown."
+    },
+    {
+      "id": "db-pool-wait-p99",
+      "owner": "Senior 2",
+      "sli_source": "ecto.pool.queue_time",
+      "window": "15m",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "percentile",
+        "operator": "<=",
+        "value": 100,
+        "unit": "milliseconds",
+        "percentile": "p99"
+      },
+      "alert": {
+        "warning": "db-pool-wait-p99 approaches the V1 objective",
+        "critical": "db-pool-wait-p99 violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/database-saturation-v1.md",
+      "degraded_mode": "Reject new durable commands before transaction and preserve direct recovery connections."
+    },
+    {
+      "id": "backup-age",
+      "owner": "Senior 2",
+      "sli_source": "liqi.backup.age",
+      "window": "1h",
+      "missing_data": "block-promotion",
+      "objective": {
+        "kind": "freshness",
+        "operator": "<=",
+        "value": 86400,
+        "unit": "seconds"
+      },
+      "alert": {
+        "warning": "backup-age approaches the V1 objective",
+        "critical": "backup-age violates the V1 objective",
+        "severity": "SEV1"
+      },
+      "runbook": "operations/runbooks/recovery-freshness-v1.md",
+      "degraded_mode": "Block promotion and cutover until a fresh valid backup exists."
+    },
+    {
+      "id": "wal-archive-lag",
+      "owner": "Senior 2",
+      "sli_source": "liqi.wal.archive_lag",
+      "window": "15m",
+      "missing_data": "block-promotion",
+      "objective": {
+        "kind": "gauge",
+        "operator": "<=",
+        "value": 300,
+        "unit": "seconds"
+      },
+      "alert": {
+        "warning": "wal-archive-lag approaches the V1 objective",
+        "critical": "wal-archive-lag violates the V1 objective",
+        "severity": "SEV1"
+      },
+      "runbook": "operations/runbooks/recovery-freshness-v1.md",
+      "degraded_mode": "Block cutover and investigate archive transport without mutating the live database."
+    },
+    {
+      "id": "restore-freshness",
+      "owner": "Senior 5",
+      "sli_source": "readiness.recovery.completed_at",
+      "window": "24h",
+      "missing_data": "block-promotion",
+      "objective": {
+        "kind": "freshness",
+        "operator": "<=",
+        "value": 7,
+        "unit": "days"
+      },
+      "alert": {
+        "warning": "restore-freshness approaches the V1 objective",
+        "critical": "restore-freshness violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/recovery-freshness-v1.md",
+      "degraded_mode": "Keep V1 not ready until an isolated restore drill passes for the exact compatibility window."
+    },
+    {
+      "id": "disk-exhaustion-forecast",
+      "owner": "Senior 4",
+      "sli_source": "node.filesystem.forecast",
+      "window": "6h",
+      "missing_data": "bad",
+      "objective": {
+        "kind": "forecast",
+        "operator": ">",
+        "value": 7,
+        "unit": "days"
+      },
+      "alert": {
+        "warning": "disk-exhaustion-forecast approaches the V1 objective",
+        "critical": "disk-exhaustion-forecast violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/disk-pressure-v1.md",
+      "degraded_mode": "Stop artifact retention growth and background producers; preserve 20 GiB reserve."
+    },
+    {
+      "id": "memory-reserve",
+      "owner": "Senior 5",
+      "sli_source": "readiness.capacity.memory_reserve",
+      "window": "15m",
+      "missing_data": "block-promotion",
+      "objective": {
+        "kind": "gauge",
+        "operator": ">=",
+        "value": 4096,
+        "unit": "count"
+      },
+      "alert": {
+        "warning": "memory-reserve approaches the V1 objective",
+        "critical": "memory-reserve violates the V1 objective",
+        "severity": "SEV2"
+      },
+      "runbook": "operations/runbooks/beam-saturation-v1.md",
+      "degraded_mode": "Stop cohort expansion and shed optional work before host recovery reserve is consumed."
+    }
+  ],
+  "correctness_events": [
+    {
+      "id": "authorization-bypass",
+      "owner": "Senior 1",
+      "tolerance": "zero",
+      "budget": 0,
+      "sli_source": "security.authorization_bypass",
+      "missing_data": "alert-and-bad",
+      "alert": {
+        "threshold": ">0",
+        "severity": "SEV0"
+      },
+      "runbook": "operations/runbooks/security-correctness-v1.md"
+    },
+    {
+      "id": "secret-exposure",
+      "owner": "Senior 5",
+      "tolerance": "zero",
+      "budget": 0,
+      "sli_source": "security.secret_exposure",
+      "missing_data": "alert-and-bad",
+      "alert": {
+        "threshold": ">0",
+        "severity": "SEV0"
+      },
+      "runbook": "operations/runbooks/security-correctness-v1.md"
+    },
+    {
+      "id": "duplicate-durable-identity",
+      "owner": "Senior 2",
+      "tolerance": "zero",
+      "budget": 0,
+      "sli_source": "database.duplicate_durable_identity",
+      "missing_data": "alert-and-bad",
+      "alert": {
+        "threshold": ">0",
+        "severity": "SEV1"
+      },
+      "runbook": "operations/runbooks/security-correctness-v1.md"
+    },
+    {
+      "id": "event-before-commit",
+      "owner": "Senior 2",
+      "tolerance": "zero",
+      "budget": 0,
+      "sli_source": "database.event_before_commit",
+      "missing_data": "alert-and-bad",
+      "alert": {
+        "threshold": ">0",
+        "severity": "SEV1"
+      },
+      "runbook": "operations/runbooks/security-correctness-v1.md"
+    },
+    {
+      "id": "durable-event-loss",
+      "owner": "Senior 2",
+      "tolerance": "zero",
+      "budget": 0,
+      "sli_source": "readiness.durable_event_loss",
+      "missing_data": "alert-and-bad",
+      "alert": {
+        "threshold": ">0",
+        "severity": "SEV0"
+      },
+      "runbook": "operations/runbooks/security-correctness-v1.md"
+    }
+  ]
+}

@@ -1,0 +1,387 @@
+{
+  "schema_version": "provider-gates-v1",
+  "registry_version": "1.0.0",
+  "gates": [
+    {
+      "id": "runtime-source",
+      "owner": "Senior 1",
+      "seam": "beam/scripts/validate-v1-source.sh --output",
+      "stages": [
+        "source",
+        "integration",
+        "artifact",
+        "promotion"
+      ],
+      "provider_state": "pending-provider-publication",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "beam/scripts/validate-v1-source.sh"
+      ],
+      "argv": [
+        "bash",
+        "beam/scripts/validate-v1-source.sh",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [],
+      "timeout_seconds": 900,
+      "result_schema": null,
+      "action_required": "Publish the BEAM/Phoenix source validation command with runtime, envelope, capacity and telemetry checks."
+    },
+    {
+      "id": "runtime-integration",
+      "owner": "Senior 1",
+      "seam": "beam/scripts/run-v1-integration.sh --output",
+      "stages": [
+        "integration",
+        "promotion"
+      ],
+      "provider_state": "pending-provider-publication",
+      "mutation_class": "disposable-database",
+      "required_paths": [
+        "beam/scripts/run-v1-integration.sh"
+      ],
+      "argv": [
+        "bash",
+        "beam/scripts/run-v1-integration.sh",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [
+        "LIQI_TEST_DATABASE_URL"
+      ],
+      "timeout_seconds": 1800,
+      "result_schema": null,
+      "action_required": "Publish the provider-owned disposable PostgreSQL runtime integration command."
+    },
+    {
+      "id": "runtime-artifact",
+      "owner": "Senior 1",
+      "seam": "beam/scripts/verify-v1-release.sh --manifest",
+      "stages": [
+        "artifact",
+        "promotion"
+      ],
+      "provider_state": "pending-provider-publication",
+      "mutation_class": "build",
+      "required_paths": [
+        "beam/scripts/verify-v1-release.sh"
+      ],
+      "argv": [
+        "bash",
+        "beam/scripts/verify-v1-release.sh",
+        "--manifest",
+        "{env:LIQI_RELEASE_MANIFEST}",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [
+        "LIQI_RELEASE_MANIFEST"
+      ],
+      "timeout_seconds": 1800,
+      "result_schema": null,
+      "action_required": "Publish release identity, ARM64 compatibility, BEAM settings and mix release verification."
+    },
+    {
+      "id": "runtime-live-probe",
+      "owner": "Senior 1",
+      "seam": "beam/bin/platform-probe --output",
+      "stages": [
+        "live-staging",
+        "promotion",
+        "post-cutover"
+      ],
+      "provider_state": "pending-provider-publication",
+      "mutation_class": "live-read-only",
+      "required_paths": [
+        "beam/bin/platform-probe"
+      ],
+      "argv": [
+        "beam/bin/platform-probe",
+        "--base-url",
+        "{env:LIQI_BASE_URL}",
+        "--release-id",
+        "{env:LIQI_RELEASE_ID}",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [
+        "LIQI_BASE_URL",
+        "LIQI_RELEASE_ID"
+      ],
+      "timeout_seconds": 900,
+      "result_schema": "contracts/readiness/live-platform-probe-v1.schema.json",
+      "action_required": "Publish the live provider probe; Senior 5 will not reproduce Phoenix/realtime/native semantics."
+    },
+    {
+      "id": "database-source",
+      "owner": "Senior 2",
+      "seam": "database/tests/run-v1-source-validation.sh --output",
+      "stages": [
+        "source",
+        "integration",
+        "promotion"
+      ],
+      "provider_state": "pending-provider-publication",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "database/tests/run-v1-source-validation.sh"
+      ],
+      "argv": [
+        "bash",
+        "database/tests/run-v1-source-validation.sh",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [],
+      "timeout_seconds": 900,
+      "result_schema": null,
+      "action_required": "Publish V1 migration, outbox, Oban and connection-budget source validation."
+    },
+    {
+      "id": "database-integration",
+      "owner": "Senior 2",
+      "seam": "database/tests/integration/run-v1-database-tests.sh --output",
+      "stages": [
+        "integration",
+        "promotion"
+      ],
+      "provider_state": "pending-provider-publication",
+      "mutation_class": "disposable-database",
+      "required_paths": [
+        "database/tests/integration/run-v1-database-tests.sh"
+      ],
+      "argv": [
+        "bash",
+        "database/tests/integration/run-v1-database-tests.sh",
+        "--database-url",
+        "{env:LIQI_TEST_DATABASE_URL}",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [
+        "LIQI_TEST_DATABASE_URL"
+      ],
+      "timeout_seconds": 1800,
+      "result_schema": null,
+      "action_required": "Publish the disposable PostgreSQL V1 authority/outbox/Oban integration command."
+    },
+    {
+      "id": "database-recovery",
+      "owner": "Senior 2",
+      "seam": "database/bin/run-restore-drill-v1.sh --output",
+      "stages": [
+        "live-staging",
+        "promotion"
+      ],
+      "provider_state": "pending-provider-publication",
+      "mutation_class": "isolated-restore",
+      "required_paths": [
+        "database/bin/run-restore-drill-v1.sh"
+      ],
+      "argv": [
+        "bash",
+        "database/bin/run-restore-drill-v1.sh",
+        "--release-id",
+        "{env:LIQI_RELEASE_ID}",
+        "--approval-ref",
+        "{env:LIQI_RESTORE_APPROVAL_REF}",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [
+        "LIQI_RELEASE_ID",
+        "LIQI_RESTORE_APPROVAL_REF"
+      ],
+      "timeout_seconds": 7200,
+      "result_schema": "contracts/readiness/recovery-result-v1.schema.json",
+      "action_required": "Publish the approved isolated restore/PITR command and evidence; never restore over live."
+    },
+    {
+      "id": "native-source",
+      "owner": "Senior 3",
+      "seam": "native/scripts/validate-v1-source.sh --output",
+      "stages": [
+        "source",
+        "integration",
+        "artifact",
+        "promotion"
+      ],
+      "provider_state": "pending-provider-publication",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "native/scripts/validate-v1-source.sh"
+      ],
+      "argv": [
+        "bash",
+        "native/scripts/validate-v1-source.sh",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [],
+      "timeout_seconds": 1800,
+      "result_schema": null,
+      "action_required": "Publish native policy, parity, scheduling-class and artifact-contract source validation."
+    },
+    {
+      "id": "native-safety",
+      "owner": "Senior 3",
+      "seam": "native/scripts/run-v1-safety-gates.sh --output",
+      "stages": [
+        "integration",
+        "artifact",
+        "promotion"
+      ],
+      "provider_state": "pending-provider-publication",
+      "mutation_class": "build",
+      "required_paths": [
+        "native/scripts/run-v1-safety-gates.sh"
+      ],
+      "argv": [
+        "bash",
+        "native/scripts/run-v1-safety-gates.sh",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [],
+      "timeout_seconds": 3600,
+      "result_schema": null,
+      "action_required": "Publish exact property/fuzz/panic/fallback/benchmark evidence for the V1 native kernels."
+    },
+    {
+      "id": "native-artifact",
+      "owner": "Senior 3",
+      "seam": "native/scripts/verify-v1-artifact.sh --manifest",
+      "stages": [
+        "artifact",
+        "promotion"
+      ],
+      "provider_state": "pending-provider-publication",
+      "mutation_class": "build",
+      "required_paths": [
+        "native/scripts/verify-v1-artifact.sh"
+      ],
+      "argv": [
+        "bash",
+        "native/scripts/verify-v1-artifact.sh",
+        "--manifest",
+        "{env:LIQI_NATIVE_MANIFEST}",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [
+        "LIQI_NATIVE_MANIFEST"
+      ],
+      "timeout_seconds": 1800,
+      "result_schema": null,
+      "action_required": "Publish signed ARM64 artifact identity including target triple and NIF ABI."
+    },
+    {
+      "id": "infrastructure-source",
+      "owner": "Senior 4",
+      "seam": "infrastructure/validation/run-v1-source-validation.sh --output",
+      "stages": [
+        "source",
+        "integration",
+        "promotion"
+      ],
+      "provider_state": "pending-provider-publication",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "infrastructure/validation/run-v1-source-validation.sh"
+      ],
+      "argv": [
+        "bash",
+        "infrastructure/validation/run-v1-source-validation.sh",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [],
+      "timeout_seconds": 900,
+      "result_schema": null,
+      "action_required": "Publish Caddy/systemd/OCI source validation for the V1 release topology."
+    },
+    {
+      "id": "infrastructure-plan",
+      "owner": "Senior 4",
+      "seam": "infrastructure/validation/validate-v1-plan.sh",
+      "stages": [
+        "promotion"
+      ],
+      "provider_state": "pending-provider-publication",
+      "mutation_class": "read-only",
+      "required_paths": [
+        "infrastructure/validation/validate-v1-plan.sh"
+      ],
+      "argv": [
+        "bash",
+        "infrastructure/validation/validate-v1-plan.sh",
+        "--plan-json",
+        "{env:LIQI_OCI_PLAN_JSON}",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [
+        "LIQI_OCI_PLAN_JSON"
+      ],
+      "timeout_seconds": 900,
+      "result_schema": null,
+      "action_required": "Publish reviewed plan/drift/cost/security validation; this gate never applies the plan."
+    },
+    {
+      "id": "host-readiness",
+      "owner": "Senior 4",
+      "seam": "infrastructure/bin/collect-v1-host-readiness --output",
+      "stages": [
+        "live-staging",
+        "promotion",
+        "post-cutover"
+      ],
+      "provider_state": "pending-provider-publication",
+      "mutation_class": "live-read-only",
+      "required_paths": [
+        "infrastructure/bin/collect-v1-host-readiness"
+      ],
+      "argv": [
+        "infrastructure/bin/collect-v1-host-readiness",
+        "--release-id",
+        "{env:LIQI_RELEASE_ID}",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [
+        "LIQI_RELEASE_ID"
+      ],
+      "timeout_seconds": 900,
+      "result_schema": null,
+      "action_required": "Publish host readiness, capacity, drift, edge, systemd and release activation evidence."
+    },
+    {
+      "id": "rollback-evidence",
+      "owner": "Senior 4",
+      "seam": "infrastructure/bin/collect-v1-rollback-result --output",
+      "stages": [
+        "promotion",
+        "cutover"
+      ],
+      "provider_state": "pending-provider-publication",
+      "mutation_class": "live-read-only",
+      "required_paths": [
+        "infrastructure/bin/collect-v1-rollback-result"
+      ],
+      "argv": [
+        "infrastructure/bin/collect-v1-rollback-result",
+        "--release-id",
+        "{env:LIQI_RELEASE_ID}",
+        "--output",
+        "{output}"
+      ],
+      "required_environment": [
+        "LIQI_RELEASE_ID"
+      ],
+      "timeout_seconds": 900,
+      "result_schema": "contracts/readiness/rollback-result-v1.schema.json",
+      "action_required": "Publish exact rollback evidence after an approved owner-run exercise; no mutation occurs in this collector."
+    }
+  ]
+}

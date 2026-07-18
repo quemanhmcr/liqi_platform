@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/readiness/resilience-suite-result-v1.schema.json",
+  "title": "LIQI V1 resilience suite result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evidence_mode",
+    "git_sha",
+    "release_id",
+    "environment",
+    "started_at",
+    "completed_at",
+    "status",
+    "scenarios",
+    "correctness_events",
+    "failures"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "resilience-suite-result-v1"
+    },
+    "evidence_mode": {
+      "enum": [
+        "live",
+        "synthetic"
+      ]
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "environment": {
+      "enum": [
+        "staging",
+        "production"
+      ]
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked",
+        "failed"
+      ]
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 15,
+      "maxItems": 15,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "owner",
+          "status",
+          "sha256",
+          "evidence_ref"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              "postgresql-restart",
+              "pgbouncer-unavailable",
+              "outbox-backlog",
+              "oban-backlog",
+              "realtime-slow-consumers",
+              "reconnect-storm-25pct",
+              "native-artifact-disabled",
+              "native-kernel-panic",
+              "telemetry-sink-unavailable",
+              "disk-pressure",
+              "beam-process-crash",
+              "actor-supervisor-restart",
+              "release-activation-failure",
+              "v1-rollback-to-v0",
+              "host-reboot"
+            ]
+          },
+          "owner": {
+            "enum": [
+              "Senior 1",
+              "Senior 2",
+              "Senior 3",
+              "Senior 4",
+              "Senior 5"
+            ]
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "blocked",
+              "failed"
+            ]
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "evidence_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      }
+    },
+    "correctness_events": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authorization_bypass",
+        "secret_exposure",
+        "duplicate_durable_identity",
+        "event_before_commit",
+        "durable_event_loss"
+      ],
+      "properties": {
+        "authorization_bypass": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "secret_exposure": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duplicate_durable_identity": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "event_before_commit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "durable_event_loss": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    }
+  }
+}

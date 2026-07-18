@@ -1,0 +1,404 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/readiness/recovery-result-v1.schema.json",
+  "title": "LIQI isolated restore and PITR result V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evidence_mode",
+    "git_sha",
+    "release_id",
+    "environment",
+    "exercise_id",
+    "started_at",
+    "completed_at",
+    "status",
+    "approval_ref",
+    "source",
+    "target",
+    "backup",
+    "objectives",
+    "observed",
+    "steps",
+    "compatibility",
+    "mutations",
+    "cleanup",
+    "failures"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "recovery-result-v1"
+    },
+    "evidence_mode": {
+      "enum": [
+        "live",
+        "synthetic"
+      ]
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "environment": {
+      "enum": [
+        "staging",
+        "production"
+      ]
+    },
+    "exercise_id": {
+      "type": "string",
+      "pattern": "^restore-v1-[a-z0-9._-]{3,64}$"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked",
+        "failed"
+      ]
+    },
+    "approval_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "database_id",
+        "schema_version",
+        "release_id",
+        "mutated"
+      ],
+      "properties": {
+        "database_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "schema_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "release_id": {
+          "type": "string",
+          "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+        },
+        "mutated": {
+          "const": false
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "database_id",
+        "isolated",
+        "publicly_reachable"
+      ],
+      "properties": {
+        "database_id": {
+          "type": "string",
+          "pattern": "^liqi_restore_"
+        },
+        "isolated": {
+          "const": true
+        },
+        "publicly_reachable": {
+          "const": false
+        }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backup_id",
+        "created_at",
+        "sha256",
+        "wal_end",
+        "repository_ref"
+      ],
+      "properties": {
+        "backup_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "wal_end": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "repository_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      }
+    },
+    "objectives": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_rpo_seconds",
+        "max_rto_seconds"
+      ],
+      "properties": {
+        "max_rpo_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_rto_seconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "observed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rpo_seconds",
+        "rto_seconds",
+        "backup_age_seconds",
+        "restore_freshness_seconds"
+      ],
+      "properties": {
+        "rpo_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rto_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "backup_age_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "restore_freshness_seconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "owner",
+          "status",
+          "duration_ms",
+          "evidence_ref"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "select-latest-valid-backup",
+              "restore-isolated-target",
+              "wal-pitr",
+              "verify-migrations",
+              "verify-platform-invariants",
+              "elixir-read-only-probe",
+              "cleanup"
+            ]
+          },
+          "owner": {
+            "enum": [
+              "Senior 1",
+              "Senior 2",
+              "Senior 3",
+              "Senior 4",
+              "Senior 5"
+            ]
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "blocked",
+              "failed"
+            ]
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "evidence_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1024
+          }
+        }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_schema_compatible",
+        "migrations_expand_compatible",
+        "v0_rollback_readable"
+      ],
+      "properties": {
+        "release_schema_compatible": {
+          "type": "boolean"
+        },
+        "migrations_expand_compatible": {
+          "type": "boolean"
+        },
+        "v0_rollback_readable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "mutations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "isolated_target_mutated",
+        "source_database_mutated",
+        "production_traffic_changed",
+        "oci_mutated"
+      ],
+      "properties": {
+        "isolated_target_mutated": {
+          "type": "boolean"
+        },
+        "source_database_mutated": {
+          "const": false
+        },
+        "production_traffic_changed": {
+          "const": false
+        },
+        "oci_mutated": {
+          "type": "boolean"
+        }
+      }
+    },
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "status",
+        "evidence_ref"
+      ],
+      "properties": {
+        "required": {
+          "const": true
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "blocked",
+            "failed"
+          ]
+        },
+        "evidence_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1024
+        }
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence_mode": {
+            "const": "live"
+          },
+          "steps": {
+            "items": {
+              "properties": {
+                "status": {
+                  "const": "passed"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            }
+          },
+          "compatibility": {
+            "properties": {
+              "release_schema_compatible": {
+                "const": true
+              },
+              "migrations_expand_compatible": {
+                "const": true
+              },
+              "v0_rollback_readable": {
+                "const": true
+              }
+            }
+          },
+          "cleanup": {
+            "properties": {
+              "status": {
+                "const": "passed"
+              }
+            }
+          },
+          "failures": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
+}

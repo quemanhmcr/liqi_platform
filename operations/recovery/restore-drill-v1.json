@@ -1,0 +1,27 @@
+{
+  "schema_version": "restore-drill-plan-v1",
+  "owner": "Senior 5",
+  "provider": "Senior 2",
+  "source_environment": "production",
+  "target": {
+    "isolated": true,
+    "publicly_reachable": false,
+    "name_prefix": "liqi_restore_"
+  },
+  "steps": [
+    "select-latest-valid-backup",
+    "restore-isolated-target",
+    "wal-pitr",
+    "verify-migrations",
+    "verify-platform-invariants",
+    "elixir-read-only-probe",
+    "cleanup"
+  ],
+  "prohibitions": [
+    "restore-over-live",
+    "production-traffic-change",
+    "unapproved-oci-mutation"
+  ],
+  "required_result_schema": "contracts/readiness/recovery-result-v1.schema.json",
+  "pass_requires_cleanup": true
+}

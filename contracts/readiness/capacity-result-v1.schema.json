@@ -1,0 +1,483 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/readiness/capacity-result-v1.schema.json",
+  "title": "LIQI V1 capacity result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evidence_mode",
+    "git_sha",
+    "release_id",
+    "environment",
+    "observed_at",
+    "status",
+    "host",
+    "totals",
+    "reserve",
+    "beam",
+    "database",
+    "native",
+    "realtime",
+    "actors",
+    "oban",
+    "telemetry",
+    "provider_evidence",
+    "failures"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "capacity-result-v1"
+    },
+    "evidence_mode": {
+      "enum": [
+        "live",
+        "synthetic"
+      ]
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "environment": {
+      "enum": [
+        "staging",
+        "production"
+      ]
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked",
+        "failed"
+      ]
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shape",
+        "ocpu",
+        "memory_mib",
+        "combined_storage_gib"
+      ],
+      "properties": {
+        "shape": {
+          "const": "VM.Standard.A1.Flex"
+        },
+        "ocpu": {
+          "const": 4
+        },
+        "memory_mib": {
+          "const": 24576
+        },
+        "combined_storage_gib": {
+          "type": "number",
+          "maximum": 200
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ocpu",
+        "memory_mib",
+        "disk_gib"
+      ],
+      "properties": {
+        "ocpu": {
+          "type": "number",
+          "minimum": 0
+        },
+        "memory_mib": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "disk_gib": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "reserve": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ocpu",
+        "memory_mib",
+        "disk_gib"
+      ],
+      "properties": {
+        "ocpu": {
+          "type": "number",
+          "minimum": 0
+        },
+        "memory_mib": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "disk_gib": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "beam": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schedulers",
+        "dirty_cpu_schedulers",
+        "dirty_io_schedulers",
+        "async_threads",
+        "scheduler_bind_type",
+        "max_processes"
+      ],
+      "properties": {
+        "schedulers": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "dirty_cpu_schedulers": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "dirty_io_schedulers": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "async_threads": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "scheduler_bind_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "max_processes": {
+          "type": "integer",
+          "minimum": 1024
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "postgres_memory_mib",
+        "max_connections",
+        "pgbouncer_pool_mode",
+        "pgbouncer_server_connections",
+        "ecto_pool_size",
+        "oban_concurrency"
+      ],
+      "properties": {
+        "postgres_memory_mib": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_connections": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pgbouncer_pool_mode": {
+          "const": "transaction"
+        },
+        "pgbouncer_server_connections": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ecto_pool_size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "oban_concurrency": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "native": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "memory_mib",
+        "max_concurrency",
+        "regular_nif_budget_us",
+        "dirty_cpu_max_concurrency",
+        "fallback_enabled"
+      ],
+      "properties": {
+        "memory_mib": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_concurrency": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "regular_nif_budget_us": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "dirty_cpu_max_concurrency": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fallback_enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "realtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "websocket_per_connection_bytes",
+        "max_connections",
+        "outbound_queue_capacity",
+        "outbound_max_age_ms",
+        "overflow_policy"
+      ],
+      "properties": {
+        "websocket_per_connection_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_connections": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "outbound_queue_capacity": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "outbound_max_age_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "overflow_policy": {
+          "enum": [
+            "disconnect-and-resume",
+            "reject-admission"
+          ]
+        }
+      }
+    },
+    "actors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mailbox_capacity",
+        "mailbox_max_age_ms",
+        "partition_count",
+        "dynamic_supervisor_child_limit",
+        "ets_memory_mib"
+      ],
+      "properties": {
+        "mailbox_capacity": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "mailbox_max_age_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "partition_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "dynamic_supervisor_child_limit": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ets_memory_mib": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "oban": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_concurrency",
+        "queue_limits",
+        "retry_budget"
+      ],
+      "properties": {
+        "total_concurrency": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "queue_limits": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "retry_budget": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "memory_mib",
+        "log_disk_gib",
+        "metric_cardinality_limit",
+        "drop_policy"
+      ],
+      "properties": {
+        "memory_mib": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "log_disk_gib": {
+          "type": "number",
+          "minimum": 0
+        },
+        "metric_cardinality_limit": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "drop_policy": {
+          "const": "sample-or-drop-before-workload-impact"
+        }
+      }
+    },
+    "provider_evidence": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "owner",
+          "status",
+          "evidence_ref"
+        ],
+        "properties": {
+          "owner": {
+            "enum": [
+              "Senior 1",
+              "Senior 2",
+              "Senior 3",
+              "Senior 4"
+            ]
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "blocked",
+              "failed"
+            ]
+          },
+          "evidence_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence_mode": {
+            "const": "live"
+          },
+          "totals": {
+            "properties": {
+              "ocpu": {
+                "maximum": 3
+              },
+              "memory_mib": {
+                "maximum": 20480
+              },
+              "disk_gib": {
+                "maximum": 180
+              }
+            }
+          },
+          "reserve": {
+            "properties": {
+              "ocpu": {
+                "minimum": 1
+              },
+              "memory_mib": {
+                "minimum": 4096
+              },
+              "disk_gib": {
+                "minimum": 20
+              }
+            }
+          },
+          "native": {
+            "properties": {
+              "fallback_enabled": {
+                "const": true
+              }
+            }
+          },
+          "provider_evidence": {
+            "items": {
+              "properties": {
+                "status": {
+                  "const": "passed"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            }
+          },
+          "failures": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
+}

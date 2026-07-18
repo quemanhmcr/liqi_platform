@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/readiness/security-result-v1.schema.json",
+  "title": "LIQI security readiness result V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evidence_mode",
+    "git_sha",
+    "release_id",
+    "environment",
+    "started_at",
+    "completed_at",
+    "status",
+    "checks",
+    "findings",
+    "correctness_events",
+    "failures"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "security-result-v1"
+    },
+    "evidence_mode": {
+      "enum": [
+        "live",
+        "synthetic"
+      ]
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "environment": {
+      "enum": [
+        "staging",
+        "production"
+      ]
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked",
+        "failed"
+      ]
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 19,
+      "maxItems": 19,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "owner",
+          "status",
+          "evidence_ref"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "public-ports",
+              "tls",
+              "secret-scan",
+              "vault-references",
+              "iam-least-privilege",
+              "instance-principal",
+              "private-database",
+              "private-metrics",
+              "systemd-hardening",
+              "dependency-vulnerabilities",
+              "license-policy",
+              "sbom",
+              "provenance",
+              "log-redaction",
+              "session-token-handling",
+              "websocket-origin-auth",
+              "rate-admission-limits",
+              "native-input-bounds",
+              "crash-dump-secret-hygiene"
+            ]
+          },
+          "owner": {
+            "enum": [
+              "Senior 1",
+              "Senior 2",
+              "Senior 3",
+              "Senior 4",
+              "Senior 5"
+            ]
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "blocked",
+              "failed"
+            ]
+          },
+          "evidence_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1024
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "severity",
+          "owner",
+          "status",
+          "summary",
+          "evidence_ref"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^SEC-[0-9]{4,}$"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "owner": {
+            "enum": [
+              "Senior 1",
+              "Senior 2",
+              "Senior 3",
+              "Senior 4",
+              "Senior 5"
+            ]
+          },
+          "status": {
+            "enum": [
+              "open",
+              "accepted",
+              "fixed"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "evidence_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      }
+    },
+    "correctness_events": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authorization_bypass",
+        "secret_exposure",
+        "duplicate_durable_identity",
+        "event_before_commit",
+        "durable_event_loss"
+      ],
+      "properties": {
+        "authorization_bypass": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "secret_exposure": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duplicate_durable_identity": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "event_before_commit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "durable_event_loss": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence_mode": {
+            "const": "live"
+          },
+          "checks": {
+            "items": {
+              "properties": {
+                "status": {
+                  "const": "passed"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            }
+          },
+          "findings": {
+            "items": {
+              "not": {
+                "properties": {
+                  "severity": {
+                    "enum": [
+                      "critical",
+                      "high"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "open",
+                      "accepted"
+                    ]
+                  }
+                },
+                "required": [
+                  "severity",
+                  "status"
+                ]
+              }
+            }
+          },
+          "correctness_events": {
+            "properties": {
+              "authorization_bypass": {
+                "const": 0
+              },
+              "secret_exposure": {
+                "const": 0
+              },
+              "duplicate_durable_identity": {
+                "const": 0
+              },
+              "event_before_commit": {
+                "const": 0
+              },
+              "durable_event_loss": {
+                "const": 0
+              }
+            }
+          },
+          "failures": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
+}

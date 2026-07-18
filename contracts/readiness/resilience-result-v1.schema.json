@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/readiness/resilience-result-v1.schema.json",
+  "title": "LIQI resilience scenario result V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evidence_mode",
+    "git_sha",
+    "release_id",
+    "environment",
+    "scenario_id",
+    "started_at",
+    "completed_at",
+    "status",
+    "expected",
+    "observed",
+    "data_safety",
+    "alert",
+    "runbook",
+    "recovery_seconds",
+    "evidence_refs",
+    "failures"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "resilience-result-v1"
+    },
+    "evidence_mode": {
+      "enum": [
+        "live",
+        "synthetic"
+      ]
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "environment": {
+      "enum": [
+        "staging",
+        "production"
+      ]
+    },
+    "scenario_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,63}$"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked",
+        "failed"
+      ]
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "degradation",
+        "user_visible_effect",
+        "data_safety",
+        "max_recovery_seconds"
+      ],
+      "properties": {
+        "degradation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "user_visible_effect": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "data_safety": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "max_recovery_seconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "observed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "degradation",
+        "user_visible_effect",
+        "recovered"
+      ],
+      "properties": {
+        "degradation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "user_visible_effect": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "recovered": {
+          "type": "boolean"
+        }
+      }
+    },
+    "data_safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "durable_event_loss",
+        "event_before_commit",
+        "duplicate_durable_identity"
+      ],
+      "properties": {
+        "durable_event_loss": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "event_before_commit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duplicate_durable_identity": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "alert": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fired",
+        "alert_id",
+        "evidence_ref"
+      ],
+      "properties": {
+        "fired": {
+          "type": "boolean"
+        },
+        "alert_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "evidence_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1024
+        }
+      }
+    },
+    "runbook": {
+      "type": "string",
+      "pattern": "^operations/runbooks/[a-z0-9-]+-v1\\.md$"
+    },
+    "recovery_seconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1024
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence_mode": {
+            "const": "live"
+          },
+          "observed": {
+            "properties": {
+              "recovered": {
+                "const": true
+              }
+            }
+          },
+          "data_safety": {
+            "properties": {
+              "durable_event_loss": {
+                "const": 0
+              },
+              "event_before_commit": {
+                "const": 0
+              },
+              "duplicate_durable_identity": {
+                "const": 0
+              }
+            }
+          },
+          "alert": {
+            "properties": {
+              "fired": {
+                "const": true
+              }
+            }
+          },
+          "failures": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
+}

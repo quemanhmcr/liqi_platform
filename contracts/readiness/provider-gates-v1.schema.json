@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/readiness/provider-gates-v1.schema.json",
+  "title": "LIQI provider command registry V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "registry_version",
+    "gates"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "provider-gates-v1"
+    },
+    "registry_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "gates": {
+      "type": "array",
+      "minItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "owner",
+          "seam",
+          "stages",
+          "provider_state",
+          "mutation_class",
+          "required_paths",
+          "argv",
+          "required_environment",
+          "timeout_seconds",
+          "result_schema",
+          "action_required"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{2,63}$"
+          },
+          "owner": {
+            "enum": [
+              "Senior 1",
+              "Senior 2",
+              "Senior 3",
+              "Senior 4"
+            ]
+          },
+          "seam": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "stages": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "source",
+                "integration",
+                "artifact",
+                "live-staging",
+                "promotion",
+                "cutover",
+                "post-cutover"
+              ]
+            }
+          },
+          "provider_state": {
+            "enum": [
+              "available",
+              "pending-provider-publication",
+              "pending-live-evidence"
+            ]
+          },
+          "mutation_class": {
+            "enum": [
+              "read-only",
+              "build",
+              "disposable-database",
+              "isolated-restore",
+              "live-read-only",
+              "approved-live-mutation"
+            ]
+          },
+          "required_paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          "argv": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          "required_environment": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]{1,63}$"
+            }
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7200
+          },
+          "result_schema": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 512
+          },
+          "action_required": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      }
+    }
+  }
+}
