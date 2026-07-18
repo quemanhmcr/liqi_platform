@@ -21,7 +21,11 @@ resource "terraform_data" "capacity_guard" {
   lifecycle {
     precondition {
       condition     = var.acknowledge_capacity_availability_and_cost
-      error_message = "A1 4/24 capacity, tenancy quota and block-volume usage must be explicitly acknowledged before producing a live plan."
+      error_message = "A1 4/24 exceeds the documented Always Free A1 limit and requires explicit capacity, quota and cost acknowledgement before producing a read-only live plan."
+    }
+    precondition {
+      condition     = var.operation_mode == "plan"
+      error_message = "Approved apply is blocked: OCI documents Always Free A1 as 2 OCPU/12 GiB total, while V1 requires 4 OCPU/24 GiB and the current approval forbids paid or unknown resources. A new cost approval and source revision are required."
     }
     precondition {
       condition = (

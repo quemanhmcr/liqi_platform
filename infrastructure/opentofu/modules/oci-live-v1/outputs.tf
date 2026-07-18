@@ -28,7 +28,7 @@ locals {
         disk_gib         = 20
         swap_is_capacity = false
       }
-      cost_classification = "always-free-eligible-capacity-not-guaranteed"
+      cost_classification = "free-trial-only"
     }
     network = {
       vcn_id         = oci_core_vcn.main.id

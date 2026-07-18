@@ -173,6 +173,11 @@ def validate_outputs(plan: dict[str, Any], mode: str) -> None:
         return  # OCIDs can keep the composite value unknown in some provider versions.
     if contract.get("schema_version") != "liqi.infrastructure.oci-live/v1":
         fail("unexpected OCI output schema version")
+    capacity = contract.get("capacity", {})
+    if capacity.get("cost_classification") != "free-trial-only":
+        fail("V1 4/24 capacity must remain classified free-trial-only until tenancy-specific billing evidence and a reviewed source revision exist")
+    if mode == "approved-apply":
+        fail("approved apply is forbidden: the required 4 OCPU/24 GiB exceeds OCI Always Free A1 2 OCPU/12 GiB and the current approval forbids paid or unknown resources")
     mutation = contract.get("mutation", {})
     expected_applied = mode == "approved-apply"
     if mutation.get("applied") is not expected_applied:

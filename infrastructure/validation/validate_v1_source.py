@@ -161,6 +161,19 @@ def validate_static_policy() -> None:
     for name, value in required_assignments.items():
         if not re.search(rf"(?m)^\s*{re.escape(name)}\s*=\s*{re.escape(value)}\s*$", module_text):
             raise AssertionError(f"missing capacity/network invariant: {name}={value}")
+    for token in (
+        'cost_classification = "free-trial-only"',
+        'var.operation_mode == "plan"',
+        'Always Free A1 as 2 OCPU/12 GiB total',
+    ):
+        if token not in module_text:
+            raise AssertionError(f"V1 non-Always-Free cost gate is missing {token}")
+    cost_manifest = json.loads((ENV / "cost-classification.json").read_text(encoding="utf-8"))
+    compute_cost = next(item for item in cost_manifest["resources"] if item["resource"] == "VM.Standard.A1.Flex 4 OCPU / 24 GiB")
+    if compute_cost.get("classification") != "free-trial-only" or compute_cost.get("apply_allowed_under_current_approval") is not False:
+        raise AssertionError("V1 4/24 compute cost classification is not fail-closed")
+    if cost_manifest.get("documented_always_free_a1") != {"ocpus_total": 2, "memory_gib_total": 12}:
+        raise AssertionError("V1 cost manifest does not pin the current documented Always Free A1 limit")
 
     backend = (ENV / "backend.tf").read_text(encoding="utf-8")
     if 'backend "pg" {}' not in backend or 'backend "s3"' in backend:

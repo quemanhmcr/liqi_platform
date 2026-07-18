@@ -5,13 +5,16 @@
   "resources": [
     {
       "resource": "VM.Standard.A1.Flex 4 OCPU / 24 GiB",
-      "classification": "always-free-eligible-capacity-not-guaranteed",
-      "approval_required": true
+      "classification": "free-trial-only",
+      "approval_required": true,
+      "apply_allowed_under_current_approval": false,
+      "rationale": "Oracle documents Always Free A1 as 2 OCPUs and 12 GiB total. The required 4/24 profile exceeds that limit; read-only plan review is allowed after acknowledgement, but apply requires a new paid/non-billable entitlement approval and source revision."
     },
     {
       "resource": "boot plus block volume 180 GiB",
-      "classification": "always-free-eligible-tenancy-quota-dependent",
-      "approval_required": true
+      "classification": "always-free-eligible-tenancy-usage-dependent",
+      "approval_required": true,
+      "rationale": "Oracle documents 200 GB combined boot and block volume Always Free storage in the home region; existing tenancy usage must be inspected before plan approval."
     },
     {
       "resource": "DEFAULT Vault with software-protected AES key",
@@ -45,5 +48,15 @@
     }
   ],
   "paid_resource_default_enabled": false,
-  "capacity_acknowledgement_required": true
+  "capacity_acknowledgement_required": true,
+  "reviewed_at": "2026-07-18",
+  "primary_source": "https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm",
+  "documented_always_free_a1": {
+    "ocpus_total": 2,
+    "memory_gib_total": 12
+  },
+  "required_v1_a1": {
+    "ocpus": 4,
+    "memory_gib": 24
+  }
 }

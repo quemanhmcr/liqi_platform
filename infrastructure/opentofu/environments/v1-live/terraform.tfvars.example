@@ -5,6 +5,8 @@ oracle_linux_image_ocid = "ocid1.image.oc1.ap-singapore-2.replace"
 source_git_sha           = "0000000000000000000000000000000000000000"
 
 # Source validation can run with these values. A reviewed live plan requires true.
+# Oracle 2026 documents A1 Always Free as 2 OCPU/12 GiB total; V1 requires 4/24.
+# Setting this true permits read-only plan review only. Approved apply remains source-blocked.
 acknowledge_capacity_availability_and_cost = false
 
 operation_mode           = "plan"

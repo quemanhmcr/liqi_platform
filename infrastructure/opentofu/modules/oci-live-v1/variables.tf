@@ -66,7 +66,7 @@ variable "apply_approval_reference" {
 }
 
 variable "acknowledge_capacity_availability_and_cost" {
-  description = "Explicit acknowledgement that A1 capacity/quota and all storage usage were reviewed for this tenancy."
+  description = "Explicit acknowledgement that the fixed 4/24 profile exceeds the documented 2 OCPU/12 GiB Always Free A1 limit and that capacity, quota and cost were reviewed for a read-only plan."
   type        = bool
   default     = false
 }
