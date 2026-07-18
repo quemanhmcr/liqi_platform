@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -114,9 +115,27 @@ def validate_registry(document: dict[str, Any], failures: list[str]) -> None:
         for pattern in FORBIDDEN_COMMANDS:
             if pattern.search(command):
                 failures.append(f"provider gate {gate.get('id')} contains forbidden mutation command")
-        if gate.get("provider_state") == "available":
+        state = gate.get("provider_state")
+        branch = gate.get("provider_branch")
+        commit = gate.get("provider_commit")
+        if state == "available":
             for required in gate.get("required_paths", []):
                 require_path(required, f"available provider gate {gate.get('id')}", failures)
+            if not commit:
+                failures.append(f"available provider gate {gate.get('id')} must retain its provider commit")
+        elif state == "pending-integration":
+            if not branch or not commit:
+                failures.append(f"pending-integration gate {gate.get('id')} requires provider branch and exact commit")
+            elif subprocess.run(["git", "cat-file", "-e", f"{commit}^{{commit}}"], cwd=ROOT, check=False, capture_output=True).returncode == 0:
+                branch_result = subprocess.run(["git", "rev-parse", "--verify", branch], cwd=ROOT, check=False, capture_output=True, text=True)
+                if branch_result.returncode == 0 and branch_result.stdout.strip() != commit:
+                    failures.append(f"pending-integration gate {gate.get('id')} branch {branch} no longer points at {commit}")
+                for required in gate.get("required_paths", []):
+                    exists = subprocess.run(["git", "cat-file", "-e", f"{commit}:{required}"], cwd=ROOT, check=False, capture_output=True).returncode == 0
+                    if not exists:
+                        failures.append(f"pending-integration gate {gate.get('id')} commit {commit} is missing {required}")
+        elif state == "pending-provider-publication" and commit is not None:
+            failures.append(f"unpublished provider gate {gate.get('id')} cannot claim a provider commit")
         schema = gate.get("result_schema")
         if schema:
             require_path(schema, f"provider gate {gate.get('id')}", failures)

@@ -31,11 +31,30 @@ class ReadinessV1Tests(unittest.TestCase):
   return args,out
  def test_source_contracts_validate(self):
   self.invoke(PYTHON,'operations/bin/validate_readiness_v1.py')
+ def test_provider_registry_records_exact_pending_integration_commits(self):
+  registry=json.loads((ROOT/'operations/readiness/provider-gates-v1.json').read_text(encoding='utf-8'))
+  gates={item['id']:item for item in registry['gates']}
+  expected={
+   'database-source':'ac759bb3435ef4633265d8eab75bd26768c0aac9',
+   'native-source':'7478e31a4de48e278f0d08885bfaab56d5d88762',
+   'native-artifact':'7478e31a4de48e278f0d08885bfaab56d5d88762',
+   'infrastructure-source':'2be16b0ff7159ad0827194c0f72f5a540245a085',
+  }
+  for ident,commit in expected.items():
+   self.assertEqual('pending-integration',gates[ident]['provider_state'])
+   self.assertEqual(commit,gates[ident]['provider_commit'])
+  for gate in gates.values():
+   if gate['provider_state']=='pending-provider-publication':
+    self.assertIsNone(gate['provider_commit'])
+
  def test_unpublished_provider_seams_are_blocked_with_owners(self):
   with tempfile.TemporaryDirectory() as tmp:
    out=Path(tmp)/'checkpoint.json'
    self.invoke(PYTHON,'operations/bin/run_provider_gates_v1.py','--stage','source','--output',str(out),'--evidence-dir',str(Path(tmp)/'evidence'),'--allow-blocked')
    doc=json.loads(out.read_text());self.assertEqual('blocked',doc['status']);self.assertEqual({'Senior 1','Senior 2','Senior 3','Senior 4'},{item['owner'] for item in doc['blockers']})
+   codes={item['owner']:item['code'] for item in doc['blockers']}
+   self.assertEqual('PROVIDER_SEAM_UNPUBLISHED',codes['Senior 1'])
+   for owner in ('Senior 2','Senior 3','Senior 4'):self.assertEqual('PROVIDER_COMMIT_NOT_INTEGRATED',codes[owner])
  def test_missing_evidence_is_not_ready(self):
   with tempfile.TemporaryDirectory() as tmp:
    out=Path(tmp)/'final.json'

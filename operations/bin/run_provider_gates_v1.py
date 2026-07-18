@@ -123,7 +123,16 @@ def main() -> int:
         log_path = evidence_dir / f"{gate['id']}.log"
         state = gate["provider_state"]
         if state != "available":
-            add_result(gate, "blocked", None, "PROVIDER_SEAM_UNPUBLISHED", f"provider state is {state}")
+            if state == "pending-integration":
+                code = "PROVIDER_COMMIT_NOT_INTEGRATED"
+                message = f"provider commit {gate['provider_commit']} on {gate['provider_branch']} is published but not integrated"
+            elif state == "pending-live-evidence":
+                code = "PROVIDER_LIVE_EVIDENCE_PENDING"
+                message = f"provider command is integrated but exact-release live evidence is pending for {gate['provider_commit']}"
+            else:
+                code = "PROVIDER_SEAM_UNPUBLISHED"
+                message = "provider has not published a consumer-ready command"
+            add_result(gate, "blocked", None, code, message)
             continue
         missing_paths = [path for path in gate["required_paths"] if not safe_repo_path(path).exists()]
         if missing_paths:

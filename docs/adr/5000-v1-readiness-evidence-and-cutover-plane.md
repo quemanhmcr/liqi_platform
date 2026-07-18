@@ -59,11 +59,11 @@ No swap capacity is credited. Simultaneous V0/V1 runtime is accepted only when t
 
 ## Temporary implementation
 
-`operations/readiness/provider-gates-v1.json` initially marks provider seams `pending-provider-publication`.
+`operations/readiness/provider-gates-v1.json` records each seam as `pending-provider-publication`, `pending-integration`, `available` or `pending-live-evidence`. Exact provider branch/commit metadata is required once a consumer-ready command has been published.
 
 - Owner: the senior named by each registry entry.
-- Removal condition: replace the state with `available` only in the commit that publishes the exact command and required paths, with provider/consumer contract tests passing.
-- It is not a runtime fallback and cannot produce production-ready evidence.
+- Removal condition: replace `pending-integration` with `available` only after the exact provider commit is integrated, required paths exist on the resulting SHA and provider/consumer contract tests pass. A live collector may then be `pending-live-evidence` until its approved exact-release result exists.
+- None of the pending states is a runtime fallback or production-ready evidence.
 
 ## Trade-offs
 

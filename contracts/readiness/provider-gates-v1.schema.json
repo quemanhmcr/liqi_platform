@@ -29,6 +29,8 @@
           "seam",
           "stages",
           "provider_state",
+          "provider_commit",
+          "provider_branch",
           "mutation_class",
           "required_paths",
           "argv",
@@ -74,6 +76,7 @@
           "provider_state": {
             "enum": [
               "available",
+              "pending-integration",
               "pending-provider-publication",
               "pending-live-evidence"
             ]
@@ -129,8 +132,71 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 1000
+          },
+          "provider_branch": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^v1/[a-z0-9][a-z0-9._/-]{1,127}$",
+            "maxLength": 128
+          },
+          "provider_commit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9a-f]{40}$"
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "provider_state": {
+                  "enum": [
+                    "available",
+                    "pending-integration",
+                    "pending-live-evidence"
+                  ]
+                }
+              },
+              "required": [
+                "provider_state"
+              ]
+            },
+            "then": {
+              "properties": {
+                "provider_branch": {
+                  "type": "string"
+                },
+                "provider_commit": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{40}$"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "provider_state": {
+                  "const": "pending-provider-publication"
+                }
+              },
+              "required": [
+                "provider_state"
+              ]
+            },
+            "then": {
+              "properties": {
+                "provider_commit": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
       }
     }
   }

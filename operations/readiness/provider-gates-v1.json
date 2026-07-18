@@ -23,7 +23,9 @@
       "required_environment": [],
       "timeout_seconds": 900,
       "result_schema": null,
-      "action_required": "Publish the BEAM/Phoenix source validation command with runtime, envelope, capacity and telemetry checks."
+      "action_required": "Publish the BEAM/Phoenix source validation command with runtime, envelope, capacity and telemetry checks.",
+      "provider_branch": "v1/beam-runtime-realtime",
+      "provider_commit": null
     },
     {
       "id": "runtime-integration",
@@ -48,7 +50,9 @@
       ],
       "timeout_seconds": 1800,
       "result_schema": null,
-      "action_required": "Publish the provider-owned disposable PostgreSQL runtime integration command."
+      "action_required": "Publish the provider-owned disposable PostgreSQL runtime integration command.",
+      "provider_branch": "v1/beam-runtime-realtime",
+      "provider_commit": null
     },
     {
       "id": "runtime-artifact",
@@ -75,7 +79,9 @@
       ],
       "timeout_seconds": 1800,
       "result_schema": null,
-      "action_required": "Publish release identity, ARM64 compatibility, BEAM settings and mix release verification."
+      "action_required": "Publish release identity, ARM64 compatibility, BEAM settings and mix release verification.",
+      "provider_branch": "v1/beam-runtime-realtime",
+      "provider_commit": null
     },
     {
       "id": "runtime-live-probe",
@@ -106,30 +112,35 @@
       ],
       "timeout_seconds": 900,
       "result_schema": "contracts/readiness/live-platform-probe-v1.schema.json",
-      "action_required": "Publish the live provider probe; Senior 5 will not reproduce Phoenix/realtime/native semantics."
+      "action_required": "Publish the live provider probe; Senior 5 will not reproduce Phoenix/realtime/native semantics.",
+      "provider_branch": "v1/beam-runtime-realtime",
+      "provider_commit": null
     },
     {
       "id": "database-source",
       "owner": "Senior 2",
-      "seam": "database/tests/run-v1-source-validation.sh --output",
+      "seam": "database/tests/contract/validate_v1_contracts.py",
       "stages": [
         "source"
       ],
-      "provider_state": "pending-provider-publication",
+      "provider_state": "pending-integration",
       "mutation_class": "read-only",
       "required_paths": [
-        "database/tests/run-v1-source-validation.sh"
+        "database/tests/contract/validate_v1_contracts.py",
+        "contracts/database/database-runtime-v1.schema.json",
+        "contracts/database/realtime-handoff-v1.schema.json",
+        "contracts/jobs/oban-policy-v1.schema.json"
       ],
       "argv": [
-        "bash",
-        "database/tests/run-v1-source-validation.sh",
-        "--output",
-        "{output}"
+        "python",
+        "database/tests/contract/validate_v1_contracts.py"
       ],
       "required_environment": [],
       "timeout_seconds": 900,
       "result_schema": null,
-      "action_required": "Publish V1 migration, outbox, Oban and connection-budget source validation."
+      "action_required": "Integrate exact provider commit ac759bb3435ef4633265d8eab75bd26768c0aac9, review its communication note, then mark this gate available only after the command passes on the integrated SHA.",
+      "provider_branch": "v1/durable-data-work",
+      "provider_commit": "ac759bb3435ef4633265d8eab75bd26768c0aac9"
     },
     {
       "id": "database-integration",
@@ -156,7 +167,9 @@
       ],
       "timeout_seconds": 1800,
       "result_schema": null,
-      "action_required": "Publish the disposable PostgreSQL V1 authority/outbox/Oban integration command."
+      "action_required": "Publish the disposable PostgreSQL V1 authority/outbox/Oban integration command.",
+      "provider_branch": "v1/durable-data-work",
+      "provider_commit": null
     },
     {
       "id": "database-recovery",
@@ -187,30 +200,35 @@
       ],
       "timeout_seconds": 7200,
       "result_schema": "contracts/readiness/recovery-result-v1.schema.json",
-      "action_required": "Publish the approved isolated restore/PITR command and evidence; never restore over live."
+      "action_required": "Publish the approved isolated restore/PITR command and evidence; never restore over live.",
+      "provider_branch": "v1/durable-data-work",
+      "provider_commit": null
     },
     {
       "id": "native-source",
       "owner": "Senior 3",
-      "seam": "native/scripts/validate-v1-source.sh --output",
+      "seam": "native/tests/run-source-validation.sh --rust-only",
       "stages": [
         "source"
       ],
-      "provider_state": "pending-provider-publication",
+      "provider_state": "pending-integration",
       "mutation_class": "read-only",
       "required_paths": [
-        "native/scripts/validate-v1-source.sh"
+        "native/tests/run-source-validation.sh",
+        "native/tests/validate_native_source.py",
+        "contracts/native/native-kernel-v1.schema.json"
       ],
       "argv": [
         "bash",
-        "native/scripts/validate-v1-source.sh",
-        "--output",
-        "{output}"
+        "native/tests/run-source-validation.sh",
+        "--rust-only"
       ],
       "required_environment": [],
       "timeout_seconds": 1800,
       "result_schema": null,
-      "action_required": "Publish native policy, parity, scheduling-class and artifact-contract source validation."
+      "action_required": "Integrate exact provider commit 7478e31a4de48e278f0d08885bfaab56d5d88762, then run the Rust-only source gate on Linux with Rust 1.97.1 before marking available.",
+      "provider_branch": "v1/native-rustler",
+      "provider_commit": "7478e31a4de48e278f0d08885bfaab56d5d88762"
     },
     {
       "id": "native-safety",
@@ -233,57 +251,62 @@
       "required_environment": [],
       "timeout_seconds": 3600,
       "result_schema": null,
-      "action_required": "Publish exact property/fuzz/panic/fallback/benchmark evidence for the V1 native kernels."
+      "action_required": "Publish exact property/fuzz/panic/fallback/benchmark evidence for the V1 native kernels.",
+      "provider_branch": "v1/native-rustler",
+      "provider_commit": null
     },
     {
       "id": "native-artifact",
       "owner": "Senior 3",
-      "seam": "native/scripts/verify-v1-artifact.sh --manifest",
+      "seam": "native/scripts/verify_artifact.py --manifest",
       "stages": [
         "artifact"
       ],
-      "provider_state": "pending-provider-publication",
+      "provider_state": "pending-integration",
       "mutation_class": "build",
       "required_paths": [
-        "native/scripts/verify-v1-artifact.sh"
+        "native/scripts/verify_artifact.py",
+        "contracts/native/native-artifact-v1.schema.json"
       ],
       "argv": [
-        "bash",
-        "native/scripts/verify-v1-artifact.sh",
+        "python",
+        "native/scripts/verify_artifact.py",
         "--manifest",
-        "{env:LIQI_NATIVE_MANIFEST}",
-        "--output",
-        "{output}"
+        "{env:LIQI_NATIVE_MANIFEST}"
       ],
       "required_environment": [
         "LIQI_NATIVE_MANIFEST"
       ],
       "timeout_seconds": 1800,
       "result_schema": null,
-      "action_required": "Publish signed ARM64 artifact identity including target triple and NIF ABI."
+      "action_required": "Integrate exact provider commit 7478e31a4de48e278f0d08885bfaab56d5d88762. Senior 4 must supply a signed ARM64 manifest/SBOM/provenance/Sigstore bundle; verification alone does not create an artifact.",
+      "provider_branch": "v1/native-rustler",
+      "provider_commit": "7478e31a4de48e278f0d08885bfaab56d5d88762"
     },
     {
       "id": "infrastructure-source",
       "owner": "Senior 4",
-      "seam": "infrastructure/validation/run-v1-source-validation.sh --output",
+      "seam": "infrastructure/validation/validate_v1_contracts.py",
       "stages": [
         "source"
       ],
-      "provider_state": "pending-provider-publication",
+      "provider_state": "pending-integration",
       "mutation_class": "read-only",
       "required_paths": [
-        "infrastructure/validation/run-v1-source-validation.sh"
+        "infrastructure/validation/validate_v1_contracts.py",
+        "contracts/infrastructure/oci-live-v1.schema.json",
+        "contracts/deployment/rollback-v1.schema.json"
       ],
       "argv": [
-        "bash",
-        "infrastructure/validation/run-v1-source-validation.sh",
-        "--output",
-        "{output}"
+        "python",
+        "infrastructure/validation/validate_v1_contracts.py"
       ],
       "required_environment": [],
       "timeout_seconds": 900,
       "result_schema": null,
-      "action_required": "Publish Caddy/systemd/OCI source validation for the V1 release topology."
+      "action_required": "Integrate exact provider commit 2be16b0ff7159ad0827194c0f72f5a540245a085 and keep its engineering-complete-evidence-pending semantics; examples are not live evidence.",
+      "provider_branch": "v1/oci-live-runtime",
+      "provider_commit": "2be16b0ff7159ad0827194c0f72f5a540245a085"
     },
     {
       "id": "infrastructure-plan",
@@ -310,7 +333,9 @@
       ],
       "timeout_seconds": 900,
       "result_schema": null,
-      "action_required": "Publish reviewed plan/drift/cost/security validation; this gate never applies the plan."
+      "action_required": "Publish reviewed plan/drift/cost/security validation; this gate never applies the plan.",
+      "provider_branch": "v1/oci-live-runtime",
+      "provider_commit": null
     },
     {
       "id": "host-readiness",
@@ -338,7 +363,9 @@
       ],
       "timeout_seconds": 900,
       "result_schema": null,
-      "action_required": "Publish host readiness, capacity, drift, edge, systemd and release activation evidence."
+      "action_required": "Publish host readiness, capacity, drift, edge, systemd and release activation evidence.",
+      "provider_branch": "v1/oci-live-runtime",
+      "provider_commit": null
     },
     {
       "id": "rollback-evidence",
@@ -365,7 +392,9 @@
       ],
       "timeout_seconds": 900,
       "result_schema": "contracts/readiness/rollback-result-v1.schema.json",
-      "action_required": "Publish exact rollback evidence after an approved owner-run exercise; no mutation occurs in this collector."
+      "action_required": "Publish exact rollback evidence after an approved owner-run exercise; no mutation occurs in this collector.",
+      "provider_branch": "v1/oci-live-runtime",
+      "provider_commit": null
     }
   ]
 }
