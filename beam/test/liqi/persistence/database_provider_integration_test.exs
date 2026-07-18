@@ -25,15 +25,11 @@ defmodule Liqi.Persistence.DatabaseProviderIntegrationTest do
         &start_repo!/1
       )
 
-    oban_pid = start_oban!()
+    oban = start_oban!()
 
     on_exit(fn ->
-      if is_pid(oban_pid) and Process.alive?(oban_pid),
-        do: Supervisor.stop(oban_pid, :normal, 5_000)
-
-      Enum.each(Enum.reverse(started), fn pid ->
-        if is_pid(pid) and Process.alive?(pid), do: Supervisor.stop(pid, :normal, 5_000)
-      end)
+      stop_owned(oban)
+      Enum.each(Enum.reverse(started), &stop_owned/1)
 
       case previous_runtime_config do
         nil -> Application.delete_env(:liqi_platform, :runtime_config)
@@ -143,17 +139,44 @@ defmodule Liqi.Persistence.DatabaseProviderIntegrationTest do
 
   defp start_repo!(repo) do
     case repo.start_link() do
-      {:ok, pid} -> pid
-      {:error, {:already_started, pid}} -> pid
-      {:error, reason} -> raise "failed to start #{inspect(repo)}: #{inspect(reason)}"
+      {:ok, pid} ->
+        Process.unlink(pid)
+        {pid, true}
+
+      {:error, {:already_started, pid}} ->
+        {pid, false}
+
+      {:error, reason} ->
+        raise "failed to start #{inspect(repo)}: #{inspect(reason)}"
     end
   end
 
   defp start_oban! do
     case Oban.start_link(LiqiJobs.Config.oban_options()) do
-      {:ok, pid} -> pid
-      {:error, {:already_started, pid}} -> pid
-      {:error, reason} -> raise "failed to start Oban: #{inspect(reason)}"
+      {:ok, pid} ->
+        Process.unlink(pid)
+        {pid, true}
+
+      {:error, {:already_started, pid}} ->
+        {pid, false}
+
+      {:error, reason} ->
+        raise "failed to start Oban: #{inspect(reason)}"
+    end
+  end
+
+  defp stop_owned({_pid, false}), do: :ok
+
+  defp stop_owned({pid, true}) when is_pid(pid) do
+    if Process.alive?(pid) do
+      try do
+        Supervisor.stop(pid, :normal, 5_000)
+      catch
+        :exit, {:noproc, _} -> :ok
+        :exit, :noproc -> :ok
+      end
+    else
+      :ok
     end
   end
 end
