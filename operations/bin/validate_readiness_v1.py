@@ -85,8 +85,8 @@ def validate_policy(policy: dict[str, Any], failures: list[str]) -> None:
         if not isinstance(item.get("max_age_seconds"), int) or item["max_age_seconds"] <= 0:
             failures.append(f"evidence policy {item.get('kind')} requires a positive max_age_seconds")
     supporting = {item.get("kind"): item for item in policy.get("supporting_evidence", [])}
-    if set(supporting) != {"compatibility", "checkpoint"}:
-        failures.append("supporting evidence must contain compatibility and checkpoint exactly once")
+    if set(supporting) != {"compatibility", "checkpoint", "oci-mutations"}:
+        failures.append("supporting evidence must contain compatibility, checkpoint and oci-mutations exactly once")
     checkpoint = supporting.get("checkpoint", {})
     failures.extend(exact_set(checkpoint.get("required_names", []), EXPECTED_CHECKPOINTS, "checkpoint names"))
     for item in supporting.values():
@@ -135,6 +135,35 @@ def validate_scenarios(document: dict[str, Any], failures: list[str]) -> None:
             failures.append(f"scenario {scenario.get('id')} must declare data safety")
 
 
+
+
+def validate_load_harness(failures: list[str]) -> None:
+    floor_path = ROOT / "tests" / "load" / "v1-floor.js"
+    reconnect_path = ROOT / "tests" / "load" / "reconnect-storm-v1.js"
+    for path in (floor_path, reconnect_path):
+        if not path.is_file():
+            failures.append(f"missing load harness: {path.relative_to(ROOT).as_posix()}")
+            continue
+        source = path.read_text(encoding="utf-8")
+        if "k6/experimental/websockets" in source:
+            failures.append(f"{path.name} uses deprecated experimental WebSockets")
+        if "k6/websockets" not in source:
+            failures.append(f"{path.name} must use k6/websockets")
+        if "thresholds" not in source or "handleSummary" not in source:
+            failures.append(f"{path.name} must declare thresholds and a machine-readable summary")
+        if "Bearer " in source and "LIQI_AUTH_TOKEN" not in source:
+            failures.append(f"{path.name} contains a hard-coded bearer credential path")
+    if floor_path.is_file():
+        source = floor_path.read_text(encoding="utf-8")
+        for token in ("target: 2000", "ACTIVE_SUBSCRIPTIONS", "rate: 50", "rate: 500", "'30m'"):
+            if token not in source:
+                failures.append(f"v1-floor.js is missing acceptance-floor token: {token}")
+    if reconnect_path.is_file():
+        source = reconnect_path.read_text(encoding="utf-8")
+        for token in ("target: 1500", "target: 500", "'60000'", "rate>0.99", "count==0"):
+            if token not in source:
+                failures.append(f"reconnect-storm-v1.js is missing acceptance token: {token}")
+
 def main() -> int:
     failures: list[str] = []
     schemas = sorted(READINESS_DIR.glob("*.schema.json")) + [SLO_SCHEMA, ALERT_SCHEMA]
@@ -182,6 +211,7 @@ def main() -> int:
         if plan.get("prohibitions") != ["restore-over-live", "production-traffic-change", "unapproved-oci-mutation"]:
             failures.append("restore drill must preserve all three mutation prohibitions in canonical order")
         require_path(str(plan.get("required_result_schema", "")), "restore drill", failures)
+    validate_load_harness(failures)
     if CUTOVER_POLICY in documents:
         policy = documents[CUTOVER_POLICY]
         failures.extend(exact_set(policy.get("phases", []), {"shadow", "internal-only", "canary-route", "limited-client-cohort", "broader-cohort", "v1-default", "v0-rollback-window"}, "cutover phases"))

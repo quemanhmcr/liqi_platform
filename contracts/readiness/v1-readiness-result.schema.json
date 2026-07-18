@@ -509,6 +509,9 @@
           },
           "blockers": {
             "maxItems": 0
+          },
+          "environment": {
+            "const": "production"
           }
         }
       }

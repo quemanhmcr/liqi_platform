@@ -89,5 +89,38 @@
         "maxLength": 1000
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "items": {
+              "properties": {
+                "status": {
+                  "const": "passed"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            }
+          },
+          "failures": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
 }

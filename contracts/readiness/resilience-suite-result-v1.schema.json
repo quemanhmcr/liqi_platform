@@ -159,5 +159,60 @@
         "maxLength": 1000
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence_mode": {
+            "const": "live"
+          },
+          "scenarios": {
+            "items": {
+              "properties": {
+                "status": {
+                  "const": "passed"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            }
+          },
+          "correctness_events": {
+            "properties": {
+              "authorization_bypass": {
+                "const": 0
+              },
+              "secret_exposure": {
+                "const": 0
+              },
+              "duplicate_durable_identity": {
+                "const": 0
+              },
+              "event_before_commit": {
+                "const": 0
+              },
+              "durable_event_loss": {
+                "const": 0
+              }
+            }
+          },
+          "failures": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
 }
