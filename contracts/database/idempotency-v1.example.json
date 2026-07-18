@@ -1,0 +1,30 @@
+{
+  "$schema": "./idempotency-v1.schema.json",
+  "contractVersion": "idempotency-v1",
+  "authority": "platform.command_idempotency_v1",
+  "scope": {
+    "minimumLength": 1,
+    "maximumLength": 96,
+    "format": "lowercase-dot-dash-colon"
+  },
+  "key": {
+    "minimumLength": 1,
+    "maximumLength": 128,
+    "caseSensitive": true
+  },
+  "serialization": "transaction-advisory-lock-by-scope-and-key",
+  "requestConflict": {
+    "sameFingerprint": "return-original-durable-outcome",
+    "differentFingerprint": "LQ001"
+  },
+  "aggregateVersion": {
+    "expected": "client-supplied",
+    "success": "increment-by-one",
+    "stale": "LQ002"
+  },
+  "retention": {
+    "days": 30,
+    "pruneBatchMaximum": 500
+  },
+  "outcome": "stored-json-and-event-identity-returned-on-duplicate"
+}

@@ -1,0 +1,126 @@
+{
+  "$schema": "./database-runtime-v1.schema.json",
+  "contractVersion": "database-runtime-v1",
+  "status": "accepted",
+  "authority": "postgresql-only-durable-authority",
+  "requiredMigration": 8,
+  "compatibility": {
+    "postgresqlMajor": 17,
+    "ectoSql": ">=3.13,<4.0",
+    "postgrex": ">=0.20,<0.21",
+    "oban": ">=2.23,<2.24",
+    "pgbouncerMode": "transaction",
+    "v0ReadCompatibility": true
+  },
+  "repoSemantics": {
+    "prepare": "unnamed",
+    "sessionState": "forbidden",
+    "listenNotify": "forbidden-through-runtime-pool",
+    "migrationEndpoint": "direct-postgresql",
+    "runtimeEndpoint": "pgbouncer",
+    "queryLogging": "disabled-by-provider",
+    "telemetry": "ecto-repo-events-enabled"
+  },
+  "roles": [
+    {
+      "name": "liqi_owner",
+      "login": false,
+      "superuser": false,
+      "purpose": "Own durable schemas and functions."
+    },
+    {
+      "name": "liqi_migrator",
+      "login": true,
+      "superuser": false,
+      "purpose": "Apply forward migrations through direct PostgreSQL."
+    },
+    {
+      "name": "liqi_api",
+      "login": true,
+      "superuser": false,
+      "purpose": "Execute command functions through PgBouncer."
+    },
+    {
+      "name": "liqi_realtime",
+      "login": true,
+      "superuser": false,
+      "purpose": "Read committed handoff functions through PgBouncer."
+    },
+    {
+      "name": "liqi_worker",
+      "login": true,
+      "superuser": false,
+      "purpose": "Claim outbox and execute Oban persistence."
+    },
+    {
+      "name": "liqi_readonly",
+      "login": true,
+      "superuser": false,
+      "purpose": "Observe approved projections."
+    },
+    {
+      "name": "liqi_monitor",
+      "login": true,
+      "superuser": false,
+      "purpose": "Read health and metrics."
+    },
+    {
+      "name": "liqi_backup",
+      "login": true,
+      "superuser": false,
+      "purpose": "Create and verify recovery evidence."
+    }
+  ],
+  "connectionBudget": {
+    "postgresMaxConnections": 80,
+    "pgbouncerServerCapacity": 40,
+    "directReservation": 10,
+    "reservedHeadroom": 30,
+    "ectoPools": {
+      "command": 12,
+      "realtime": 4,
+      "jobs": 6
+    },
+    "poolRoleCaps": {
+      "liqi_api": 20,
+      "liqi_realtime": 5,
+      "liqi_worker": 10
+    }
+  },
+  "transactionPolicy": {
+    "defaultIsolation": "read-committed",
+    "commandIsolation": "read-committed-with-row-and-transaction-advisory-locks",
+    "idempotencyLock": "pg_advisory_xact_lock",
+    "aggregateVersion": "expected-version-compare-and-increment",
+    "dualWrite": false
+  },
+  "timeoutPolicy": {
+    "commandStatementMs": 5000,
+    "realtimeStatementMs": 3000,
+    "workerStatementMs": 30000,
+    "lockMs": 2000,
+    "idleTransactionMs": 15000,
+    "poolQueueTargetMs": 50,
+    "poolQueueIntervalMs": 1000
+  },
+  "capacity": {
+    "postgresMemoryMiB": 5632,
+    "pgbouncerMemoryMiB": 128,
+    "backupTransientMemoryMiB": 1536,
+    "hardMemoryMiB": 7936,
+    "hardOcpu": 1.2,
+    "hardDiskGiB": 130.2,
+    "walMaxGiB": 8,
+    "outboxRetentionDays": 30,
+    "realtimeRetentionDays": 7,
+    "backupTransientDiskGiB": 32
+  },
+  "migrationPolicy": {
+    "direction": "forward-only",
+    "strategy": "expand-migrate-contract",
+    "downMigrations": false,
+    "registry": "platform.schema_migrations",
+    "lock": "direct-session-advisory-lock",
+    "runtimeStartupMigration": false
+  }
+}

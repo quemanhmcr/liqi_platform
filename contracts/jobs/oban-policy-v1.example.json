@@ -1,0 +1,99 @@
+{
+  "$schema": "./oban-policy-v1.schema.json",
+  "contractVersion": "oban-policy-v1",
+  "purpose": [
+    "scheduled-maintenance",
+    "push-delivery",
+    "delayed-retry",
+    "provider-calls",
+    "media-orchestration",
+    "cleanup",
+    "recovery-tasks"
+  ],
+  "prohibited": [
+    "domain-event-authority",
+    "realtime-bus",
+    "exactly-once-executor",
+    "outbox-replacement"
+  ],
+  "compatibility": {
+    "oban": ">=2.23,<2.24",
+    "migrationVersion": 14,
+    "elixirMinimum": "1.15",
+    "postgresqlMinimum": 14
+  },
+  "storage": {
+    "prefix": "oban",
+    "jobsLogged": true,
+    "peersLogged": false,
+    "backupIncluded": true
+  },
+  "notifier": {
+    "module": "Oban.Notifiers.PG",
+    "reason": "pgbouncer-transaction-pooling",
+    "insertWakeup": "bounded-local-stager-poll"
+  },
+  "queues": [
+    {
+      "name": "maintenance",
+      "concurrency": 1,
+      "timeoutMs": 60000,
+      "maxAttempts": 5,
+      "uniquePeriodSeconds": 3600,
+      "pausedByDefault": false
+    },
+    {
+      "name": "push",
+      "concurrency": 2,
+      "timeoutMs": 30000,
+      "maxAttempts": 8,
+      "uniquePeriodSeconds": 86400,
+      "pausedByDefault": false
+    },
+    {
+      "name": "provider",
+      "concurrency": 1,
+      "timeoutMs": 30000,
+      "maxAttempts": 8,
+      "uniquePeriodSeconds": 86400,
+      "pausedByDefault": false
+    },
+    {
+      "name": "media",
+      "concurrency": 1,
+      "timeoutMs": 900000,
+      "maxAttempts": 3,
+      "uniquePeriodSeconds": 86400,
+      "pausedByDefault": false
+    },
+    {
+      "name": "cleanup",
+      "concurrency": 1,
+      "timeoutMs": 60000,
+      "maxAttempts": 5,
+      "uniquePeriodSeconds": 3600,
+      "pausedByDefault": false
+    },
+    {
+      "name": "recovery",
+      "concurrency": 1,
+      "timeoutMs": 900000,
+      "maxAttempts": 3,
+      "uniquePeriodSeconds": 2592000,
+      "pausedByDefault": true
+    }
+  ],
+  "plugins": [
+    "Oban.Plugins.Pruner",
+    "Oban.Plugins.Lifeline"
+  ],
+  "shutdownGraceMs": 60000,
+  "stageIntervalMs": 1000,
+  "uniqueness": "admission-deduplication-not-execution-serialization",
+  "deadJobs": {
+    "pruneAfterSeconds": 2592000,
+    "pruneBatchMaximum": 500,
+    "manualRetryRequired": true
+  },
+  "drain": "pause-fetch-allow-running-until-shutdown-grace-then-lifeline-reclaim"
+}

@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/database/database-runtime-v1.schema.json",
+  "title": "LIQI Database Runtime V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "status",
+    "authority",
+    "requiredMigration",
+    "compatibility",
+    "repoSemantics",
+    "roles",
+    "connectionBudget",
+    "transactionPolicy",
+    "timeoutPolicy",
+    "capacity",
+    "migrationPolicy"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "contractVersion": {
+      "const": "database-runtime-v1"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "accepted"
+      ]
+    },
+    "authority": {
+      "const": "postgresql-only-durable-authority"
+    },
+    "requiredMigration": {
+      "const": 8
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "postgresqlMajor",
+        "ectoSql",
+        "postgrex",
+        "oban",
+        "pgbouncerMode",
+        "v0ReadCompatibility"
+      ],
+      "properties": {
+        "postgresqlMajor": {
+          "const": 17
+        },
+        "ectoSql": {
+          "pattern": "^>=3\\.13,<4\\.0$"
+        },
+        "postgrex": {
+          "pattern": "^>=0\\.20,<0\\.21$"
+        },
+        "oban": {
+          "pattern": "^>=2\\.23,<2\\.24$"
+        },
+        "pgbouncerMode": {
+          "const": "transaction"
+        },
+        "v0ReadCompatibility": {
+          "const": true
+        }
+      }
+    },
+    "repoSemantics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prepare",
+        "sessionState",
+        "listenNotify",
+        "migrationEndpoint",
+        "runtimeEndpoint",
+        "queryLogging",
+        "telemetry"
+      ],
+      "properties": {
+        "prepare": {
+          "const": "unnamed"
+        },
+        "sessionState": {
+          "const": "forbidden"
+        },
+        "listenNotify": {
+          "const": "forbidden-through-runtime-pool"
+        },
+        "migrationEndpoint": {
+          "const": "direct-postgresql"
+        },
+        "runtimeEndpoint": {
+          "const": "pgbouncer"
+        },
+        "queryLogging": {
+          "const": "disabled-by-provider"
+        },
+        "telemetry": {
+          "const": "ecto-repo-events-enabled"
+        }
+      }
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "login",
+          "superuser",
+          "purpose"
+        ],
+        "properties": {
+          "name": {
+            "pattern": "^liqi_[a-z0-9_]+$"
+          },
+          "login": {
+            "type": "boolean"
+          },
+          "superuser": {
+            "const": false
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "connectionBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "postgresMaxConnections",
+        "pgbouncerServerCapacity",
+        "directReservation",
+        "reservedHeadroom",
+        "ectoPools",
+        "poolRoleCaps"
+      ],
+      "properties": {
+        "postgresMaxConnections": {
+          "const": 80
+        },
+        "pgbouncerServerCapacity": {
+          "const": 40
+        },
+        "directReservation": {
+          "const": 10
+        },
+        "reservedHeadroom": {
+          "const": 30
+        },
+        "ectoPools": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "command",
+            "realtime",
+            "jobs"
+          ],
+          "properties": {
+            "command": {
+              "const": 12
+            },
+            "realtime": {
+              "const": 4
+            },
+            "jobs": {
+              "const": 6
+            }
+          }
+        },
+        "poolRoleCaps": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "liqi_api",
+            "liqi_realtime",
+            "liqi_worker"
+          ],
+          "properties": {
+            "liqi_api": {
+              "const": 20
+            },
+            "liqi_realtime": {
+              "const": 5
+            },
+            "liqi_worker": {
+              "const": 10
+            }
+          }
+        }
+      }
+    },
+    "transactionPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "defaultIsolation",
+        "commandIsolation",
+        "idempotencyLock",
+        "aggregateVersion",
+        "dualWrite"
+      ],
+      "properties": {
+        "defaultIsolation": {
+          "const": "read-committed"
+        },
+        "commandIsolation": {
+          "const": "read-committed-with-row-and-transaction-advisory-locks"
+        },
+        "idempotencyLock": {
+          "const": "pg_advisory_xact_lock"
+        },
+        "aggregateVersion": {
+          "const": "expected-version-compare-and-increment"
+        },
+        "dualWrite": {
+          "const": false
+        }
+      }
+    },
+    "timeoutPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commandStatementMs",
+        "realtimeStatementMs",
+        "workerStatementMs",
+        "lockMs",
+        "idleTransactionMs",
+        "poolQueueTargetMs",
+        "poolQueueIntervalMs"
+      ],
+      "properties": {
+        "commandStatementMs": {
+          "const": 5000
+        },
+        "realtimeStatementMs": {
+          "const": 3000
+        },
+        "workerStatementMs": {
+          "const": 30000
+        },
+        "lockMs": {
+          "const": 2000
+        },
+        "idleTransactionMs": {
+          "const": 15000
+        },
+        "poolQueueTargetMs": {
+          "const": 50
+        },
+        "poolQueueIntervalMs": {
+          "const": 1000
+        }
+      }
+    },
+    "capacity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "postgresMemoryMiB",
+        "pgbouncerMemoryMiB",
+        "backupTransientMemoryMiB",
+        "hardMemoryMiB",
+        "hardOcpu",
+        "hardDiskGiB",
+        "walMaxGiB",
+        "outboxRetentionDays",
+        "realtimeRetentionDays",
+        "backupTransientDiskGiB"
+      ],
+      "properties": {
+        "postgresMemoryMiB": {
+          "const": 5632
+        },
+        "pgbouncerMemoryMiB": {
+          "const": 128
+        },
+        "backupTransientMemoryMiB": {
+          "const": 1536
+        },
+        "hardMemoryMiB": {
+          "const": 7936
+        },
+        "hardOcpu": {
+          "const": 1.2
+        },
+        "hardDiskGiB": {
+          "const": 130.2
+        },
+        "walMaxGiB": {
+          "const": 8
+        },
+        "outboxRetentionDays": {
+          "const": 30
+        },
+        "realtimeRetentionDays": {
+          "const": 7
+        },
+        "backupTransientDiskGiB": {
+          "const": 32
+        }
+      }
+    },
+    "migrationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "direction",
+        "strategy",
+        "downMigrations",
+        "registry",
+        "lock",
+        "runtimeStartupMigration"
+      ],
+      "properties": {
+        "direction": {
+          "const": "forward-only"
+        },
+        "strategy": {
+          "const": "expand-migrate-contract"
+        },
+        "downMigrations": {
+          "const": false
+        },
+        "registry": {
+          "const": "platform.schema_migrations"
+        },
+        "lock": {
+          "const": "direct-session-advisory-lock"
+        },
+        "runtimeStartupMigration": {
+          "const": false
+        }
+      }
+    }
+  }
+}
