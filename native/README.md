@@ -37,7 +37,17 @@ The full gate also runs Elixir reference/fallback tests and intentionally exits 
 bash native/tests/run-source-validation.sh
 ```
 
-Run fuzzing on Linux with nightly Rust and `cargo-fuzz` installed:
+Run the consumer-ready integration safety gate on Linux with the pinned OTP/Elixir and Rust toolchains plus `cargo-fuzz`:
+
+```bash
+LIQI_FUZZ_SECONDS=300 \
+  bash native/scripts/run-v1-safety-gates.sh \
+  --output .artifacts/native-safety-v1.json
+```
+
+The command binds its result to the exact clean Git SHA, runs contracts, Rust unit/property/panic gates, the warning-free unwind-profile NIF build, Elixir fallback/consumer tests, deployment-adapter tests, a bounded fuzz duration and the repository secret scan. Missing Linux or toolchain prerequisites produce explicit blocked evidence rather than a pass.
+
+The lower-level fuzz command remains available for focused investigation:
 
 ```bash
 LIQI_FUZZ_SECONDS=300 bash native/fuzz/run-fuzz.sh
@@ -86,6 +96,19 @@ python native/scripts/package_artifact.py \
 python native/scripts/verify_artifact.py \
   --manifest "$LIQI_NATIVE_OUTPUT_DIR/native-artifact-$LIQI_RELEASE_ID.json"
 ```
+
+Senior 4's host installer additionally requires an approved Ed25519 signature over the exact same shared-object bytes. After that signature exists, create the directly consumable deployment manifest without changing or copying the artifact:
+
+```bash
+python native/scripts/prepare_deployment_manifest.py \
+  --native-manifest "$LIQI_NATIVE_OUTPUT_DIR/native-artifact-$LIQI_RELEASE_ID.json" \
+  --ed25519-signature "$LIQI_NATIVE_OUTPUT_DIR/libliqi_sequence_diff_nif.so.sig" \
+  --key-id native-signing-v1 \
+  --trust-dir '<approved-public-key-directory>' \
+  --output "$LIQI_NATIVE_OUTPUT_DIR/liqi-sequence-diff-nif-v1.deployment.json"
+```
+
+The adapter requires both the Sigstore provenance verification and the offline deployment signature. Both manifests carry the same source revision and artifact SHA-256. See `docs/adr/3002-native-deployment-trust-adapter-v1.md`.
 
 Install the verified shared object at:
 
