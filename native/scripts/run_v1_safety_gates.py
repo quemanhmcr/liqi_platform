@@ -31,7 +31,17 @@ def relative(path: Path) -> str:
 
 
 def version(argv: list[str]) -> str:
-    completed = subprocess.run(argv, cwd=ROOT, capture_output=True, text=True, check=False, timeout=30)
+    try:
+        completed = subprocess.run(
+            argv,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return "unavailable"
     text = (completed.stdout or completed.stderr).strip().replace("\r", "")
     if completed.returncode or not text:
         return "unavailable"

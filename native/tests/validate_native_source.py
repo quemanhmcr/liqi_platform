@@ -218,6 +218,7 @@ def validate_semantics() -> list[str]:
         ROOT / "native" / "scripts" / "prepare_deployment_manifest.py",
         ROOT / "native" / "scripts" / "verify_deployment_manifest.py",
         ROOT / "native" / "tests" / "test_deployment_manifest.py",
+        ROOT / "native" / "tests" / "test_safety_gate.py",
         ROOT / "contracts" / "native" / "native-safety-result-v1.schema.json",
     ):
         if not required_path.is_file():
