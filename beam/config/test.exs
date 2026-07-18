@@ -4,8 +4,7 @@ config :liqi_platform,
   start_endpoint: false,
   start_persistence: false,
   start_oban: false,
-  persistence_adapter: Liqi.Persistence.Fake,
-  native_adapter: Liqi.Native.Fallback
+  persistence_adapter: Liqi.Persistence.Fake
 
 config :liqi_platform, Liqi.Web.Endpoint,
   server: false,

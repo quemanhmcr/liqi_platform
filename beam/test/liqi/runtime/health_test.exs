@@ -1,20 +1,12 @@
 defmodule Liqi.Runtime.HealthTest do
   use ExUnit.Case, async: false
 
-  defmodule UnavailableNative do
-    @behaviour Liqi.Native.Adapter
-    def readiness, do: {:error, :artifact_unavailable}
-    def sequence_diff(_, _, _), do: {:error, :artifact_unavailable}
-  end
-
   setup do
     old_config = Application.get_env(:liqi_platform, :runtime_config)
-    old_native = Application.get_env(:liqi_platform, :native_adapter)
     old_state = :sys.get_state(Liqi.Runtime.State)
 
     on_exit(fn ->
       restore(:runtime_config, old_config)
-      restore(:native_adapter, old_native)
       :sys.replace_state(Liqi.Runtime.State, fn _ -> old_state end)
       Liqi.Persistence.Fake.set_readiness(:ok)
     end)
@@ -38,8 +30,6 @@ defmodule Liqi.Runtime.HealthTest do
     }
 
     Application.put_env(:liqi_platform, :runtime_config, config)
-    Application.put_env(:liqi_platform, :native_adapter, UnavailableNative)
-
     assert %{status: "not_ready", checks: checks} = Liqi.Runtime.Health.ready()
     assert %{name: "native", status: "down"} = Enum.find(checks, &(&1.name == "native"))
   end
