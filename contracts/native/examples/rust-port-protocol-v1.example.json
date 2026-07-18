@@ -1,0 +1,10 @@
+{
+  "protocol_version": "1",
+  "message_id": "018f47b2-8028-7ac3-8f5a-5c8ea5ef13a7",
+  "correlation_id": null,
+  "kind": "request",
+  "deadline_unix_ms": 1784342400000,
+  "kernel": "future_isolated_kernel",
+  "payload_version": "1",
+  "payload": "AA=="
+}

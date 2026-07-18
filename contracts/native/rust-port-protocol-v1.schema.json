@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/native/rust-port-protocol-v1.schema.json",
+  "title": "LIQI isolated Rust port frame V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "message_id",
+    "kind",
+    "deadline_unix_ms",
+    "payload_version",
+    "payload"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": "1"
+    },
+    "message_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "correlation_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "kind": {
+      "enum": [
+        "request",
+        "response",
+        "cancel",
+        "health"
+      ]
+    },
+    "deadline_unix_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "kernel": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z][a-z0-9_]{2,63}$"
+    },
+    "payload_version": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,5}$"
+    },
+    "payload": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "maxLength": 349528
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "error",
+        "accepted",
+        "cancelled",
+        "ready",
+        "not_ready"
+      ]
+    },
+    "error": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "native-error-v1.schema.json"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "request"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "kernel"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "response"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "status",
+          "error"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "cancel",
+              "health"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "kernel": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

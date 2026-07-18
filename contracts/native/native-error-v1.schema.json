@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/native/native-error-v1.schema.json",
+  "title": "LIQI native error V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "code",
+    "retryable",
+    "detail",
+    "kernel",
+    "kernel_version"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "native-error-v1"
+    },
+    "code": {
+      "enum": [
+        "NATIVE_INVALID_WINDOW",
+        "NATIVE_WINDOW_TOO_LARGE",
+        "NATIVE_INPUT_TOO_LARGE",
+        "NATIVE_INVALID_ENCODING",
+        "NATIVE_SEQUENCE_OUT_OF_ORDER",
+        "NATIVE_SEQUENCE_OUT_OF_WINDOW",
+        "NATIVE_ADMISSION_REJECTED",
+        "NATIVE_DEADLINE_EXCEEDED",
+        "NATIVE_UNAVAILABLE",
+        "NATIVE_VERSION_MISMATCH",
+        "NATIVE_PANIC",
+        "NATIVE_INTERNAL"
+      ]
+    },
+    "retryable": {
+      "type": "boolean"
+    },
+    "detail": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_]{2,127}$"
+    },
+    "kernel": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{2,63}$"
+    },
+    "kernel_version": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,5}$"
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "actual": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "index": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "schema_version": "native-error-v1",
+  "code": "NATIVE_SEQUENCE_OUT_OF_ORDER",
+  "retryable": false,
+  "detail": "observed_sequences_must_be_non_decreasing",
+  "kernel": "compact_sequence_diff",
+  "kernel_version": "1",
+  "index": 2
+}

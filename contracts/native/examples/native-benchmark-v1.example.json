@@ -1,0 +1,54 @@
+{
+  "schema_version": "native-benchmark-v1",
+  "status": "blocked",
+  "kernel": "compact_sequence_diff",
+  "kernel_version": "1",
+  "source_revision": "0000000000000000000000000000000000000000",
+  "artifact_sha256": null,
+  "execution_path": "rust-core-only",
+  "environment": {
+    "class": "developer-workstation",
+    "target_triple": "x86_64-pc-windows-gnu",
+    "host_cpu": 4,
+    "host_memory_mib": 24576,
+    "beam_schedulers": null,
+    "dirty_cpu_schedulers": null,
+    "dirty_io_schedulers": null,
+    "async_threads": null
+  },
+  "case": {
+    "observed_sequences": 2048,
+    "input_bytes": 16384,
+    "window_span": 4096,
+    "expected_output_ranges": 2048
+  },
+  "samples": 1000,
+  "latency_us": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "maximum": 0,
+    "target_p99": 500,
+    "hard_budget": 1000
+  },
+  "scheduler_impact": {
+    "starvation_tested": false,
+    "max_probe_delay_ms": null,
+    "status": "not-tested"
+  },
+  "fallback_verified": false,
+  "command": [
+    "cargo",
+    "run",
+    "--release",
+    "-p",
+    "liqi-sequence-diff-core",
+    "--example",
+    "core_benchmark"
+  ],
+  "started_at": "2026-07-18T00:00:00Z",
+  "completed_at": "2026-07-18T00:00:00Z",
+  "notes": [
+    "Fixture only; a passed result requires direct BEAM Rustler execution on OCI A1 and exact artifact binding."
+  ]
+}

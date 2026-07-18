@@ -1,0 +1,75 @@
+{
+  "schema_version": "compact-sequence-diff-corpus-v1",
+  "encoding": "big-endian-u64",
+  "cases": [
+    {
+      "name": "complete",
+      "first": 1,
+      "last": 4,
+      "observed": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "missing": [],
+      "duplicates": 0
+    },
+    {
+      "name": "gaps-and-duplicate",
+      "first": 10,
+      "last": 20,
+      "observed": [
+        10,
+        11,
+        11,
+        14,
+        18,
+        20
+      ],
+      "missing": [
+        [
+          12,
+          13
+        ],
+        [
+          15,
+          17
+        ],
+        [
+          19,
+          19
+        ]
+      ],
+      "duplicates": 1
+    },
+    {
+      "name": "empty",
+      "first": 7,
+      "last": 9,
+      "observed": [],
+      "missing": [
+        [
+          7,
+          9
+        ]
+      ],
+      "duplicates": 0
+    },
+    {
+      "name": "u64-max",
+      "first": 18446744073709551613,
+      "last": 18446744073709551615,
+      "observed": [
+        18446744073709551615
+      ],
+      "missing": [
+        [
+          18446744073709551613,
+          18446744073709551614
+        ]
+      ],
+      "duplicates": 0
+    }
+  ]
+}
