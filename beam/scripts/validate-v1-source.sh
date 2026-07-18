@@ -60,7 +60,9 @@ run_check clean_build -- python -c "import shutil; shutil.rmtree('_build/test', 
 run_check deps_compile --env MIX_ENV=test -- mix deps.compile --force --skip-umbrella-children
 run_check compile --env MIX_ENV=test -- mix compile --warnings-as-errors
 run_check tests --env MIX_ENV=test -- mix test --seed 0
-run_check live_probe_compile -- python -m py_compile beam/bin/platform-probe beam/scripts/platform_probe.py beam/tests/test_platform_probe.py
+run_check persistence_provider_tests --env MIX_ENV=test -- mix test beam/apps/liqi_persistence/test/config_test.exs --seed 0
+run_check jobs_provider_tests --env MIX_ENV=test -- mix test beam/apps/liqi_jobs/test/queue_policy_test.exs --seed 0
+run_check live_probe_compile -- python -m py_compile beam/bin/platform-probe beam/scripts/platform_probe.py beam/scripts/run_v1_integration.py beam/tests/test_platform_probe.py beam/tests/test_runtime_integration.py
 run_check live_probe_tests -- python -m unittest discover -s beam/tests -p 'test_*.py' -v
 run_check dependency_audit -- mix hex.audit
 run_check shared_contracts -- python scripts/operations/validate_contracts.py

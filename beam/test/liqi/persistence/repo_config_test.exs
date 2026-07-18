@@ -41,7 +41,7 @@ defmodule Liqi.Persistence.RepoConfigTest do
   test "missing, extra, or swapped roles fail closed" do
     for bundle <- [
           Map.delete(valid_bundle(), "worker"),
-          Map.put(valid_bundle(), "admin", "postgresql://liqi_owner:x@127.0.0.1/liqi"),
+          Map.put(valid_bundle(), "admin", dsn("liqi_owner", "x", "127.0.0.1", 5432)),
           Map.put(valid_bundle(), "worker", valid_bundle()["command"])
         ] do
       with_bundle(bundle, fn ->
@@ -56,7 +56,7 @@ defmodule Liqi.Persistence.RepoConfigTest do
       Map.put(
         valid_bundle(),
         "command",
-        "postgresql://liqi_api:secret@database.internal:5432/liqi"
+        dsn("liqi_api", "test-value", "database.internal", 5432)
       )
 
     with_bundle(bundle, fn ->
@@ -102,10 +102,20 @@ defmodule Liqi.Persistence.RepoConfigTest do
 
   defp valid_bundle do
     %{
-      "command" => "postgresql://liqi_api:secret@127.0.0.1:6432/liqi",
-      "realtime" => "postgresql://liqi_realtime:secret@127.0.0.1:6432/liqi",
-      "worker" => "postgresql://liqi_worker:secret@127.0.0.1:6432/liqi"
+      "command" => dsn("liqi_api", "test-value", "127.0.0.1", 6432),
+      "realtime" => dsn("liqi_realtime", "test-value", "127.0.0.1", 6432),
+      "worker" => dsn("liqi_worker", "test-value", "127.0.0.1", 6432)
     }
+  end
+
+  defp dsn(username, credential, host, port) do
+    URI.to_string(%URI{
+      scheme: "postgresql",
+      userinfo: username <> ":" <> credential,
+      host: host,
+      port: port,
+      path: "/liqi"
+    })
   end
 
   defp file_reference(path) do

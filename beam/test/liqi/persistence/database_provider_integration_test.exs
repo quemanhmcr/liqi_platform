@@ -13,7 +13,8 @@ defmodule Liqi.Persistence.DatabaseProviderIntegrationTest do
     oban_pid = start_oban!()
 
     on_exit(fn ->
-      if is_pid(oban_pid) and Process.alive?(oban_pid), do: Supervisor.stop(oban_pid, :normal, 5_000)
+      if is_pid(oban_pid) and Process.alive?(oban_pid),
+        do: Supervisor.stop(oban_pid, :normal, 5_000)
 
       Enum.each(Enum.reverse(started), fn pid ->
         if is_pid(pid) and Process.alive?(pid), do: Supervisor.stop(pid, :normal, 5_000)
