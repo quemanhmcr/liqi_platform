@@ -43,12 +43,14 @@ class ReadinessV1Tests(unittest.TestCase):
    'native-source':'ca71a1be6914a33db22544802f704084f3346af5',
    'native-safety':'ca71a1be6914a33db22544802f704084f3346af5',
    'native-artifact':'ca71a1be6914a33db22544802f704084f3346af5',
-   'infrastructure-source':'19b06788e0a5d7695fc2f89102af8e75129d39af',
+   'deployment-artifact':'ca99b7d14816cd051fce15a54accdeb17276096d',
+   'infrastructure-source':'ca99b7d14816cd051fce15a54accdeb17276096d',
+   'infrastructure-plan':'ca99b7d14816cd051fce15a54accdeb17276096d',
   }
   for ident,commit in integrated.items():
    self.assertEqual('available',gates[ident]['provider_state'])
    self.assertEqual(commit,gates[ident]['provider_commit'])
-  for ident in ('runtime-live-probe','infrastructure-plan','host-readiness','rollback-evidence'):
+  for ident in ('runtime-live-probe','host-readiness','rollback-evidence'):
    self.assertEqual('pending-live-evidence',gates[ident]['provider_state'])
    self.assertIsNotNone(gates[ident]['provider_commit'])
   self.assertEqual('pending-provider-publication',gates['database-recovery']['provider_state'])

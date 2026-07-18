@@ -9,7 +9,7 @@ The committed runtime, database, native and infrastructure source graph is integ
 | Senior 1 | `15e2dd5a263decb91308a0d1783c4610bd7dc62d` | BEAM source, disposable PostgreSQL integration, signed release verifier, platform probe | Source and disposable integration can pass; Linux ARM64 release and live endpoint evidence pending. |
 | Senior 2 | `168f6b3be66ff36eac4b4944f8d6940b6d2026ce` | PostgreSQL contracts and disposable pgTAP integration | Source and disposable integration available; isolated restore/PITR command unpublished. |
 | Senior 3 | `ca71a1be6914a33db22544802f704084f3346af5` | Rust source, native safety result, complete deployment-manifest verifier | Command publication complete; passed Linux/A1 safety and signed ARM64 artifact inputs pending. |
-| Senior 4 | `19b06788e0a5d7695fc2f89102af8e75129d39af` | OCI source/contracts and committed deployment/rollback controls | Source passes without mutation; reviewed live plan, deployed host and rollback exercise evidence pending. |
+| Senior 4 | `ca99b7d14816cd051fce15a54accdeb17276096d` | OCI source/contracts and committed deployment/rollback controls | Source passes without mutation; reviewed live plan, deployed host and rollback exercise evidence pending. |
 
 Senior 1 commit `e9201d742765f4b1c544e60648e0a719eab91c8e` supplies the fail-safe non-Linux native safety adapter consumed by Senior 5. It does not replace passed Linux/A1 evidence.
 

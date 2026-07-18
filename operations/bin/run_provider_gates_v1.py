@@ -85,6 +85,18 @@ def expand(parts: list[str], output: Path) -> tuple[list[str], str]:
     return actual, " ".join(displayed)
 
 
+def classify_provider_outcome(returncode: int, document_status: str | None) -> tuple[str, str | None, str | None]:
+    if document_status == "blocked":
+        return "blocked", "PROVIDER_GATE_BLOCKED", f"provider emitted blocked evidence and exited {returncode}"
+    if document_status == "failed":
+        return "failed", "PROVIDER_GATE_FAILED", f"provider emitted failed evidence and exited {returncode}"
+    if document_status == "passed" and returncode != 0:
+        return "failed", "PROVIDER_RESULT_EXIT_MISMATCH", f"provider emitted passed evidence but exited {returncode}"
+    if returncode != 0:
+        return "failed", "PROVIDER_GATE_FAILED", f"provider command exited {returncode}"
+    return "passed", None, None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
@@ -190,29 +202,11 @@ def main() -> int:
                     add_result(gate, "failed", log_ref, "PROVIDER_RESULT_INVALID", str(exc))
                     continue
 
-            claimed_status = document.get("status") if document else None
-            if claimed_status == "blocked":
-                add_result(
-                    gate,
-                    "blocked",
-                    output_ref,
-                    "PROVIDER_GATE_BLOCKED",
-                    f"provider reported blocked with exit code {completed.returncode}; see {output_ref}",
-                )
-                continue
-            if claimed_status == "failed":
-                add_result(
-                    gate,
-                    "failed",
-                    output_ref,
-                    "PROVIDER_GATE_FAILED",
-                    f"provider reported failed with exit code {completed.returncode}; see {output_ref}",
-                )
-                continue
-            if completed.returncode != 0:
-                add_result(gate, "failed", output_ref, "PROVIDER_GATE_FAILED", f"provider command exited {completed.returncode}; see {output_ref}")
-                continue
-            add_result(gate, "passed", output_ref)
+            claimed_status = document.get("status") if document and isinstance(document.get("status"), str) else None
+            status, code, message = classify_provider_outcome(completed.returncode, claimed_status)
+            if message:
+                message = f"{message}; see {output_ref}"
+            add_result(gate, status, output_ref, code, message)
         except (RuntimeError, subprocess.TimeoutExpired, OSError) as exc:
             log_path.write_text(redact(str(exc)) + "\n", encoding="utf-8", newline="\n")
             add_result(gate, "failed", relative_ref(log_path), "PROVIDER_GATE_EXECUTION_FAILED", str(exc))
