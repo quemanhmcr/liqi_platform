@@ -168,14 +168,15 @@ def main() -> int:
             duration_ms = round((time.monotonic() - started) * 1000)
             log_path.write_text(redact(f"COMMAND\n{displayed}\nDURATION_MS\n{duration_ms}\nSTDOUT\n{completed.stdout}\nSTDERR\n{completed.stderr}"), encoding="utf-8", newline="\n")
             log_ref = relative_ref(log_path)
-            if completed.returncode != 0:
-                add_result(gate, "failed", log_ref, "PROVIDER_GATE_FAILED", f"provider command exited {completed.returncode}; see {log_ref}")
-                continue
             output_ref = log_ref
+            document: dict[str, Any] | None = None
             result_schema = gate.get("result_schema")
             if result_schema:
                 try:
-                    document = load_json(gate_output)
+                    loaded = load_json(gate_output)
+                    if not isinstance(loaded, dict):
+                        raise ValueError(f"{gate['id']} result must be a JSON object")
+                    document = loaded
                     schema_errors = validate_document(safe_repo_path(result_schema), document, gate["id"])
                     if document.get("git_sha") not in {None, sha}:
                         schema_errors.append(f"{gate['id']}.git_sha does not match {sha}")
@@ -188,6 +189,29 @@ def main() -> int:
                     log_path.write_text(log_path.read_text(encoding="utf-8") + f"\nRESULT_VALIDATION\n{redact(str(exc))}\n", encoding="utf-8", newline="\n")
                     add_result(gate, "failed", log_ref, "PROVIDER_RESULT_INVALID", str(exc))
                     continue
+
+            claimed_status = document.get("status") if document else None
+            if claimed_status == "blocked":
+                add_result(
+                    gate,
+                    "blocked",
+                    output_ref,
+                    "PROVIDER_GATE_BLOCKED",
+                    f"provider reported blocked with exit code {completed.returncode}; see {output_ref}",
+                )
+                continue
+            if claimed_status == "failed":
+                add_result(
+                    gate,
+                    "failed",
+                    output_ref,
+                    "PROVIDER_GATE_FAILED",
+                    f"provider reported failed with exit code {completed.returncode}; see {output_ref}",
+                )
+                continue
+            if completed.returncode != 0:
+                add_result(gate, "failed", output_ref, "PROVIDER_GATE_FAILED", f"provider command exited {completed.returncode}; see {output_ref}")
+                continue
             add_result(gate, "passed", output_ref)
         except (RuntimeError, subprocess.TimeoutExpired, OSError) as exc:
             log_path.write_text(redact(str(exc)) + "\n", encoding="utf-8", newline="\n")

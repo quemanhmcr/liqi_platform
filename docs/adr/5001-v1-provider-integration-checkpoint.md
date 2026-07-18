@@ -15,10 +15,10 @@ The four V1 provider branches have published a committed composite graph. Readin
 
 - Senior 1 runtime `15e2dd5a263decb91308a0d1783c4610bd7dc62d`;
 - Senior 2 database `168f6b3be66ff36eac4b4944f8d6940b6d2026ce`;
-- Senior 3 native `7478e31a4de48e278f0d08885bfaab56d5d88762`;
+- Senior 3 native `ca71a1be6914a33db22544802f704084f3346af5`, with non-Linux blocked-evidence adapter `e9201d742765f4b1c544e60648e0a719eab91c8e`;
 - Senior 4 infrastructure `19b06788e0a5d7695fc2f89102af8e75129d39af`.
 
-The readiness registry marks only commands that are integrated and directly consumable as `available`. Integrated artifact/live collectors without exact-release evidence are `pending-live-evidence`. Missing owner commands remain `pending-provider-publication` even when adjacent composite evidence exists.
+The readiness registry marks only commands that are integrated and directly consumable as `available`; provider JSON status remains authoritative and cannot be promoted by process exit code. Integrated artifact/live collectors without exact-release evidence are `pending-live-evidence`. Missing owner commands remain `pending-provider-publication` even when adjacent composite evidence exists.
 
 ## Evidence classification
 

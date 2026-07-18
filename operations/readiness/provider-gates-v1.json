@@ -1,6 +1,6 @@
 {
   "schema_version": "provider-gates-v1",
-  "registry_version": "1.0.0",
+  "registry_version": "1.2.0",
   "gates": [
     {
       "id": "runtime-source",
@@ -65,7 +65,7 @@
       "stages": [
         "artifact"
       ],
-      "provider_state": "pending-live-evidence",
+      "provider_state": "available",
       "mutation_class": "build",
       "required_paths": [
         "beam/scripts/verify-v1-release.sh"
@@ -79,11 +79,12 @@
         "{output}"
       ],
       "required_environment": [
-        "LIQI_RELEASE_MANIFEST"
+        "LIQI_RELEASE_MANIFEST",
+        "LIQI_RELEASE_TRUST_DIR"
       ],
       "timeout_seconds": 1800,
       "result_schema": "contracts/runtime/runtime-artifact-result-v1.schema.json",
-      "action_required": "Supply and verify a signed Linux ARM64 Mix release manifest bound to the exact release; the local Windows release is non-promotable.",
+      "action_required": "Supply the signed Linux ARM64 Mix release manifest and trusted Ed25519 public-key directory. Missing inputs remain blocked and local Windows packaging is non-promotable.",
       "provider_branch": "v1/beam-runtime-realtime",
       "provider_commit": "15e2dd5a263decb91308a0d1783c4610bd7dc62d"
     },
@@ -150,31 +151,33 @@
     {
       "id": "database-integration",
       "owner": "Senior 2",
-      "seam": "database/tests/integration/run-v1-database-tests.sh --output",
+      "seam": "database/tests/integration/run_database_tests.sh",
       "stages": [
         "integration"
       ],
-      "provider_state": "pending-provider-publication",
+      "provider_state": "available",
       "mutation_class": "disposable-database",
       "required_paths": [
-        "database/tests/integration/run-v1-database-tests.sh"
+        "database/tests/integration/run_database_tests.sh",
+        "database/tests/integration/bootstrap_test_database.sh",
+        "database/tests/pgtap"
       ],
       "argv": [
         "bash",
-        "database/tests/integration/run-v1-database-tests.sh",
-        "--database-url",
-        "{env:LIQI_TEST_DATABASE_URL}",
-        "--output",
-        "{output}"
+        "database/tests/integration/run_database_tests.sh"
       ],
       "required_environment": [
-        "LIQI_TEST_DATABASE_URL"
+        "LIQI_TEST_DATABASE",
+        "LIQI_V0_UPGRADE_DATABASE",
+        "PGHOST",
+        "PGPORT",
+        "PGUSER"
       ],
       "timeout_seconds": 1800,
       "result_schema": null,
-      "action_required": "Publish a CI-consumable Senior 2 command that accepts the disposable PostgreSQL target and emits directly consumable exact-SHA evidence; the Senior 1 composite integration result is supporting evidence, not a replacement owner seam.",
+      "action_required": "Run only against explicitly named disposable loopback PostgreSQL databases with pgTAP/pg_prove installed. The CI service is ephemeral; non-CI callers must remove both test databases after collection.",
       "provider_branch": "v1/durable-data-work",
-      "provider_commit": null
+      "provider_commit": "168f6b3be66ff36eac4b4944f8d6940b6d2026ce"
     },
     {
       "id": "database-recovery",
@@ -231,9 +234,9 @@
       "required_environment": [],
       "timeout_seconds": 1800,
       "result_schema": null,
-      "action_required": "Run the Rust source gate on the exact integrated SHA; Linux ARM64 Rustler and full Elixir fallback checks remain separate evidence.",
+      "action_required": "Run the Rust-only source gate on the exact integrated SHA. Non-Linux output must not claim Linux ARM64 evidence.",
       "provider_branch": "v1/native-rustler",
-      "provider_commit": "7478e31a4de48e278f0d08885bfaab56d5d88762"
+      "provider_commit": "ca71a1be6914a33db22544802f704084f3346af5"
     },
     {
       "id": "native-safety",
@@ -242,10 +245,15 @@
       "stages": [
         "integration"
       ],
-      "provider_state": "pending-provider-publication",
+      "provider_state": "available",
       "mutation_class": "build",
       "required_paths": [
-        "native/scripts/run-v1-safety-gates.sh"
+        "native/scripts/run-v1-safety-gates.sh",
+        "native/scripts/run_v1_safety_gates.py",
+        "native/tests/run-source-validation.sh",
+        "native/fuzz/run-fuzz.sh",
+        "native/tests/test_deployment_manifest.py",
+        "contracts/native/native-safety-result-v1.schema.json"
       ],
       "argv": [
         "bash",
@@ -255,38 +263,46 @@
       ],
       "required_environment": [],
       "timeout_seconds": 3600,
-      "result_schema": null,
-      "action_required": "Publish one exact-release command covering property, bounded fuzz, panic mapping, fallback, direct A1 latency and scheduler evidence.",
+      "result_schema": "contracts/native/native-safety-result-v1.schema.json",
+      "action_required": "Run on Linux with Rust 1.97.1, OTP 28.5.0.3, Elixir 1.20.2-otp-28, nightly cargo-fuzz and no tracked changes. A schema-valid blocked result remains blocked, never passed.",
       "provider_branch": "v1/native-rustler",
-      "provider_commit": null
+      "provider_commit": "ca71a1be6914a33db22544802f704084f3346af5"
     },
     {
       "id": "native-artifact",
       "owner": "Senior 3",
-      "seam": "native/scripts/verify_artifact.py --manifest",
+      "seam": "native/scripts/verify_deployment_manifest.py --native-manifest --deployment-manifest --trust-dir",
       "stages": [
         "artifact"
       ],
-      "provider_state": "pending-live-evidence",
+      "provider_state": "available",
       "mutation_class": "build",
       "required_paths": [
         "native/scripts/verify_artifact.py",
-        "contracts/native/native-artifact-v1.schema.json"
+        "native/scripts/verify_deployment_manifest.py",
+        "contracts/native/native-artifact-v1.schema.json",
+        "contracts/deployment/native-artifact-v1.schema.json"
       ],
       "argv": [
         "python",
-        "native/scripts/verify_artifact.py",
-        "--manifest",
-        "{env:LIQI_NATIVE_MANIFEST}"
+        "native/scripts/verify_deployment_manifest.py",
+        "--native-manifest",
+        "{env:LIQI_NATIVE_MANIFEST}",
+        "--deployment-manifest",
+        "{env:LIQI_NATIVE_DEPLOYMENT_MANIFEST}",
+        "--trust-dir",
+        "{env:LIQI_NATIVE_TRUST_DIR}"
       ],
       "required_environment": [
-        "LIQI_NATIVE_MANIFEST"
+        "LIQI_NATIVE_MANIFEST",
+        "LIQI_NATIVE_DEPLOYMENT_MANIFEST",
+        "LIQI_NATIVE_TRUST_DIR"
       ],
       "timeout_seconds": 1800,
       "result_schema": null,
-      "action_required": "Supply the signed Linux ARM64 artifact, SBOM, provenance and Sigstore bundle, then verify it against the exact release manifest.",
+      "action_required": "Provide the verified Sigstore provider manifest, Ed25519 deployment manifest/signature and approved public-key directory for the same Linux ARM64 artifact and exact release.",
       "provider_branch": "v1/native-rustler",
-      "provider_commit": "7478e31a4de48e278f0d08885bfaab56d5d88762"
+      "provider_commit": "ca71a1be6914a33db22544802f704084f3346af5"
     },
     {
       "id": "infrastructure-source",

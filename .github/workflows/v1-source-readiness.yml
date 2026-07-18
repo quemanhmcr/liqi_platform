@@ -121,6 +121,13 @@ jobs:
           --health-retries 10
     env:
       LIQI_TEST_DATABASE_URL: postgres://postgres@127.0.0.1:5432/liqi_v1_ci
+      LIQI_TEST_DATABASE: liqi_v1_test_ci_provider
+      LIQI_V0_UPGRADE_DATABASE: liqi_v0_upgrade_test_ci_provider
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGDATABASE: postgres
+      LIQI_FUZZ_SECONDS: "300"
     steps:
       - name: Checkout exact source
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5

@@ -37,19 +37,22 @@ class ReadinessV1Tests(unittest.TestCase):
   integrated={
    'runtime-source':'15e2dd5a263decb91308a0d1783c4610bd7dc62d',
    'runtime-integration':'15e2dd5a263decb91308a0d1783c4610bd7dc62d',
+   'runtime-artifact':'15e2dd5a263decb91308a0d1783c4610bd7dc62d',
    'database-source':'168f6b3be66ff36eac4b4944f8d6940b6d2026ce',
-   'native-source':'7478e31a4de48e278f0d08885bfaab56d5d88762',
+   'database-integration':'168f6b3be66ff36eac4b4944f8d6940b6d2026ce',
+   'native-source':'ca71a1be6914a33db22544802f704084f3346af5',
+   'native-safety':'ca71a1be6914a33db22544802f704084f3346af5',
+   'native-artifact':'ca71a1be6914a33db22544802f704084f3346af5',
    'infrastructure-source':'19b06788e0a5d7695fc2f89102af8e75129d39af',
   }
   for ident,commit in integrated.items():
    self.assertEqual('available',gates[ident]['provider_state'])
    self.assertEqual(commit,gates[ident]['provider_commit'])
-  for ident in ('runtime-artifact','runtime-live-probe','native-artifact','infrastructure-plan','host-readiness','rollback-evidence'):
+  for ident in ('runtime-live-probe','infrastructure-plan','host-readiness','rollback-evidence'):
    self.assertEqual('pending-live-evidence',gates[ident]['provider_state'])
    self.assertIsNotNone(gates[ident]['provider_commit'])
-  for gate in gates.values():
-   if gate['provider_state']=='pending-provider-publication':
-    self.assertIsNone(gate['provider_commit'])
+  self.assertEqual('pending-provider-publication',gates['database-recovery']['provider_state'])
+  self.assertIsNone(gates['database-recovery']['provider_commit'])
 
  def test_unpublished_provider_seams_are_blocked_with_owners(self):
   registry=json.loads((ROOT/'operations/readiness/provider-gates-v1.json').read_text(encoding='utf-8'))
@@ -65,6 +68,24 @@ class ReadinessV1Tests(unittest.TestCase):
    doc=json.loads(out.read_text());self.assertEqual('blocked',doc['status']);self.assertEqual({'Senior 1','Senior 2','Senior 3','Senior 4'},{item['owner'] for item in doc['blockers']})
    codes={item['owner']:item['code'] for item in doc['blockers']}
    for owner in ('Senior 1','Senior 2','Senior 3','Senior 4'):self.assertEqual('PROVIDER_SEAM_UNPUBLISHED',codes[owner])
+ def test_schema_valid_provider_blocked_status_is_not_promoted(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   root=Path(tmp);script=root/'provider.py';registry_path=root/'registry.json';out=root/'checkpoint.json'
+   sha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+   document={
+    'schema_version':'native-safety-result-v1','git_sha':sha,'status':'blocked',
+    'started_at':'2026-07-18T00:00:00Z','completed_at':'2026-07-18T00:00:01Z',
+    'toolchain':{'rust':'unavailable','cargo':'unavailable','elixir':'unavailable','otp':'unavailable','rustler':'0.38.0','nif_abi':'2.15'},
+    'checks':[{'id':'environment','status':'blocked','command':['provider-test'],'duration_ms':0,'log_ref':'provider-test.log'}],
+    'fuzz_seconds':1,'property_cases':2000,'failures':['Linux is required'],
+   }
+   script.write_text("import json,sys\njson.dump("+repr(document)+",open(sys.argv[1],'w'))\nraise SystemExit(69)\n",encoding='utf-8')
+   source=json.loads((ROOT/'operations/readiness/provider-gates-v1.json').read_text(encoding='utf-8'))['gates'][0]
+   gate=dict(source);gate.update({'id':'provider-status-test','owner':'Senior 3','seam':'schema-valid blocked result','stages':['source'],'provider_state':'available','provider_commit':'ca71a1be6914a33db22544802f704084f3346af5','mutation_class':'read-only','required_paths':['contracts/native/native-safety-result-v1.schema.json'],'argv':[PYTHON,str(script),'{output}'],'required_environment':[],'timeout_seconds':30,'result_schema':'contracts/native/native-safety-result-v1.schema.json','action_required':'Run on the required platform.'})
+   registry_path.write_text(json.dumps({'schema_version':'provider-gates-v1','registry_version':'test','gates':[gate]}),encoding='utf-8')
+   self.invoke(PYTHON,'operations/bin/run_provider_gates_v1.py','--registry',str(registry_path),'--stage','source','--output',str(out),'--evidence-dir',str(root/'evidence'),'--allow-blocked')
+   doc=json.loads(out.read_text());self.assertEqual('blocked',doc['status']);self.assertEqual('blocked',doc['provider_results'][0]['status']);self.assertEqual('PROVIDER_GATE_BLOCKED',doc['blockers'][0]['code'])
+
  def test_missing_evidence_is_not_ready(self):
   with tempfile.TemporaryDirectory() as tmp:
    out=Path(tmp)/'final.json'
