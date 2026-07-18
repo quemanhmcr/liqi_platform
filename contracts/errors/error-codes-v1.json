@@ -1,0 +1,55 @@
+{
+  "version": "1",
+  "errors": [
+    {
+      "code": "validation.failed",
+      "httpStatus": 400,
+      "retryable": false
+    },
+    {
+      "code": "idempotency.conflict",
+      "httpStatus": 409,
+      "retryable": false
+    },
+    {
+      "code": "aggregate.version_conflict",
+      "httpStatus": 409,
+      "retryable": false
+    },
+    {
+      "code": "capacity.endpoint",
+      "httpStatus": 429,
+      "retryable": true
+    },
+    {
+      "code": "capacity.database",
+      "httpStatus": 429,
+      "retryable": true
+    },
+    {
+      "code": "runtime.draining",
+      "httpStatus": 503,
+      "retryable": true
+    },
+    {
+      "code": "runtime.unavailable",
+      "httpStatus": 503,
+      "retryable": true
+    },
+    {
+      "code": "database.unavailable",
+      "httpStatus": 503,
+      "retryable": true
+    },
+    {
+      "code": "deadline.exceeded",
+      "httpStatus": 504,
+      "retryable": true
+    },
+    {
+      "code": "internal.error",
+      "httpStatus": 500,
+      "retryable": false
+    }
+  ]
+}

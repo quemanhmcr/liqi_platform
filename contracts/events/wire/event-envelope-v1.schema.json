@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.app/events/wire/event-envelope-v1.schema.json",
+  "title": "LIQI Committed Event Envelope V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "eventVersion",
+    "occurredAt",
+    "producer",
+    "aggregateKey",
+    "orderingKey",
+    "payload",
+    "metadata"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventType": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+\\.v[0-9]+$",
+      "maxLength": 160
+    },
+    "eventVersion": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "string",
+      "pattern": "^liqi-[a-z0-9-]{2,48}$"
+    },
+    "correlationId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "causationId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "aggregateKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "orderingKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "payload": {
+      "type": "object"
+    },
+    "metadata": {
+      "type": "object",
+      "maxProperties": 16
+    }
+  },
+  "x-liqi-constraints": {
+    "authority": "postgresql",
+    "delivery": "at-least-once",
+    "publishCondition": "after-commit",
+    "gapRepair": "database-handoff-cursor"
+  }
+}

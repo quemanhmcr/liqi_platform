@@ -1,0 +1,127 @@
+{
+  "contractVersion": "runtime-capacity-v1",
+  "status": "initial-floor-unvalidated-on-oci",
+  "host": {
+    "ocpus": 4,
+    "memoryMiB": 24576,
+    "diskGiB": 200
+  },
+  "requiredReserve": {
+    "ocpus": 1,
+    "memoryMiB": 4096,
+    "diskGiB": 20
+  },
+  "providerBudget": {
+    "steadyCpuOcpus": 0.75,
+    "hardCpuOcpus": 1.45,
+    "steadyMemoryMiB": 2048,
+    "hardMemoryMiB": 6144,
+    "hardDiskGiB": 12
+  },
+  "beam": {
+    "schedulersOnline": 3,
+    "dirtyCpuSchedulers": 2,
+    "dirtyIoSchedulers": 2,
+    "asyncThreads": 4,
+    "processLimit": 65536,
+    "etsHardMiB": 512
+  },
+  "connections": {
+    "targetConcurrentWebSockets": 2000,
+    "targetActiveSubscribedSessions": 200,
+    "estimatedIdleConnectionKiB": 24,
+    "maxInboundFrameBytes": 65536,
+    "compressionEnabled": false
+  },
+  "actors": {
+    "partitions": 4,
+    "idleTtlMs": 60000,
+    "mailboxWarning": 64,
+    "mailboxReject": 128,
+    "dynamicSupervisorMaxChildrenPerPartition": 10000
+  },
+  "queues": {
+    "sessionOutbound": {
+      "capacityItems": 128,
+      "capacityBytes": 1048576,
+      "maxAgeMs": 30000,
+      "overflow": "disconnect-clear-and-gap-repair",
+      "retryBudget": 0,
+      "deadline": "resume-window"
+    },
+    "actorMailbox": {
+      "capacityMessages": 128,
+      "warningMessages": 64,
+      "overflow": "reject-call",
+      "retryBudget": 0,
+      "deadline": "request-envelope"
+    },
+    "endpoint": {
+      "capacity": 256,
+      "maxAgeMs": 0,
+      "overflow": "reject-429",
+      "retryBudget": 0,
+      "deadline": "request-envelope"
+    },
+    "database": {
+      "capacity": 24,
+      "maxAgeMs": 0,
+      "overflow": "reject-before-transaction",
+      "retryBudget": 0,
+      "deadline": "request-envelope"
+    },
+    "reconnect": {
+      "capacity": 64,
+      "maxAgeMs": 0,
+      "overflow": "reject-handshake",
+      "retryBudget": 0,
+      "deadline": "resume-window"
+    },
+    "native": {
+      "capacity": 2,
+      "maxAgeMs": 0,
+      "overflow": "fallback-or-fail-readiness",
+      "retryBudget": 0,
+      "deadline": "request-envelope"
+    },
+    "tasks": {
+      "capacity": 32,
+      "maxAgeMs": 0,
+      "overflow": "reject",
+      "retryBudget": 0,
+      "deadline": "request-envelope"
+    },
+    "telemetry": {
+      "capacity": "bounded-counter-map",
+      "maxAgeMs": 0,
+      "overflow": "sample-or-drop",
+      "retryBudget": 0,
+      "deadline": "none"
+    }
+  },
+  "native": {
+    "regularNifBudgetMicros": 1000,
+    "targetP99Micros": 500,
+    "memoryAccounting": "provider-contract-required",
+    "requiredModeReadiness": "fail-closed",
+    "maxConcurrency": 2
+  },
+  "oban": {
+    "defaultEnabled": false,
+    "maxConcurrency": 4,
+    "authority": "jobs-only-not-domain-outbox"
+  },
+  "acceptanceTargets": {
+    "durableCommandsPerSecond": 50,
+    "committedEventsPerSecond": 500,
+    "apiP95Ms": 200,
+    "commitToDeliverP95Ms": 500,
+    "resumeSuccessPercent": 99
+  },
+  "evidence": {
+    "ociMeasured": false,
+    "loadMeasured": false,
+    "owner": "Senior 1",
+    "reviewer": "Senior 5"
+  }
+}

@@ -1,0 +1,92 @@
+openapi: 3.1.0
+info:
+  title: LIQI Platform API
+  version: '1.0.0'
+  description: Production-shaped BEAM platform walking skeleton. PostgreSQL remains durable authority.
+servers:
+  - url: https://api.liqi.app
+paths:
+  /health/live:
+    get:
+      operationId: getLivenessV1
+      responses:
+        '200':
+          description: BEAM process is live even when dependencies are unavailable.
+          content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}
+  /health/ready:
+    get:
+      operationId: getReadinessV1
+      responses:
+        '200': {description: Required capabilities are ready, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}
+        '503': {description: A required capability is unavailable, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}
+  /platform/v1/metadata:
+    get:
+      operationId: getRuntimeMetadataV1
+      responses:
+        '200': {description: Exact runtime and contract identity, content: {application/json: {schema: {type: object}}}}
+  /platform/v1/metrics:
+    get:
+      operationId: getRuntimeMetricsV1
+      responses:
+        '200': {description: Bounded runtime metric snapshot, content: {application/json: {schema: {type: object}}}}
+  /platform/v1/probes:
+    post:
+      operationId: createPlatformProbeV1
+      parameters:
+        - {name: idempotency-key, in: header, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
+        - {name: x-request-id, in: header, required: false, schema: {type: string, format: uuid}}
+        - {name: x-liqi-deadline-ms, in: header, required: false, schema: {type: integer, minimum: 1, maximum: 5000}}
+        - {name: traceparent, in: header, required: false, schema: {type: string, maxLength: 128}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [clientProbeId]
+              properties: {clientProbeId: {type: string, format: uuid}}
+      responses:
+        '202':
+          description: Probe state and its event were committed atomically; event identity is stable across duplicates.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [probeId, eventId, aggregateVersion, status, actorKey]
+                properties:
+                  probeId: {type: string, format: uuid}
+                  eventId: {type: string, format: uuid}
+                  aggregateVersion: {type: integer, const: 1}
+                  status: {const: accepted}
+                  actorKey: {type: string, maxLength: 160}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+        '504': {$ref: '#/components/responses/Error'}
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status, service, releaseId, checks]
+      properties:
+        status: {enum: [live, ready, not_ready, draining]}
+        service: {type: string}
+        releaseId: {type: string}
+        checks: {type: array, maxItems: 16, items: {type: object}}
+  responses:
+    Error:
+      description: Stable safe error response.
+      content:
+        application/json:
+          schema: {$ref: '../errors/error-model-v1.schema.json'}
+x-liqi-realtime:
+  path: /platform/v1/socket/websocket
+  protocolVersion: '1'
+  schema: ../realtime/gateway-v1.schema.json
+x-liqi-compatibility:
+  v0RollbackTarget: true
+  durableDualWrite: false
+  protocolNegotiationRequired: true

@@ -1,0 +1,350 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.app/runtime/runtime-config-v1.schema.json",
+  "title": "LIQI BEAM Runtime Configuration V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "environment",
+    "releaseId",
+    "serviceIdentity",
+    "http",
+    "database",
+    "actors",
+    "sessions",
+    "requests",
+    "realtime",
+    "native",
+    "telemetry",
+    "shutdown",
+    "oban",
+    "features"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1"
+    },
+    "environment": {
+      "enum": [
+        "local",
+        "development",
+        "test",
+        "staging",
+        "production"
+      ]
+    },
+    "releaseId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "serviceIdentity": {
+      "const": "liqi-platform"
+    },
+    "http": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "port",
+        "websocketPath",
+        "secretRef"
+      ],
+      "properties": {
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "websocketPath": {
+          "const": "/platform/v1/socket"
+        },
+        "secretRef": {
+          "type": "string",
+          "pattern": "^(file|systemd-credential|oci-vault)://[^\\s]+$",
+          "maxLength": 2048
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secretRef",
+        "requiredMigrationVersion",
+        "admissionConcurrency"
+      ],
+      "properties": {
+        "secretRef": {
+          "type": "string",
+          "pattern": "^(file|systemd-credential|oci-vault)://[^\\s]+$",
+          "maxLength": 2048
+        },
+        "requiredMigrationVersion": {
+          "type": "integer",
+          "minimum": 8
+        },
+        "admissionConcurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 35
+        }
+      }
+    },
+    "actors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "partitions",
+        "idleTtlMs",
+        "mailboxWarning",
+        "mailboxReject"
+      ],
+      "properties": {
+        "partitions": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "idleTtlMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 3600000
+        },
+        "mailboxWarning": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4095
+        },
+        "mailboxReject": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 4096
+        }
+      }
+    },
+    "sessions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "queueCapacity",
+        "queueMaxBytes",
+        "queueMaxAgeMs",
+        "resumeWindowMs",
+        "reconnectConcurrency"
+      ],
+      "properties": {
+        "queueCapacity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "queueMaxBytes": {
+          "type": "integer",
+          "minimum": 65536,
+          "maximum": 8388608
+        },
+        "queueMaxAgeMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 120000
+        },
+        "resumeWindowMs": {
+          "type": "integer",
+          "minimum": 10000,
+          "maximum": 3600000
+        },
+        "reconnectConcurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024
+        }
+      }
+    },
+    "requests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bodyBytes",
+        "timeoutMs",
+        "endpointConcurrency",
+        "boundedTasks"
+      ],
+      "properties": {
+        "bodyBytes": {
+          "const": 1048576
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 120000
+        },
+        "endpointConcurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "boundedTasks": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256
+        }
+      }
+    },
+    "realtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxMessageBytes",
+        "handoffPollIntervalMs",
+        "handoffBatchSize"
+      ],
+      "properties": {
+        "maxMessageBytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 1048576
+        },
+        "handoffPollIntervalMs": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 5000
+        },
+        "handoffBatchSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        }
+      }
+    },
+    "native": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "concurrency"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "disabled",
+            "optional",
+            "required"
+          ]
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        }
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoint"
+      ],
+      "properties": {
+        "endpoint": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048
+        }
+      }
+    },
+    "shutdown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deadlineMs",
+        "drainTokenRef"
+      ],
+      "properties": {
+        "deadlineMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 120000
+        },
+        "drainTokenRef": {
+          "type": "string",
+          "pattern": "^(file|systemd-credential|oci-vault)://[^\\s]+$",
+          "maxLength": 2048
+        }
+      }
+    },
+    "oban": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "concurrency"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "persistence",
+        "realtimeDispatcher",
+        "outboxWorker"
+      ],
+      "properties": {
+        "persistence": {
+          "type": "boolean"
+        },
+        "realtimeDispatcher": {
+          "type": "boolean"
+        },
+        "outboxWorker": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "environment": {
+            "const": "production"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "features": {
+            "properties": {
+              "persistence": {
+                "const": true
+              },
+              "realtimeDispatcher": {
+                "const": true
+              },
+              "outboxWorker": {
+                "const": true
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "x-liqi-compatibility": {
+    "legacyAliasesAcceptedUntil": "v1.1",
+    "plaintextSecrets": false
+  }
+}

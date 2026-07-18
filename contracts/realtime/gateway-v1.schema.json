@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.app/realtime/gateway-v1.schema.json",
+  "title": "LIQI Realtime Gateway V1",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "messageId",
+        "sentAt",
+        "kind",
+        "sessionId",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "1"
+        },
+        "messageId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sentAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "kind": {
+          "enum": [
+            "event",
+            "slow_consumer",
+            "access_revoked",
+            "heartbeat"
+          ]
+        },
+        "sessionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "payload": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "event",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "1"
+        },
+        "event": {
+          "enum": [
+            "subscribe",
+            "ack",
+            "resume",
+            "heartbeat_ack"
+          ]
+        },
+        "payload": {
+          "type": "object"
+        }
+      }
+    }
+  ],
+  "x-liqi-limits": {
+    "maxFrameBytes": 65536,
+    "maxChannelsPerTransport": 1,
+    "delivery": "at-least-once"
+  }
+}

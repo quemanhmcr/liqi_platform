@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.app/errors/error-model-v1.schema.json",
+  "title": "LIQI Error Model V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "error"
+  ],
+  "properties": {
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "code",
+        "message",
+        "requestId",
+        "retryable",
+        "details"
+      ],
+      "properties": {
+        "version": {
+          "const": "1"
+        },
+        "code": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$",
+          "maxLength": 128
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "requestId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "details": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "maxProperties": 8
+          }
+        }
+      }
+    }
+  }
+}

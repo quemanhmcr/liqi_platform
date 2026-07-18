@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.app/realtime/session-resume-v1.schema.json",
+  "title": "LIQI Session Resume V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "sessionId",
+    "deviceId",
+    "cursor",
+    "issuedAt",
+    "token"
+  ],
+  "properties": {
+    "version": {
+      "const": "1"
+    },
+    "sessionId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "deviceId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "cursor": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "issuedAt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "token": {
+      "type": "string",
+      "minLength": 32,
+      "maxLength": 4096
+    }
+  },
+  "x-liqi-semantics": {
+    "connectionIsSession": false,
+    "tokenIntegrity": "Phoenix.Token",
+    "authority": "runtime-rebuildable-plus-postgresql-gap-read"
+  }
+}
