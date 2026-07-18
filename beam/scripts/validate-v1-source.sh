@@ -45,7 +45,20 @@ result={
 open(os.environ['OUTPUT'],'w',encoding='utf-8',newline='\n').write(json.dumps(result,indent=2)+'\n')
 PY
 }
+run_check clean_worktree -- git diff --quiet
+run_check clean_index -- git diff --cached --quiet
+if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
+  checks+=("clean_worktree_state:failed")
+  write_result failed "worktree contains tracked or untracked source changes"
+  exit 1
+else
+  checks+=("clean_worktree_state:passed")
+fi
+run_check deps_get -- mix deps.get
+run_check deps_compile --env MIX_ENV=test -- mix deps.compile --skip-umbrella-children
 run_check format -- mix format --check-formatted
+run_check locked_dependencies --env MIX_ENV=test -- mix deps.get --locked
+run_check clean_build -- python -c "import shutil; shutil.rmtree('_build/test', ignore_errors=True)"
 run_check compile --env MIX_ENV=test -- mix compile --warnings-as-errors
 run_check tests --env MIX_ENV=test -- mix test --seed 0
 run_check dependency_audit -- mix hex.audit
