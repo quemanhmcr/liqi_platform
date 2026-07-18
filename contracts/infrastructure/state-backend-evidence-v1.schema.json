@@ -1,0 +1,159 @@
+{
+  "$id": "https://liqi.example/contracts/infrastructure/state-backend-evidence-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "backend": {
+      "additionalProperties": false,
+      "properties": {
+        "database": {
+          "const": "liqi_infra_state"
+        },
+        "external_to_oci_application_host": {
+          "const": true
+        },
+        "kind": {
+          "const": "postgresql-self-hosted"
+        },
+        "schema": {
+          "const": "opentofu_v1_live"
+        }
+      },
+      "required": [
+        "kind",
+        "database",
+        "schema",
+        "external_to_oci_application_host"
+      ],
+      "type": "object"
+    },
+    "backup": {
+      "additionalProperties": false,
+      "properties": {
+        "encrypted": {
+          "const": true
+        },
+        "off_host_from_oci_application": {
+          "const": true
+        },
+        "status": {
+          "const": "passed"
+        }
+      },
+      "required": [
+        "status",
+        "encrypted",
+        "off_host_from_oci_application"
+      ],
+      "type": "object"
+    },
+    "credentials_in_source": {
+      "const": false
+    },
+    "environment": {
+      "const": "v1-live"
+    },
+    "git_sha": {
+      "pattern": "^[0-9a-f]{40}$",
+      "type": "string"
+    },
+    "locking": {
+      "additionalProperties": false,
+      "properties": {
+        "contender_rejected": {
+          "const": true
+        },
+        "mechanism": {
+          "const": "postgresql-advisory-locks"
+        },
+        "status": {
+          "const": "passed"
+        }
+      },
+      "required": [
+        "status",
+        "mechanism",
+        "contender_rejected"
+      ],
+      "type": "object"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "restore": {
+      "additionalProperties": false,
+      "properties": {
+        "isolated": {
+          "const": true
+        },
+        "state_table_verified": {
+          "const": true
+        },
+        "status": {
+          "const": "passed"
+        }
+      },
+      "required": [
+        "status",
+        "isolated",
+        "state_table_verified"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "const": "liqi.infrastructure.state-backend-evidence/v1"
+    },
+    "state_encryption": {
+      "additionalProperties": false,
+      "properties": {
+        "plan_enforced": {
+          "const": true
+        },
+        "state_enforced": {
+          "const": true
+        }
+      },
+      "required": [
+        "state_enforced",
+        "plan_enforced"
+      ],
+      "type": "object"
+    },
+    "status": {
+      "const": "passed"
+    },
+    "tls": {
+      "additionalProperties": false,
+      "properties": {
+        "sslmode": {
+          "const": "verify-full"
+        },
+        "status": {
+          "const": "passed"
+        }
+      },
+      "required": [
+        "status",
+        "sslmode"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "environment",
+    "git_sha",
+    "observed_at",
+    "backend",
+    "tls",
+    "locking",
+    "backup",
+    "restore",
+    "state_encryption",
+    "credentials_in_source",
+    "status"
+  ],
+  "title": "LIQI V1 self-hosted OpenTofu PostgreSQL backend evidence",
+  "type": "object"
+}

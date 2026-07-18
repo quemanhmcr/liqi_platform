@@ -66,12 +66,12 @@ locals {
       user_api_keys_present = false
     }
     state_backend = {
-      kind                  = "oci-object-storage-s3-compatibility"
+      kind                  = "postgresql-self-hosted"
       remote                = true
-      versioned             = true
-      locking               = "s3-lockfile-capability-test-required"
+      versioned             = false
+      locking               = "postgresql-advisory-locks"
       credentials_in_source = false
-      compatibility_status  = length(trimspace(var.state_backend_lock_evidence_id)) > 0 ? "validated" : "pending-lock-capability-evidence"
+      compatibility_status  = length(trimspace(var.state_backend_lock_evidence_id)) > 0 ? "validated" : "pending-state-backend-evidence"
     }
     mutation = {
       approval_required  = true

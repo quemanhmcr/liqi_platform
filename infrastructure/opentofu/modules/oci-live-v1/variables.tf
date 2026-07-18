@@ -96,7 +96,7 @@ variable "vault_secret_ocids" {
 }
 
 variable "state_backend_lock_evidence_id" {
-  description = "Machine evidence identifier proving S3-compatible lockfile behavior against the approved state bucket."
+  description = "Machine evidence identifier proving TLS, PostgreSQL advisory locking, encrypted backup and isolated restore for the independent state backend."
   type        = string
   default     = ""
   validation {

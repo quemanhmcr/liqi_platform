@@ -1,0 +1,37 @@
+{
+  "backend": {
+    "database": "liqi_infra_state",
+    "external_to_oci_application_host": true,
+    "kind": "postgresql-self-hosted",
+    "schema": "opentofu_v1_live"
+  },
+  "backup": {
+    "encrypted": true,
+    "off_host_from_oci_application": true,
+    "status": "passed"
+  },
+  "credentials_in_source": false,
+  "environment": "v1-live",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "locking": {
+    "contender_rejected": true,
+    "mechanism": "postgresql-advisory-locks",
+    "status": "passed"
+  },
+  "observed_at": "2026-07-18T00:00:00Z",
+  "restore": {
+    "isolated": true,
+    "state_table_verified": true,
+    "status": "passed"
+  },
+  "schema_version": "liqi.infrastructure.state-backend-evidence/v1",
+  "state_encryption": {
+    "plan_enforced": true,
+    "state_enforced": true
+  },
+  "status": "passed",
+  "tls": {
+    "sslmode": "verify-full",
+    "status": "passed"
+  }
+}

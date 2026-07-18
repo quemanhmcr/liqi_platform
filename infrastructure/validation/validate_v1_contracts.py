@@ -8,6 +8,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[2]
 PAIRS = [
+    ("contracts/infrastructure/state-backend-evidence-v1.schema.json", "contracts/infrastructure/state-backend-evidence-v1.example.json"),
     ("contracts/infrastructure/oci-live-v1.schema.json", "contracts/infrastructure/oci-live-v1.example.json"),
     ("contracts/infrastructure/host-runtime-v1.schema.json", "contracts/infrastructure/host-runtime-v1.example.json"),
     ("contracts/infrastructure/secret-mapping-v1.schema.json", "contracts/infrastructure/secret-mapping-v1.example.json"),

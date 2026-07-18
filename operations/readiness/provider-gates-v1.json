@@ -389,7 +389,7 @@
     {
       "id": "infrastructure-plan",
       "owner": "Senior 4",
-      "seam": "infrastructure/deployment/plan_v1_live.sh read-only plan evidence",
+      "seam": "infrastructure/deployment/plan_v1_live.sh with self-hosted PostgreSQL state evidence",
       "stages": [
         "promotion"
       ],
@@ -403,23 +403,27 @@
       "argv": [
         "bash",
         "infrastructure/deployment/plan_v1_live.sh",
-        "--backend-config",
-        "{env:LIQI_OCI_BACKEND_CONFIG}",
+        "--state-backend-evidence",
+        "{env:LIQI_STATE_BACKEND_EVIDENCE}",
         "--var-file",
         "{env:LIQI_OCI_VAR_FILE}",
         "--output-dir",
         "{env:LIQI_OCI_PLAN_OUTPUT_DIR}"
       ],
       "required_environment": [
-        "LIQI_OCI_BACKEND_CONFIG",
+        "LIQI_STATE_BACKEND_EVIDENCE",
         "LIQI_OCI_VAR_FILE",
         "LIQI_OCI_PLAN_OUTPUT_DIR",
         "TF_ENCRYPTION",
-        "AWS_SHARED_CREDENTIALS_FILE"
+        "PG_CONN_STR",
+        "PG_SCHEMA_NAME",
+        "PG_SKIP_SCHEMA_CREATION",
+        "PG_SKIP_TABLE_CREATION",
+        "PG_SKIP_INDEX_CREATION"
       ],
       "timeout_seconds": 900,
       "result_schema": null,
-      "action_required": "Run the provider-owned read-only OpenTofu plan with encrypted backend inputs and OCI authentication, then retain v1-live.plan-result.json. This readiness gate never applies the plan.",
+      "action_required": "Supply exact-SHA passed evidence for the independent PostgreSQL state backend (TLS, advisory locking, encrypted backup and isolated restore) plus reviewed live inputs. No S3/Object Storage credential is accepted.",
       "provider_branch": "v1/oci-live-runtime",
       "provider_commit": "ca99b7d14816cd051fce15a54accdeb17276096d"
     },

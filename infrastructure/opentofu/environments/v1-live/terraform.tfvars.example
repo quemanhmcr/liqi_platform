@@ -17,7 +17,7 @@ acknowledge_reserved_public_ip = false
 # Secret OCIDs are metadata only. Never place secret values in this file.
 vault_secret_ocids = []
 
-# Must reference machine evidence from the OCI Object Storage lock capability test.
+# Must reference exact-SHA machine evidence for the independent PostgreSQL state backend.
 state_backend_lock_evidence_id = ""
 
 # Public fixture only. A live plan rejects this key ID and requires an explicitly reviewed production key.

@@ -7,7 +7,7 @@ usage() {
 Usage: apply_v1_live.sh --plan-result FILE --approval-reference REF --execute
 
 MUTATES OCI by applying the exact saved plan recorded in FILE. No automatic re-plan.
-Required environment: TF_ENCRYPTION, AWS_SHARED_CREDENTIALS_FILE, and OCI provider authentication.
+Required environment: TF_ENCRYPTION, protected PostgreSQL backend environment (PG_CONN_STR/PG_SCHEMA_NAME/PG_SKIP_*), and OCI provider authentication.
 USAGE
   exit 64
 }
@@ -26,7 +26,11 @@ done
 [[ -n "$plan_result" && -f "$plan_result" && ${#approval_reference} -ge 3 ]] || usage
 [[ "$execute" == 'true' ]] || { echo 'refusing OCI mutation without --execute' >&2; exit 65; }
 [[ -n "${TF_ENCRYPTION:-}" ]] || { echo 'TF_ENCRYPTION is required' >&2; exit 65; }
-[[ -n "${AWS_SHARED_CREDENTIALS_FILE:-}" && -f "$AWS_SHARED_CREDENTIALS_FILE" ]] || { echo 'AWS_SHARED_CREDENTIALS_FILE is required' >&2; exit 65; }
+[[ -n "${PG_CONN_STR:-}" && "$PG_CONN_STR" == *sslmode=verify-full* ]] || { echo 'PG_CONN_STR with sslmode=verify-full is required' >&2; exit 65; }
+[[ "${PG_SCHEMA_NAME:-}" == "opentofu_v1_live" ]] || { echo 'PG_SCHEMA_NAME must be opentofu_v1_live' >&2; exit 65; }
+for name in PG_SKIP_SCHEMA_CREATION PG_SKIP_TABLE_CREATION PG_SKIP_INDEX_CREATION; do
+  [[ "${!name:-}" == "true" ]] || { echo "$name must be true" >&2; exit 65; }
+done
 
 root="$(git rev-parse --show-toplevel)"
 cd "$root"

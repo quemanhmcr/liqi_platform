@@ -1,0 +1,8 @@
+ssl = on
+password_encryption = 'scram-sha-256'
+listen_addresses = '<management-private-address>'
+max_connections = 20
+shared_buffers = '256MB'
+log_connections = on
+log_disconnections = on
+log_lock_waits = on

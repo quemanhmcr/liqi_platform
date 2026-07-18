@@ -1,0 +1,3 @@
+# Replace both placeholders with the encrypted management-network CIDR and exact role.
+hostssl liqi_infra_state liqi_tofu_state <management-private-cidr> scram-sha-256
+hostssl liqi_infra_state liqi_state_backup <management-private-cidr> scram-sha-256

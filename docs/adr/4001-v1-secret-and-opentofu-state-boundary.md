@@ -1,9 +1,13 @@
 # ADR 4001: V1 secret material and OpenTofu state boundary
 
-- Status: Accepted for source implementation; remote lock capability evidence pending
+- Status: Superseded by ADR 4004 for V1 state and backup authority
 - Date: 2026-07-18
 - Owner: Senior 4
 - Consumers: Senior 2, Senior 5
+
+## Supersession
+
+The OCI S3-compatible state decision below is retained as historical context only. ADR 4004 removes this dependency before any live plan or apply.
 
 ## Context
 

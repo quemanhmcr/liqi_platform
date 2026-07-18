@@ -17,8 +17,8 @@
       "id": "read-only-live-plan",
       "command": [
         "infrastructure/deployment/plan_v1_live.sh",
-        "--backend-config",
-        "<backend.hcl>",
+        "--state-backend-evidence",
+        "<state-backend-evidence-v1.json>",
         "--var-file",
         "<live.tfvars>",
         "--output-dir",
@@ -27,7 +27,11 @@
       "working_directory": "repository-root-clean",
       "required_environment": [
         "TF_ENCRYPTION",
-        "AWS_SHARED_CREDENTIALS_FILE",
+        "PG_CONN_STR (sslmode=verify-full)",
+        "PG_SCHEMA_NAME=opentofu_v1_live",
+        "PG_SKIP_SCHEMA_CREATION=true",
+        "PG_SKIP_TABLE_CREATION=true",
+        "PG_SKIP_INDEX_CREATION=true",
         "OCI provider authentication"
       ],
       "mutation": "read-only",
@@ -46,7 +50,11 @@
       "working_directory": "repository-root-clean",
       "required_environment": [
         "TF_ENCRYPTION",
-        "AWS_SHARED_CREDENTIALS_FILE",
+        "PG_CONN_STR (sslmode=verify-full)",
+        "PG_SCHEMA_NAME=opentofu_v1_live",
+        "PG_SKIP_SCHEMA_CREATION=true",
+        "PG_SKIP_TABLE_CREATION=true",
+        "PG_SKIP_INDEX_CREATION=true",
         "OCI provider authentication"
       ],
       "mutation": "approval-required",

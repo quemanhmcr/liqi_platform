@@ -1,0 +1,18 @@
+# Copy outside Git, set mode 0600, and replace placeholders.
+[liqi-state-admin]
+host=management.example.internal
+port=5432
+dbname=postgres
+user=liqi_state_admin
+sslmode=verify-full
+sslrootcert=/protected/path/management-state-ca.pem
+connect_timeout=10
+
+[liqi-state-runtime]
+host=management.example.internal
+port=5432
+dbname=liqi_infra_state
+user=liqi_tofu_state
+sslmode=verify-full
+sslrootcert=/protected/path/management-state-ca.pem
+connect_timeout=10

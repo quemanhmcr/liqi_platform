@@ -80,7 +80,11 @@ def temporary_opentofu() -> tuple[Path, dict[str, str]]:
     copy = temporary / "opentofu"
     shutil.copytree(INFRA / "opentofu", copy)
     backend = copy / "environments/v1-live/backend.tf"
-    backend.write_text(backend.read_text(encoding="utf-8").replace('  backend "s3" {}\n\n', ''), encoding="utf-8", newline="\n")
+    backend.write_text(
+        backend.read_text(encoding="utf-8").replace('  backend "pg" {}\n\n', ''),
+        encoding="utf-8",
+        newline="\n",
+    )
     main = copy / "environments/v1-live/main.tf"
     main.write_text(main.read_text(encoding="utf-8").replace('abspath("${path.module}/../../..")', json.dumps(INFRA.as_posix())), encoding="utf-8", newline="\n")
     environment = os.environ.copy()
@@ -152,9 +156,22 @@ def validate_static_policy() -> None:
         if not re.search(rf"(?m)^\s*{re.escape(name)}\s*=\s*{re.escape(value)}\s*$", module_text):
             raise AssertionError(f"missing capacity/network invariant: {name}={value}")
 
-    backend = (ENV / "state-backend.hcl.example").read_text(encoding="utf-8")
-    if "use_lockfile                = true" not in backend or "access_key" in backend or "secret_key" in backend:
-        raise AssertionError("remote backend must use lockfile without inline credentials")
+    backend = (ENV / "backend.tf").read_text(encoding="utf-8")
+    if 'backend "pg" {}' not in backend or 'backend "s3"' in backend:
+        raise AssertionError("V1 live must use the self-hosted PostgreSQL pg backend")
+    forbidden_backend_tokens = ("AWS_SHARED_CREDENTIALS_FILE", "use_lockfile", "compat.objectstorage")
+    management_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted((INFRA / "management/state-postgres").rglob("*"))
+        if path.is_file() and "__pycache__" not in path.parts
+    )
+    for token in ("sslmode=verify-full", "postgresql-advisory-locks", "state-backend-evidence-v1"):
+        if token not in management_text:
+            raise AssertionError(f"self-hosted state provider is missing {token}")
+    all_live_state_text = backend + management_text + (INFRA / "deployment/plan_v1_live.sh").read_text(encoding="utf-8")
+    for token in forbidden_backend_tokens:
+        if token in all_live_state_text:
+            raise AssertionError(f"V1 state path retains forbidden S3 dependency: {token}")
     caddy_fail = (INFRA / "caddy/Caddyfile.fail-closed").read_text(encoding="utf-8")
     caddy_live = (INFRA / "caddy/Caddyfile.v1-live.tftpl").read_text(encoding="utf-8")
     if 'respond "LIQI edge is staged but traffic is not enabled" 503' not in caddy_fail:

@@ -82,12 +82,12 @@
     "user_api_keys_present": false
   },
   "state_backend": {
-    "kind": "oci-object-storage-s3-compatibility",
+    "kind": "postgresql-self-hosted",
     "remote": true,
-    "versioned": true,
-    "locking": "s3-lockfile-capability-test-required",
+    "versioned": false,
+    "locking": "postgresql-advisory-locks",
     "credentials_in_source": false,
-    "compatibility_status": "pending-lock-capability-evidence"
+    "compatibility_status": "pending-state-backend-evidence"
   },
   "mutation": {
     "approval_required": true,
