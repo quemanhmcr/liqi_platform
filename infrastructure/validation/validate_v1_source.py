@@ -218,7 +218,8 @@ def validate_static_policy() -> None:
         "STATE_FINALIZE_SERVICE", "protected local bootstrap superuser",
         "ALTER SCHEMA %I OWNER TO %I", "ALTER TABLE %I.states OWNER TO %I",
         "ALTER SEQUENCE public.global_states_id_seq OWNER TO %I",
-        "unexpected Windows principal",
+        "state admin cannot SET ROLE to the runtime identity",
+        "REVOKE %I FROM %I", "unexpected Windows principal",
     ):
         if token not in management_text:
             raise AssertionError(f"self-hosted state provider is missing {token}")

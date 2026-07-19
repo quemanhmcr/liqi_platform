@@ -19,6 +19,10 @@ BEGIN;
 SELECT format('ALTER SCHEMA %I OWNER TO %I',:'s',:'o') \gexec
 SELECT format('ALTER TABLE %I.states OWNER TO %I',:'s',:'o') \gexec
 SELECT format('ALTER SEQUENCE public.global_states_id_seq OWNER TO %I',:'o') \gexec
+-- CREATEROLE automatically grants the creator ADMIN membership in a newly
+-- created role. Remove that bootstrap membership after ownership transfer so
+-- the state admin cannot SET ROLE to the runtime identity.
+SELECT format('REVOKE %I FROM %I',:'r',:'o') \gexec
 SELECT format('REVOKE CREATE ON SCHEMA public FROM %I',:'r') \gexec
 SELECT format('REVOKE CREATE ON SCHEMA %I FROM %I',:'s',:'r') \gexec
 SELECT format('GRANT USAGE ON SCHEMA %I TO %I',:'s',:'r') \gexec
