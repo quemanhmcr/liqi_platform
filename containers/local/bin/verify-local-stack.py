@@ -164,8 +164,9 @@ def check_control_plane(compose_file: Path) -> dict[str, Any]:
 
     runtime_id = compose(compose_file, "ps", "--quiet", "runtime")
     pod_id = compose(compose_file, "ps", "--quiet", "pod")
+    ingress_id = compose(compose_file, "ps", "--quiet", "ingress")
     postgres_id = compose(compose_file, "ps", "--quiet", "postgres")
-    if not all((runtime_id, pod_id, postgres_id)):
+    if not all((runtime_id, pod_id, ingress_id, postgres_id)):
         raise RuntimeError("expected local containers are not running")
 
     runtime = docker_inspect(runtime_id)
@@ -182,9 +183,28 @@ def check_control_plane(compose_file: Path) -> dict[str, Any]:
         raise RuntimeError("runtime PID limit is missing or exceeds 128")
 
     pod = docker_inspect(pod_id)
-    bindings = pod.get("HostConfig", {}).get("PortBindings", {}).get("8080/tcp") or []
+    if pod.get("HostConfig", {}).get("PortBindings"):
+        raise RuntimeError("internal pod namespace must not publish a host port")
+
+    ingress = docker_inspect(ingress_id)
+    ingress_host = ingress.get("HostConfig", {})
+    bindings = ingress_host.get("PortBindings", {}).get("8080/tcp") or []
     if len(bindings) != 1 or bindings[0].get("HostIp") != "127.0.0.1":
-        raise RuntimeError(f"gateway is not bound only to host loopback: {bindings}")
+        raise RuntimeError(f"ingress is not bound only to host loopback: {bindings}")
+    if ingress_host.get("ReadonlyRootfs") is not True:
+        raise RuntimeError("ingress root filesystem is not read-only")
+    if "ALL" not in (ingress_host.get("CapDrop") or []):
+        raise RuntimeError("ingress Linux capabilities were not dropped")
+    if ingress_host.get("RestartPolicy", {}).get("Name") != "no":
+        raise RuntimeError("ingress restart policy must remain disabled")
+    if not 0 < int(ingress_host.get("Memory") or 0) <= 32 * 1024 * 1024:
+        raise RuntimeError("ingress memory limit is missing or exceeds 32 MiB")
+    if not 0 < int(ingress_host.get("PidsLimit") or 0) <= 32:
+        raise RuntimeError("ingress PID limit is missing or exceeds 32")
+    ingress_networks = set(ingress.get("NetworkSettings", {}).get("Networks", {}))
+    if len(ingress_networks) != 2 or not any(name.endswith("_backend") for name in ingress_networks) or not any(name.endswith("_edge") for name in ingress_networks):
+        raise RuntimeError(f"ingress network attachments differ: {sorted(ingress_networks)}")
+
     postgres = docker_inspect(postgres_id)
     if postgres.get("HostConfig", {}).get("PortBindings"):
         raise RuntimeError("PostgreSQL must not publish a host port")
@@ -199,7 +219,9 @@ def check_control_plane(compose_file: Path) -> dict[str, Any]:
         "runtime_image_revision": labels.get("org.opencontainers.image.revision"),
         "runtime_memory_bytes": host["Memory"],
         "runtime_pids_limit": host["PidsLimit"],
-        "gateway_host_ip": bindings[0]["HostIp"],
+        "ingress_host_ip": bindings[0]["HostIp"],
+        "ingress_memory_bytes": ingress_host["Memory"],
+        "ingress_pids_limit": ingress_host["PidsLimit"],
         "postgres_host_ports": 0,
     }
 
@@ -251,7 +273,9 @@ def main() -> int:
             "liqi_role_count": control["liqi_role_count"],
             "runtime_read_only": True,
             "runtime_capabilities_dropped": True,
-            "gateway_host_ip": control["gateway_host_ip"],
+            "ingress_host_ip": control["ingress_host_ip"],
+            "ingress_read_only": True,
+            "ingress_capabilities_dropped": True,
             "postgres_host_ports": control["postgres_host_ports"],
         },
         "runtime": {

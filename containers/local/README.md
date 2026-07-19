@@ -10,11 +10,11 @@ This stack exercises the production-shaped BEAM runtime before an OCI VM is avai
 - The BEAM release is built with Erlang/OTP 28.5.0.3, Elixir 1.20.2, Rust 1.97.1, Rustler 0.38.0, and a real x86_64 Linux NIF.
 - The runtime starts with persistence, realtime dispatch, outbox delivery, Oban, and `native.mode=required`.
 - Health, metadata, operator authorization, native parity, idempotent command handling, durable outbox delivery, and terminal observation all pass.
-- The runtime root filesystem is read-only, all capabilities are dropped, restart is disabled, and CPU, memory, and PID limits are present.
+- The runtime and dedicated loopback ingress proxy use read-only root filesystems, drop all capabilities, disable restart, and enforce CPU, memory, and PID limits.
 
 ## Local-only database trust boundary
 
-The Compose network is marked `internal`, PostgreSQL publishes no host port, and pgBouncer listens only in the shared pod namespace. Within that isolated network, this stack uses PostgreSQL and pgBouncer `trust` authentication so no reusable database credential is stored on the workstation.
+The runtime backend network is marked `internal`, PostgreSQL publishes no host port, and pgBouncer listens only in the shared pod namespace. A separate 32 MiB ingress proxy is the only dual-network service: it accepts `127.0.0.1:4100` on a small edge bridge and forwards only to the internal pod gateway. Runtime, pgBouncer, and PostgreSQL never join the edge network. Within the isolated backend, this stack uses PostgreSQL and pgBouncer `trust` authentication so no reusable database credential is stored on the workstation.
 
 This exception is intentionally limited to `containers/local/**`. It does **not** validate the production SCRAM materialization flow; that remains covered by the infrastructure credential provider, source validators, and recovery gates. Never copy this authentication mode into OCI or a routable environment.
 
@@ -24,7 +24,8 @@ This exception is intentionally limited to `containers/local/**`. It does **not*
 | --- | ---: | ---: | ---: | --- |
 | PostgreSQL | 768 MiB | 1.0 | 160 | none |
 | Database init | 256 MiB | 0.5 | 64 | none |
-| Gateway / pod namespace | 32 MiB | 0.15 | 32 | `127.0.0.1:4100` only |
+| Gateway / pod namespace | 32 MiB | 0.15 | 32 | none |
+| Loopback ingress proxy | 32 MiB | 0.15 | 32 | `127.0.0.1:4100` only |
 | pgBouncer | 64 MiB | 0.2 | 48 | none |
 | BEAM runtime | 768 MiB | 1.25 | 128 | through gateway only |
 

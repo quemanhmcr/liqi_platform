@@ -83,8 +83,6 @@ services:
       context: ../..
       dockerfile: containers/local/Dockerfile.sidecars
       target: gateway
-    ports:
-      - 127.0.0.1:${LIQI_LOCAL_HTTP_PORT:-4100}:8080
     networks:
       - backend
     read_only: true
@@ -99,6 +97,37 @@ services:
       timeout: 3s
       retries: 40
       start_period: 10s
+    restart: "no"
+    stop_grace_period: 10s
+    mem_limit: 32m
+    cpus: 0.15
+    pids_limit: 32
+
+  ingress:
+    image: liqi/local-gateway:${LIQI_SOURCE_REVISION:?LIQI_SOURCE_REVISION is required}
+    depends_on:
+      pod:
+        condition: service_healthy
+    command:
+      - TCP-LISTEN:8080,reuseaddr,fork,bind=0.0.0.0
+      - TCP:pod:8080
+    ports:
+      - 127.0.0.1:${LIQI_LOCAL_HTTP_PORT:-4100}:8080
+    networks:
+      - backend
+      - edge
+    read_only: true
+    tmpfs:
+      - /tmp:size=8m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --show-error, http://127.0.0.1:8080/health/live]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
     restart: "no"
     stop_grace_period: 10s
     mem_limit: 32m
@@ -190,3 +219,5 @@ volumes:
 networks:
   backend:
     internal: true
+  edge:
+    driver: bridge

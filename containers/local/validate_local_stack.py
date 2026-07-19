@@ -26,7 +26,7 @@ def validate() -> list[str]:
     compose = load_yaml(LOCAL / "compose.yaml")
     compose_text = (LOCAL / "compose.yaml").read_text(encoding="utf-8")
     services = compose.get("services", {})
-    expected = {"postgres", "db-init", "pod", "pgbouncer", "runtime"}
+    expected = {"postgres", "db-init", "pod", "ingress", "pgbouncer", "runtime"}
     if set(services) != expected:
         failures.append(f"local compose service set differs: {sorted(services)}")
 
@@ -52,11 +52,24 @@ def validate() -> list[str]:
         failures.append("runtime must not receive supplemental host groups")
     if services.get("pgbouncer", {}).get("network_mode") != "service:pod":
         failures.append("pgBouncer must share the pod loopback namespace")
-    ports = services.get("pod", {}).get("ports", [])
-    if len(ports) != 1 or not str(ports[0]).startswith("127.0.0.1:"):
-        failures.append("gateway must publish exactly one host-loopback port")
+    if services.get("pod", {}).get("ports"):
+        failures.append("internal pod namespace must not publish a host port")
+    ingress = services.get("ingress", {})
+    ingress_ports = ingress.get("ports", [])
+    if len(ingress_ports) != 1 or not str(ingress_ports[0]).startswith("127.0.0.1:"):
+        failures.append("ingress must publish exactly one host-loopback port")
+    if set(ingress.get("networks") or []) != {"backend", "edge"}:
+        failures.append("ingress must be the only dual-network proxy")
+    if compose.get("networks", {}).get("edge", {}).get("internal") is True:
+        failures.append("edge network must permit Docker host port publishing")
+    ingress_command = ingress.get("command") or []
+    if ingress_command != [
+        "TCP-LISTEN:8080,reuseaddr,fork,bind=0.0.0.0",
+        "TCP:pod:8080",
+    ]:
+        failures.append("ingress must proxy only to the internal pod gateway")
 
-    for service_name in ("pod", "pgbouncer", "runtime", "db-init"):
+    for service_name in ("pod", "ingress", "pgbouncer", "runtime", "db-init"):
         service = services.get(service_name, {})
         if service.get("read_only") is not True:
             failures.append(f"{service_name} root filesystem must be read-only")
@@ -158,7 +171,7 @@ def main() -> int:
         for failure in failures:
             print(failure)
         return 1
-    print(json.dumps({"validation": "local-container-source-v1", "services": 5, "status": "passed"}, sort_keys=True))
+    print(json.dumps({"validation": "local-container-source-v1", "services": 6, "status": "passed"}, sort_keys=True))
     return 0
 
 

@@ -29,6 +29,8 @@ wait_healthy pgbouncer 120
 compose up --detach --no-deps runtime
 wait_healthy runtime 180
 wait_healthy pod 60
+compose up --detach --no-deps ingress
+wait_healthy ingress 60
 
 compose ps
 printf '%s\n' "local stack ready at http://127.0.0.1:${LIQI_LOCAL_HTTP_PORT}"

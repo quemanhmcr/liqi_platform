@@ -72,6 +72,18 @@ class LocalContainerSourceTests(unittest.TestCase):
         self.assertIn("compose up --no-deps db-init", startup)
         self.assertIn("compose up --detach --no-deps pgbouncer", startup)
         self.assertIn("compose up --detach --no-deps runtime", startup)
+        self.assertIn("compose up --detach --no-deps ingress", startup)
+
+    def test_internal_runtime_uses_bounded_loopback_ingress(self) -> None:
+        compose = (LOCAL / "compose.yaml").read_text(encoding="utf-8")
+        self.assertIn("  ingress:\n", compose)
+        self.assertIn("TCP:pod:8080", compose)
+        self.assertIn("127.0.0.1:${LIQI_LOCAL_HTTP_PORT:-4100}:8080", compose)
+        pod_section = compose.split("  pod:\n", 1)[1].split("  ingress:\n", 1)[0]
+        ingress_section = compose.split("  ingress:\n", 1)[1].split("  pgbouncer:\n", 1)[0]
+        self.assertNotIn("ports:", pod_section)
+        self.assertIn("      - backend\n      - edge", ingress_section)
+        self.assertIn("internal: true", compose)
 
     def test_non_root_runtime_reads_only_fixed_group_local_secrets(self) -> None:
         compose = (LOCAL / "compose.yaml").read_text(encoding="utf-8")
