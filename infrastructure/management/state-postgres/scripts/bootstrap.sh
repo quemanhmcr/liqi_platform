@@ -31,6 +31,13 @@ psql "service=$STATE_ADMIN_SERVICE dbname=postgres" -v ON_ERROR_STOP=1 -f "$tmp"
 exists=$(psql "service=$STATE_ADMIN_SERVICE dbname=postgres" -Atqc "SELECT 1 FROM pg_database WHERE datname='$STATE_DATABASE'")
 [ "$exists" = 1 ] || createdb --maintenance-db="service=$STATE_ADMIN_SERVICE dbname=postgres" "$STATE_DATABASE"
 psql "service=$STATE_ADMIN_SERVICE dbname=$STATE_DATABASE" -v ON_ERROR_STOP=1 -v r="$STATE_ROLE" -v s="$STATE_SCHEMA" <<'SQL' >/dev/null
+BEGIN;
+-- PostgreSQL 16+ separates ADMIN, SET and INHERIT membership options. The
+-- CREATEROLE bootstrap admin receives ADMIN but not SET when it creates the
+-- runtime role. Grant SET only for this ownership transaction and revoke it
+-- before commit; the runtime remains NOINHERIT and the admin is not retained
+-- as a member of the state role.
+SELECT format('GRANT %I TO %I WITH SET TRUE, INHERIT FALSE',:'r',current_user) \gexec
 SELECT format('GRANT CONNECT ON DATABASE %I TO %I',current_database(),:'r') \gexec
 SELECT format('CREATE SCHEMA IF NOT EXISTS %I AUTHORIZATION %I',:'s',:'r') \gexec
 SELECT format('GRANT USAGE, CREATE ON SCHEMA public TO %I',:'r') \gexec
@@ -38,6 +45,8 @@ SELECT format('GRANT USAGE, CREATE ON SCHEMA %I TO %I',:'s',:'r') \gexec
 SELECT format('ALTER ROLE %I IN DATABASE %I SET search_path=%I,public',:'r',current_database(),:'s') \gexec
 SELECT format('ALTER ROLE %I IN DATABASE %I SET statement_timeout=%L',:'r',current_database(),'15min') \gexec
 SELECT format('ALTER ROLE %I IN DATABASE %I SET lock_timeout=%L',:'r',current_database(),'60s') \gexec
+SELECT format('REVOKE %I FROM %I',:'r',current_user) \gexec
+COMMIT;
 SQL
 printf '{"status":"ready-for-first-tofu-init","database":"%s","schema":"%s","role":"%s"}
 ' "$STATE_DATABASE" "$STATE_SCHEMA" "$STATE_ROLE"

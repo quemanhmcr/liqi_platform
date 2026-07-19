@@ -209,7 +209,11 @@ def validate_static_policy() -> None:
         for path in sorted((INFRA / "management/state-postgres").rglob("*"))
         if path.is_file() and "__pycache__" not in path.parts
     )
-    for token in ("sslmode=verify-full", "postgresql-advisory-locks", "state-backend-evidence-v1"):
+    for token in (
+        "sslmode=verify-full", "postgresql-advisory-locks", "state-backend-evidence-v1",
+        "WITH SET TRUE, INHERIT FALSE", "REVOKE %I FROM %I", "protect_file",
+        "unexpected Windows principal",
+    ):
         if token not in management_text:
             raise AssertionError(f"self-hosted state provider is missing {token}")
     all_live_state_text = backend + management_text + (INFRA / "deployment/plan_v1_live.sh").read_text(encoding="utf-8")
