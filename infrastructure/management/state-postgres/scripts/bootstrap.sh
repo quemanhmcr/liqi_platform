@@ -44,8 +44,9 @@ BEGIN;
 SELECT format('GRANT %I TO %I WITH SET TRUE, INHERIT FALSE',:'r',current_user) \gexec
 SELECT format('GRANT CONNECT ON DATABASE %I TO %I',current_database(),:'r') \gexec
 SELECT format('CREATE SCHEMA IF NOT EXISTS %I AUTHORIZATION %I',:'s',:'r') \gexec
+SELECT CASE WHEN pg_get_userbyid(nspowner)=:'r' THEN 1 ELSE 1/0 END
+FROM pg_namespace WHERE nspname=:'s';
 SELECT format('GRANT USAGE, CREATE ON SCHEMA public TO %I',:'r') \gexec
-SELECT format('GRANT USAGE, CREATE ON SCHEMA %I TO %I',:'s',:'r') \gexec
 SELECT format('ALTER ROLE %I IN DATABASE %I SET search_path=%I,public',:'r',current_database(),:'s') \gexec
 SELECT format('ALTER ROLE %I IN DATABASE %I SET statement_timeout=%L',:'r',current_database(),'15min') \gexec
 SELECT format('ALTER ROLE %I IN DATABASE %I SET lock_timeout=%L',:'r',current_database(),'60s') \gexec
