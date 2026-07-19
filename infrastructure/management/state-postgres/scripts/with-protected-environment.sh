@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
 source "$(dirname "$0")/common.sh"
-validate_common
+validate_identifier "$STATE_DATABASE"
+validate_identifier "$STATE_SCHEMA"
+validate_identifier "$STATE_ROLE"
 : "${STATE_RUNTIME_CREDENTIAL_FILE:?STATE_RUNTIME_CREDENTIAL_FILE is required}"
 : "${STATE_ENCRYPTION_PASSPHRASE_FILE:?STATE_ENCRYPTION_PASSPHRASE_FILE is required}"
-: "${PGPASSFILE:?PGPASSFILE is required}"
 require_file_0600 "$STATE_RUNTIME_CREDENTIAL_FILE"
 require_file_0600 "$STATE_ENCRYPTION_PASSPHRASE_FILE"
-require_file_0600 "$PGPASSFILE"
+if [ -n "${PGPASSFILE:-}" ]; then require_file_0600 "$PGPASSFILE"; fi
 [ "$#" -gt 0 ] || fail 'a command is required'
 
 runtime_credential=$(tr -d '\r\n' < "$STATE_RUNTIME_CREDENTIAL_FILE")
 encryption_passphrase=$(tr -d '\r\n' < "$STATE_ENCRYPTION_PASSPHRASE_FILE")
-[[ "$runtime_credential" =~ ^[0-9a-f]{96}$ ]] || fail 'runtime credential must be 48-byte lowercase hex'
+[[ "$runtime_credential" =~ ^([0-9a-f]{64}|[0-9a-f]{96})$ ]] || fail 'runtime credential must be 32-byte or 48-byte lowercase hex'
 [[ "$encryption_passphrase" =~ ^[0-9a-f]{96}$ ]] || fail 'state encryption passphrase must be 48-byte lowercase hex'
 
 pg_host=${STATE_PG_HOST:-Admin.localdomain}
@@ -21,7 +22,11 @@ pg_root_cert=${STATE_PG_ROOT_CERT:-/etc/ssl/certs/ssl-cert-snakeoil.pem}
 [[ "$pg_port" =~ ^[0-9]+$ ]] && ((pg_port >= 1 && pg_port <= 65535)) || fail 'invalid PostgreSQL port'
 [[ "$pg_root_cert" =~ ^/[A-Za-z0-9._/-]+$ ]] || fail 'invalid PostgreSQL root certificate path'
 [ -f "$pg_root_cert" ] || fail 'PostgreSQL root certificate is missing'
-root_cert_uri=${pg_root_cert//\//%2F}
+pg_root_cert_native=$pg_root_cert
+if is_windows_host; then pg_root_cert_native=$(cygpath -m "$pg_root_cert"); fi
+root_cert_uri=${pg_root_cert_native//%/%25}
+root_cert_uri=${root_cert_uri//:/%3A}
+root_cert_uri=${root_cert_uri//\//%2F}
 
 export PGPASSWORD="$runtime_credential"
 export PG_CONN_STR="postgres://$STATE_ROLE@$pg_host:$pg_port/$STATE_DATABASE?sslmode=verify-full&sslrootcert=$root_cert_uri"

@@ -233,10 +233,17 @@ class HostBundleTests(unittest.TestCase):
 
 
 class StateBackendBootstrapTests(unittest.TestCase):
+    def test_locking_provider_sanitizes_nested_tofu_environment(self) -> None:
+        source = (ROOT / "infrastructure/management/state-postgres/scripts/test-locking.sh").read_text(encoding="utf-8")
+        self.assertIn("unset PGSERVICEFILE PGPASSFILE", source)
+        self.assertIn("PG_SCHEMA_NAME", source)
+        self.assertIn("postgresql-advisory-locks", source)
+
     def test_protected_environment_enforces_tls_and_encryption_without_logging_material(self) -> None:
         source = (ROOT / "infrastructure/management/state-postgres/scripts/with-protected-environment.sh").read_text(encoding="utf-8")
         for token in (
-            "STATE_RUNTIME_CREDENTIAL_FILE", "STATE_ENCRYPTION_PASSPHRASE_FILE", "PGPASSFILE",
+            "STATE_RUNTIME_CREDENTIAL_FILE", "STATE_ENCRYPTION_PASSPHRASE_FILE",
+            "32-byte or 48-byte lowercase hex", "pg_root_cert_native", "cygpath -m",
             "sslmode=verify-full", "PG_SKIP_SCHEMA_CREATION", "PG_SKIP_TABLE_CREATION",
             "PG_SKIP_INDEX_CREATION", "pbkdf2", "aes_gcm", "600000", "sha512",
             'unset PGSERVICEFILE PGPASSFILE', 'exec "$@"',
