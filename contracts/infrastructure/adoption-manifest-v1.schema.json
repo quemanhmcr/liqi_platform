@@ -41,8 +41,16 @@
             "type": "string"
           },
           "id": {
-            "pattern": "^ocid1\\.",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^ocid1\\.",
+                "type": "string"
+              },
+              {
+                "pattern": "^networkSecurityGroups/ocid1\\.networksecuritygroup\\.[A-Za-z0-9._-]+/securityRules/[A-Za-z0-9._-]+$",
+                "type": "string"
+              }
+            ]
           },
           "resource_type": {
             "pattern": "^oci_",

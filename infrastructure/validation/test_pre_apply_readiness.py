@@ -30,6 +30,15 @@ class PreApplyReadinessTests(unittest.TestCase):
         self.assertEqual([], errors)
         self.assertEqual(list(module.CHECK_ORDER), [item["name"] for item in example["checks"]])
 
+    def test_adoption_schema_accepts_official_nsg_rule_composite_import_id(self) -> None:
+        schema = json.loads((ROOT / "contracts/infrastructure/adoption-manifest-v1.schema.json").read_text(encoding="utf-8"))
+        document = json.loads((ROOT / "contracts/infrastructure/adoption-manifest-v1.example.json").read_text(encoding="utf-8"))
+        document["imports"][0]["resource_type"] = "oci_core_network_security_group_security_rule"
+        document["imports"][0]["address"] = 'module.v1_live.oci_core_network_security_group_security_rule.bastion_ssh_ingress["10.42.20.100/32"]'
+        document["imports"][0]["id"] = "networkSecurityGroups/ocid1.networksecuritygroup.oc1.example/securityRules/RULE123"
+        errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(document))
+        self.assertEqual([], errors)
+
     def test_incomplete_oci_handoff_is_blocked_without_ocid_leakage(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
