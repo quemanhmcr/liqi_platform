@@ -9,6 +9,9 @@ output=''; while (($#)); do case "$1" in --output) output=${2:?}; shift 2;; *) f
 root=$(cd "$(dirname "$0")/.." && pwd); stack="$root/lock-test"
 export PG_SCHEMA_NAME=${PG_LOCK_TEST_SCHEMA:-opentofu_v1_locktest}
 export PG_SKIP_SCHEMA_CREATION=false PG_SKIP_TABLE_CREATION=false PG_SKIP_INDEX_CREATION=false
+# The OpenTofu pg backend consumes PG_CONN_STR and PGPASSWORD but rejects
+# libpq service/passfile variables that PostgreSQL administration tools accept.
+unset PGSERVICEFILE PGPASSFILE
 export TF_DATA_DIR=$(mktemp -d); a=$(mktemp); b=$(mktemp)
 cleanup(){ rm -rf "$TF_DATA_DIR" "$a" "$b"; }; trap cleanup EXIT
 tofu -chdir="$stack" init -reconfigure -input=false >/dev/null
