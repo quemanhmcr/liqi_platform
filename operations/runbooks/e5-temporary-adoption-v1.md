@@ -39,7 +39,7 @@ The builder uses a temporary `git archive`, injects only the verified NIF, creat
 5. Run `pre-apply-readiness` with the handoff manifest, state evidence/result, protected E5 tfvars, cryptographically verified x86_64 publication, trust directories and retained V0 rollback descriptor. It can be run early to enumerate blockers, but status must be `passed` before planning. It performs no state or OCI mutation and never emits protected values.
 6. Run `read-only-live-plan` in `e5-temporary` and `adopt-existing` mode. The plan validator allows create/no-op/in-place update but rejects delete, replacement, unknown resource counts, public SSH, architecture mismatch and secret material.
 7. Review the saved plan, JSON plan, validation result, adoption evidence digest, expected cost and E5 expiry.
-8. Run `approved-oci-apply` only with the matching approval. The wrapper applies the exact saved plan and refuses re-planning.
+8. Run `approved-oci-apply` only with the matching approval and the same `pre-apply-readiness-v1` file used for planning. The wrapper revalidates its exact SHA and every state/adoption/tfvars/release/rollback digest, applies the exact saved plan and refuses re-planning.
 
 ## A1 migration
 

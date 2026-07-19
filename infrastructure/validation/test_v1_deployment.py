@@ -292,12 +292,26 @@ class AdoptionStateTests(unittest.TestCase):
         plan = (ROOT / "infrastructure/deployment/plan_v1_live.sh").read_text(encoding="utf-8")
         apply = (ROOT / "infrastructure/deployment/apply_v1_live.sh").read_text(encoding="utf-8")
         self.assertIn("validate_adoption_result.py", plan)
-        self.assertIn("adoption_result_sha256", plan)
+        self.assertIn("validate_pre_apply_readiness.py", plan)
+        for token in ("adoption_result_sha256", "pre_apply_readiness_sha256", "linux_release_build_result_sha256", "rollback_target_sha256"):
+            self.assertIn(token, plan)
         self.assertIn("approved apply requires an adopt-existing plan", plan)
         self.assertIn('doc.get("capacity_profile") != "e5-temporary"', apply)
         self.assertIn('doc.get("plan_mode") != "adopt-existing"', apply)
-        self.assertIn("plan result is not bound to state adoption evidence", apply)
+        self.assertIn("pre-apply readiness digest mismatch", apply)
+        self.assertIn("pre-apply readiness/plan binding mismatch", apply)
         self.assertIn('for field in ("plan_json", "validation")', apply)
+        for token in (
+            "live plan output directory must not already exist",
+            "live plan output must remain outside the source repository",
+            "input-state-backend-evidence.json",
+            "input-adoption-result.json",
+            "input-pre-apply-readiness.json",
+            "input-live.tfvars",
+            "install -m 0600",
+        ):
+            self.assertIn(token, plan)
+        self.assertIn("--pre-apply-readiness", apply)
 
 
 class PlanValidationTests(unittest.TestCase):

@@ -11,6 +11,7 @@ from unittest.mock import patch
 from jsonschema import Draft202012Validator, FormatChecker
 
 from infrastructure.validation import pre_apply_readiness as module
+from infrastructure.validation import validate_pre_apply_readiness as binding_validator
 
 ROOT = Path(__file__).resolve().parents[2]
 SHA = "1" * 40
@@ -103,6 +104,37 @@ acknowledge_host_bundle_signing_key = true
             result, _ = module.tfvars_check(path, SHA, now)
             self.assertEqual("blocked", result["status"])
             self.assertIn("availability_domain", result["detail"])
+
+    def test_passed_readiness_binds_exact_plan_inputs_and_rejects_tamper(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / "state.json"
+            state.write_bytes(b"state-evidence")
+            var_file = root / "live.tfvars"
+            var_file.write_bytes(b"protected-tfvars")
+            manifest_sha = "c" * 64
+            adoption = self.write_json(root, "adoption-result.json", {"manifest_sha256": manifest_sha})
+            document = json.loads((ROOT / "contracts/infrastructure/pre-apply-readiness-v1.example.json").read_text(encoding="utf-8"))
+            document["git_sha"] = SHA
+            document["inputs"].update({
+                "state_backend_evidence_sha256": binding_validator.digest(state),
+                "adoption_result_sha256": binding_validator.digest(adoption),
+                "var_file_sha256": binding_validator.digest(var_file),
+                "adoption_manifest_sha256": manifest_sha,
+            })
+            binding_validator.validate_result(document, SHA, state, adoption, var_file)
+            var_file.write_bytes(b"tampered-tfvars")
+            with self.assertRaisesRegex(ValueError, "var_file_sha256"):
+                binding_validator.validate_result(document, SHA, state, adoption, var_file)
+
+    def test_blocked_readiness_cannot_bind_a_plan(self) -> None:
+        document = json.loads((ROOT / "contracts/infrastructure/pre-apply-readiness-v1.example.json").read_text(encoding="utf-8"))
+        document["git_sha"] = SHA
+        document["status"] = "blocked"
+        document["checks"][0]["status"] = "blocked"
+        document["blockers"] = ["handoff incomplete"]
+        with self.assertRaisesRegex(ValueError, "not passed"):
+            binding_validator.validate_document(document, SHA)
 
     def test_environment_check_never_emits_connection_string(self) -> None:
         secret = "sentinel-sensitive-backend-value?sslmode=verify-full"

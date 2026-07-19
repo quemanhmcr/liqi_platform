@@ -231,11 +231,12 @@ def validate_static_policy() -> None:
     adoption_source = "\n".join((INFRA / path).read_text(encoding="utf-8") for path in (
         "deployment/discover_v1_live_adoption.py", "deployment/adopt_v1_live_state.py",
         "deployment/plan_v1_live.sh", "deployment/apply_v1_live.sh",
-        "validation/validate_adoption_result.py", "validation/validate_v1_plan.py",
+        "validation/validate_adoption_result.py", "validation/validate_pre_apply_readiness.py", "validation/validate_v1_plan.py",
     ))
     for token in (
         "oci_mutation_performed", "state_mutation_performed", "adopt-existing",
         "adoption plan forbids delete/replacement", "adoption_result_sha256",
+        "pre_apply_readiness_sha256", "pre-apply readiness digest mismatch",
         "approved apply requires an adopt-existing plan", "e5-temporary",
     ):
         if token not in adoption_source:

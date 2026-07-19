@@ -119,6 +119,8 @@
         "<state-backend-evidence-v1.json>",
         "--adoption-result",
         "<adoption-result-v1.json>",
+        "--pre-apply-readiness",
+        "<pre-apply-readiness-v1.json>",
         "--var-file",
         "<protected-live.tfvars>",
         "--output-dir",
@@ -139,7 +141,7 @@
       ],
       "mutation": "read-only",
       "output": "v1-live.plan-result.json",
-      "failure_policy": "reject missing state-adoption evidence, delete/replacement actions, architecture/profile mismatch, or unreviewed cost/expiry"
+      "failure_policy": "reject missing or non-passed pre-apply readiness, state-adoption evidence, delete/replacement actions, architecture/profile mismatch, or unreviewed cost/expiry"
     },
     {
       "id": "approved-oci-apply",
@@ -147,6 +149,8 @@
         "infrastructure/deployment/apply_v1_live.sh",
         "--plan-result",
         "<v1-live.plan-result.json>",
+        "--pre-apply-readiness",
+        "<pre-apply-readiness-v1.json>",
         "--approval-reference",
         "<approval>",
         "--execute"
@@ -162,7 +166,8 @@
         "OCI provider authentication"
       ],
       "mutation": "approval-required",
-      "output": "v1-live.apply-result.json"
+      "output": "v1-live.apply-result.json",
+      "failure_policy": "refuse mutation unless the exact saved plan and the same passed pre-apply readiness file retain all state/adoption/tfvars/release/rollback digest bindings"
     },
     {
       "id": "build-host-bundle",

@@ -4,7 +4,7 @@ umask 077
 
 usage() {
   cat >&2 <<'USAGE'
-Usage: apply_v1_live.sh --plan-result FILE --approval-reference REF --execute
+Usage: apply_v1_live.sh --plan-result FILE --pre-apply-readiness FILE --approval-reference REF --execute
 
 MUTATES OCI by applying the exact saved plan recorded in FILE. No automatic re-plan.
 Required environment: TF_ENCRYPTION, protected PostgreSQL backend environment (PG_CONN_STR/PG_SCHEMA_NAME/PG_SKIP_*), and OCI provider authentication.
@@ -13,17 +13,19 @@ USAGE
 }
 
 plan_result=''
+pre_apply_readiness=''
 approval_reference=''
 execute='false'
 while (($#)); do
   case "$1" in
     --plan-result) plan_result="${2:?}"; shift 2 ;;
+    --pre-apply-readiness) pre_apply_readiness="${2:?}"; shift 2 ;;
     --approval-reference) approval_reference="${2:?}"; shift 2 ;;
     --execute) execute='true'; shift ;;
     *) usage ;;
   esac
 done
-[[ -n "$plan_result" && -f "$plan_result" && ${#approval_reference} -ge 3 ]] || usage
+[[ -n "$plan_result" && -f "$plan_result" && ! -L "$plan_result" && -n "$pre_apply_readiness" && -f "$pre_apply_readiness" && ! -L "$pre_apply_readiness" && ${#approval_reference} -ge 3 ]] || usage
 [[ "$execute" == 'true' ]] || { echo 'refusing OCI mutation without --execute' >&2; exit 65; }
 [[ -n "${TF_ENCRYPTION:-}" ]] || { echo 'TF_ENCRYPTION is required' >&2; exit 65; }
 [[ -n "${PG_CONN_STR:-}" && "$PG_CONN_STR" == *sslmode=verify-full* ]] || { echo 'PG_CONN_STR with sslmode=verify-full is required' >&2; exit 65; }
@@ -34,19 +36,27 @@ done
 
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
-git diff --quiet && git diff --cached --quiet || { echo 'tracked worktree changes are forbidden for apply' >&2; exit 66; }
+[[ -z "$(git status --porcelain --untracked-files=all)" ]] || { echo 'clean exact-SHA worktree is required for apply' >&2; exit 66; }
 current_sha="$(git rev-parse HEAD)"
 
-readarray -t fields < <(python - "$plan_result" "$approval_reference" "$current_sha" <<'PY'
+readarray -t fields < <(python - "$plan_result" "$approval_reference" "$current_sha" "$pre_apply_readiness" "$root" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
-path, approval, current_sha = sys.argv[1:]
+path, approval, current_sha, readiness_path, root = sys.argv[1:]
+sys.path.insert(0, root)
+from infrastructure.validation import validate_pre_apply_readiness as pre
 doc = json.loads(Path(path).read_text(encoding="utf-8"))
 if doc.get("schema_version") != "liqi.infrastructure.plan-result/v1": raise SystemExit("invalid plan result schema")
 if doc.get("mode") != "approved-apply": raise SystemExit("plan result is not approved-apply mode")
 if doc.get("capacity_profile") != "e5-temporary": raise SystemExit("approved apply is restricted to e5-temporary")
 if doc.get("plan_mode") != "adopt-existing": raise SystemExit("approved apply requires an adopt-existing saved plan")
-if not doc.get("inputs", {}).get("adoption_result_sha256"): raise SystemExit("plan result is not bound to state adoption evidence")
+inputs = doc.get("inputs", {})
+for name in (
+    "state_backend_evidence_sha256", "adoption_result_sha256", "pre_apply_readiness_sha256",
+    "var_file_sha256", "adoption_manifest_sha256", "linux_release_build_result_sha256",
+    "rollback_target_sha256",
+):
+    if not inputs.get(name): raise SystemExit(f"plan result is not bound to {name}")
 if doc.get("approval_reference") != approval: raise SystemExit("approval reference mismatch")
 if doc.get("git_sha") != current_sha: raise SystemExit("Git SHA mismatch")
 if doc.get("validation", {}).get("status") != "passed": raise SystemExit("plan validation is not passed")
@@ -58,6 +68,17 @@ for field in ("plan_json", "validation"):
     artifact = Path(doc[field]["path"])
     if not artifact.is_file(): raise SystemExit(f"{field} artifact is missing")
     if hashlib.sha256(artifact.read_bytes()).hexdigest() != doc[field]["sha256"]: raise SystemExit(f"{field} digest mismatch")
+readiness_path = pre.regular(Path(readiness_path), "pre-apply readiness result")
+readiness = pre.load(readiness_path, "pre-apply readiness result")
+pre.validate_document(readiness, current_sha)
+if pre.digest(readiness_path) != inputs["pre_apply_readiness_sha256"]:
+    raise SystemExit("pre-apply readiness digest mismatch")
+for name in (
+    "state_backend_evidence_sha256", "adoption_result_sha256", "var_file_sha256",
+    "adoption_manifest_sha256", "linux_release_build_result_sha256", "rollback_target_sha256",
+):
+    if readiness.get("inputs", {}).get(name) != inputs.get(name):
+        raise SystemExit(f"pre-apply readiness/plan binding mismatch: {name}")
 print(plan)
 print(doc["tf_data_dir"])
 print(Path(path).resolve().parent)
@@ -89,6 +110,9 @@ doc = {
   "capacity_profile": plan["capacity_profile"],
   "plan_mode": plan["plan_mode"],
   "saved_plan_sha256": plan["saved_plan"]["sha256"],
+  "pre_apply_readiness_sha256": plan["inputs"]["pre_apply_readiness_sha256"],
+  "linux_release_build_result_sha256": plan["inputs"]["linux_release_build_result_sha256"],
+  "rollback_target_sha256": plan["inputs"]["rollback_target_sha256"],
   "completed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
   "status": "applied",
   "oci_output_sha256": hashlib.sha256(Path(output_json).read_bytes()).hexdigest(),
