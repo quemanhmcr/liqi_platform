@@ -20,6 +20,10 @@ module "v1_live" {
   tenancy_ocid                               = var.tenancy_ocid
   region                                     = var.region
   availability_domain                        = var.availability_domain
+  capacity_profile                           = var.capacity_profile
+  temporary_e5_expires_at                    = var.temporary_e5_expires_at
+  resource_names                             = var.resource_names
+  network_config                             = var.network_config
   oracle_linux_image_ocid                    = var.oracle_linux_image_ocid
   cloud_init_user_data                       = local.cloud_init_user_data
   source_git_sha                             = var.source_git_sha

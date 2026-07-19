@@ -14,15 +14,81 @@
       "output": "stdout"
     },
     {
+      "id": "discover-e5-adoption",
+      "command": [
+        "python",
+        "infrastructure/deployment/discover_v1_live_adoption.py",
+        "--resource-names",
+        "infrastructure/opentofu/environments/v1-live/resource-names.e5-adoption.example.json",
+        "--output",
+        "<adoption-manifest-v1.json>"
+      ],
+      "working_directory": "repository-root-clean",
+      "required_environment": [
+        "OCI CLI authenticated for ap-singapore-2"
+      ],
+      "mutation": "read-only-oci-discovery",
+      "output": "adoption-manifest-v1"
+    },
+    {
+      "id": "validate-e5-state-adoption",
+      "command": [
+        "python",
+        "infrastructure/deployment/adopt_v1_live_state.py",
+        "--manifest",
+        "<adoption-manifest-v1.json>",
+        "--var-file",
+        "<protected-live.tfvars>",
+        "--output",
+        "<adoption-result-v1.json>"
+      ],
+      "working_directory": "repository-root-clean",
+      "mutation": "none-validation-only",
+      "output": "adoption-result-v1 status=validated"
+    },
+    {
+      "id": "execute-e5-state-adoption",
+      "command": [
+        "python",
+        "infrastructure/deployment/adopt_v1_live_state.py",
+        "--manifest",
+        "<adoption-manifest-v1.json>",
+        "--var-file",
+        "<protected-live.tfvars>",
+        "--output",
+        "<adoption-result-v1.json>",
+        "--approval-reference",
+        "<approval>",
+        "--execute"
+      ],
+      "working_directory": "repository-root-clean",
+      "required_environment": [
+        "TF_ENCRYPTION",
+        "PG_CONN_STR (sslmode=verify-full)",
+        "PG_SCHEMA_NAME=opentofu_v1_live",
+        "PG_SKIP_SCHEMA_CREATION=true",
+        "PG_SKIP_TABLE_CREATION=true",
+        "PG_SKIP_INDEX_CREATION=true",
+        "OCI provider authentication"
+      ],
+      "mutation": "encrypted-opentofu-state-only-no-oci-resource-mutation",
+      "output": "adoption-result-v1 status=passed"
+    },
+    {
       "id": "read-only-live-plan",
       "command": [
         "infrastructure/deployment/plan_v1_live.sh",
         "--state-backend-evidence",
         "<state-backend-evidence-v1.json>",
+        "--adoption-result",
+        "<adoption-result-v1.json>",
         "--var-file",
-        "<live.tfvars>",
+        "<protected-live.tfvars>",
         "--output-dir",
-        "<evidence-dir>"
+        "<evidence-dir>",
+        "--capacity-profile",
+        "e5-temporary",
+        "--adopt-existing"
       ],
       "working_directory": "repository-root-clean",
       "required_environment": [
@@ -35,7 +101,8 @@
         "OCI provider authentication"
       ],
       "mutation": "read-only",
-      "output": "v1-live.plan-result.json"
+      "output": "v1-live.plan-result.json",
+      "failure_policy": "reject missing state-adoption evidence, delete/replacement actions, architecture/profile mismatch, or unreviewed cost/expiry"
     },
     {
       "id": "approved-oci-apply",

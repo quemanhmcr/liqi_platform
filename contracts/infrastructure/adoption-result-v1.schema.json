@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liqi.example/contracts/infrastructure/adoption-result-v1.schema.json",
+  "title": "LIQI V1 OpenTofu state adoption result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "git_sha", "capacity_profile", "operation", "approval_reference",
+    "manifest_sha256", "var_file_sha256", "status", "imported_addresses",
+    "already_present_addresses", "blockers", "state_mutation_performed", "oci_mutation_performed"
+  ],
+  "properties": {
+    "schema_version": {"const": "liqi.infrastructure.adoption-result/v1"},
+    "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "capacity_profile": {"const": "e5-temporary"},
+    "operation": {"enum": ["validate", "execute"]},
+    "approval_reference": {"type": ["string", "null"], "maxLength": 256},
+    "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "var_file_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "status": {"enum": ["validated", "passed", "failed"]},
+    "imported_addresses": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "already_present_addresses": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "blockers": {"type": "array", "items": {"type": "string", "minLength": 3, "maxLength": 1000}},
+    "state_mutation_performed": {"type": "boolean"},
+    "oci_mutation_performed": {"const": false}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"operation": {"const": "validate"}}},
+      "then": {
+        "properties": {
+          "approval_reference": {"const": null},
+          "status": {"const": "validated"},
+          "state_mutation_performed": {"const": false}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "passed"}}},
+      "then": {"properties": {"blockers": {"maxItems": 0}}}
+    }
+  ]
+}

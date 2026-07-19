@@ -6,14 +6,16 @@ locals {
     environment                   = local.environment
     classification                = "production-shaped-development"
     git_sha                       = var.source_git_sha
-    infrastructure_output_version = "1.1.0"
+    infrastructure_output_version = "1.2.0"
     region = {
       name                = var.region
       availability_domain = var.availability_domain
     }
     capacity = {
+      profile                     = var.capacity_profile
       shape                       = local.capacity.shape
       architecture                = local.capacity.architecture
+      target_triple               = local.capacity.target_triple
       ocpus                       = local.capacity.ocpus
       memory_gib                  = local.capacity.memory_gib
       boot_volume_gib             = local.capacity.boot_volume_gib
@@ -21,14 +23,17 @@ locals {
       combined_storage_gib        = local.capacity.combined_storage_gib
       provider_cpu_ceiling        = 3
       provider_memory_ceiling_gib = 20
-      provider_disk_ceiling_gib   = 180
+      provider_disk_ceiling_gib   = local.capacity.combined_storage_gib
       host_reserve = {
         ocpus            = 1
         memory_gib       = 4
         disk_gib         = 20
         swap_is_capacity = false
       }
-      cost_classification = "free-trial-only"
+      cost_classification      = local.capacity.cost_classification
+      temporary                = local.capacity.temporary
+      expires_at               = local.capacity.temporary ? var.temporary_e5_expires_at : null
+      migration_target_profile = local.capacity.migration_target_profile
     }
     network = {
       vcn_id         = oci_core_vcn.main.id

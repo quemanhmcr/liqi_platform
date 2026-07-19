@@ -1,7 +1,7 @@
 resource "oci_core_instance" "host" {
   availability_domain = var.availability_domain
   compartment_id      = oci_identity_compartment.environment.id
-  display_name        = "${local.prefix}-host-01"
+  display_name        = var.resource_names.instance
   shape               = local.capacity.shape
   freeform_tags       = local.common_tags
 
@@ -12,7 +12,7 @@ resource "oci_core_instance" "host" {
 
   create_vnic_details {
     assign_public_ip = var.enable_reserved_public_ip ? "false" : "true"
-    display_name     = "${local.prefix}-host-vnic"
+    display_name     = var.resource_names.vnic
     hostname_label   = "host01"
     nsg_ids          = [oci_core_network_security_group.host.id]
     subnet_id        = oci_core_subnet.edge.id
@@ -69,7 +69,7 @@ resource "oci_core_instance" "host" {
 resource "oci_core_volume_attachment" "data" {
   attachment_type                     = "paravirtualized"
   device                              = "/dev/oracleoci/oraclevdb"
-  display_name                        = "${local.prefix}-data-attachment"
+  display_name                        = var.resource_names.data_attachment
   instance_id                         = oci_core_instance.host.id
   volume_id                           = oci_core_volume.data.id
   is_pv_encryption_in_transit_enabled = true
@@ -90,7 +90,7 @@ resource "oci_core_public_ip" "reserved" {
   count = var.enable_reserved_public_ip ? 1 : 0
 
   compartment_id = oci_identity_compartment.environment.id
-  display_name   = "${local.prefix}-edge-ip"
+  display_name   = var.resource_names.reserved_public_ip
   lifetime       = "RESERVED"
   private_ip_id  = one([for address in data.oci_core_private_ips.host.private_ips : address.id if address.is_primary])
   freeform_tags  = local.common_tags

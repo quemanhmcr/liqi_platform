@@ -69,36 +69,67 @@ def one(resources: list[dict[str, Any]], resource_type: str) -> dict[str, Any]:
     return matches[0]
 
 
-def validate_actions(plan: dict[str, Any], allow_reserved_ip: bool) -> None:
-    changes = [item for item in plan.get("resource_changes", []) if item.get("mode") == "managed"]
-    invalid = [
-        (item.get("address"), item.get("change", {}).get("actions"))
-        for item in changes
-        if item.get("change", {}).get("actions") != ["create"]
-    ]
-    if invalid:
-        fail(f"initial V1 plan must contain create-only actions: {invalid}")
-    counts = Counter(item.get("type") for item in changes)
+def expected_counts(allow_reserved_ip: bool) -> dict[str, int]:
     expected = dict(EXPECTED_COUNTS)
     if allow_reserved_ip:
         expected["oci_core_public_ip"] = 1
-    if dict(counts) != expected:
-        fail(f"planned resource counts changed: actual={dict(sorted(counts.items()))} expected={dict(sorted(expected.items()))}")
+    return expected
+
+
+def validate_actions(plan: dict[str, Any], allow_reserved_ip: bool, plan_mode: str = "initial-create") -> None:
+    changes = [item for item in plan.get("resource_changes", []) if item.get("mode") == "managed"]
+    counts = Counter(item.get("type") for item in changes)
     forbidden = sorted(set(counts) & FORBIDDEN_TYPES)
     if forbidden:
         fail(f"forbidden paid/secret resource types in plan: {forbidden}")
 
+    if plan_mode == "initial-create":
+        invalid = [
+            (item.get("address"), item.get("change", {}).get("actions"))
+            for item in changes
+            if item.get("change", {}).get("actions") != ["create"]
+        ]
+        if invalid:
+            fail(f"initial V1 plan must contain create-only actions: {invalid}")
+        expected = expected_counts(allow_reserved_ip)
+        if dict(counts) != expected:
+            fail(f"planned resource counts changed: actual={dict(sorted(counts.items()))} expected={dict(sorted(expected.items()))}")
+        return
 
-def validate_instance(resources: list[dict[str, Any]]) -> str:
+    if plan_mode != "adopt-existing":
+        fail(f"unsupported plan mode: {plan_mode}")
+    allowed_actions = {("no-op",), ("create",), ("update",)}
+    invalid = []
+    for item in changes:
+        actions = tuple(item.get("change", {}).get("actions") or [])
+        if actions not in allowed_actions:
+            invalid.append((item.get("address"), list(actions)))
+    if invalid:
+        fail(f"adoption plan forbids delete/replacement or unknown actions: {invalid}")
+
+
+def validate_planned_resource_counts(resources: list[dict[str, Any]], allow_reserved_ip: bool) -> None:
+    counts = Counter(item.get("type") for item in resources if item.get("mode", "managed") == "managed")
+    expected = expected_counts(allow_reserved_ip)
+    if dict(counts) != expected:
+        fail(f"planned resource graph changed: actual={dict(sorted(counts.items()))} expected={dict(sorted(expected.items()))}")
+
+
+def validate_instance(resources: list[dict[str, Any]], capacity_profile: str) -> str:
+    profiles = {
+        "a1-target": {"shape": "VM.Standard.A1.Flex", "boot": 50},
+        "e5-temporary": {"shape": "VM.Standard.E5.Flex", "boot": 200},
+    }
+    expected = profiles[capacity_profile]
     values = one(resources, "oci_core_instance")["values"]
-    if values.get("shape") != "VM.Standard.A1.Flex":
-        fail("compute shape must be VM.Standard.A1.Flex")
+    if values.get("shape") != expected["shape"]:
+        fail(f"compute shape must be {expected['shape']} for {capacity_profile}")
     shape = values.get("shape_config") or []
     if len(shape) != 1 or shape[0].get("ocpus") != 4 or shape[0].get("memory_in_gbs") != 24:
         fail(f"compute capacity must be 4 OCPU/24 GiB, got {shape}")
     source = values.get("source_details") or []
-    if len(source) != 1 or int(source[0].get("boot_volume_size_in_gbs", 0)) != 50:
-        fail("boot volume must be 50 GiB")
+    if len(source) != 1 or int(source[0].get("boot_volume_size_in_gbs", 0)) != expected["boot"]:
+        fail(f"boot volume must be {expected['boot']} GiB for {capacity_profile}")
     metadata = values.get("metadata") or {}
     if set(metadata) != {"user_data"}:
         fail(f"instance metadata must contain only compressed user_data, got {sorted(metadata)}")
@@ -164,20 +195,38 @@ def validate_management_tunnel(resources: list[dict[str, Any]]) -> None:
     if len(candidates) != 1 or not candidates[0][0].endswith("/32") or candidates[0][0] == "0.0.0.0/0":
         fail(f"management tunnel must be one outbound-only UDP rule to an exact /32 peer, got {candidates}")
 
-def validate_outputs(plan: dict[str, Any], mode: str) -> None:
+def validate_outputs(plan: dict[str, Any], mode: str, capacity_profile: str) -> None:
     outputs = plan.get("planned_values", {}).get("outputs", {})
     if set(outputs) != EXPECTED_OUTPUTS:
         fail(f"planned outputs changed: {sorted(outputs)}")
     contract = outputs["oci_live_v1"].get("value")
     if not isinstance(contract, dict):
-        return  # OCIDs can keep the composite value unknown in some provider versions.
+        return
     if contract.get("schema_version") != "liqi.infrastructure.oci-live/v1":
         fail("unexpected OCI output schema version")
     capacity = contract.get("capacity", {})
-    if capacity.get("cost_classification") != "free-trial-only":
-        fail("V1 4/24 capacity must remain classified free-trial-only until tenancy-specific billing evidence and a reviewed source revision exist")
-    if mode == "approved-apply":
-        fail("approved apply is forbidden: the required 4 OCPU/24 GiB exceeds OCI Always Free A1 2 OCPU/12 GiB and the current approval forbids paid or unknown resources")
+    expected = {
+        "a1-target": {
+            "shape": "VM.Standard.A1.Flex", "architecture": "aarch64",
+            "target_triple": "aarch64-unknown-linux-gnu", "cost": "free-trial-only", "temporary": False,
+        },
+        "e5-temporary": {
+            "shape": "VM.Standard.E5.Flex", "architecture": "x86_64",
+            "target_triple": "x86_64-unknown-linux-gnu", "cost": "paid-approved", "temporary": True,
+        },
+    }[capacity_profile]
+    for field in ("shape", "architecture", "target_triple", "temporary"):
+        if capacity.get(field) != expected[field]:
+            fail(f"capacity {field} does not match {capacity_profile}: {capacity.get(field)!r}")
+    if capacity.get("profile") != capacity_profile or capacity.get("cost_classification") != expected["cost"]:
+        fail("capacity profile or cost classification mismatch")
+    if capacity_profile == "e5-temporary":
+        if not capacity.get("expires_at") or capacity.get("migration_target_profile") != "a1-target":
+            fail("temporary E5 output must carry expiry and A1 migration target")
+    elif capacity.get("expires_at") is not None or capacity.get("migration_target_profile") is not None:
+        fail("A1 target output must not carry temporary migration metadata")
+    if mode == "approved-apply" and capacity_profile != "e5-temporary":
+        fail("approved apply is enabled only for the temporary E5 bridge in this source revision")
     mutation = contract.get("mutation", {})
     expected_applied = mode == "approved-apply"
     if mutation.get("applied") is not expected_applied:
@@ -193,6 +242,8 @@ def main() -> int:
     parser.add_argument("plan_json", type=Path)
     parser.add_argument("--mode", choices=("plan", "approved-apply"), default="plan")
     parser.add_argument("--allow-reserved-ip", action="store_true")
+    parser.add_argument("--capacity-profile", choices=("a1-target", "e5-temporary"), default="a1-target")
+    parser.add_argument("--plan-mode", choices=("initial-create", "adopt-existing"), default="initial-create")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     try:
@@ -201,13 +252,14 @@ def main() -> int:
         for pattern in FORBIDDEN_TEXT:
             if pattern.search(rendered):
                 fail(f"plan contains forbidden credential material matching {pattern.pattern}")
-        validate_actions(plan, args.allow_reserved_ip)
+        validate_actions(plan, args.allow_reserved_ip, args.plan_mode)
         resources = all_resources(plan)
-        validate_instance(resources)
+        validate_planned_resource_counts(resources, args.allow_reserved_ip)
+        validate_instance(resources, args.capacity_profile)
         validate_storage(resources)
         validate_ingress(resources)
         validate_management_tunnel(resources)
-        validate_outputs(plan, args.mode)
+        validate_outputs(plan, args.mode, args.capacity_profile)
     except (AssertionError, ValueError, KeyError, TypeError, OSError, json.JSONDecodeError) as exc:
         print(f"ERROR v1-plan: {exc}", file=sys.stderr)
         return 1
@@ -216,6 +268,8 @@ def main() -> int:
         "schema_version": "liqi.infrastructure.plan-validation-result/v1",
         "status": "passed",
         "mode": args.mode,
+        "plan_mode": args.plan_mode,
+        "capacity_profile": args.capacity_profile,
         "plan_sha256": hashlib.sha256(args.plan_json.read_bytes()).hexdigest(),
         "public_tcp_ports": [80, 443],
         "oci_mutation_performed": False,

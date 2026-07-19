@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liqi.example/contracts/infrastructure/adoption-manifest-v1.schema.json",
+  "title": "LIQI V1 OCI adoption manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "git_sha", "capacity_profile", "region", "compartment_name", "discovered_at", "status", "imports", "missing_addresses", "unmanaged_resources", "blockers", "oci_mutation_performed"],
+  "properties": {
+    "schema_version": {"const": "liqi.infrastructure.adoption-manifest/v1"},
+    "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "capacity_profile": {"const": "e5-temporary"},
+    "region": {"const": "ap-singapore-2"},
+    "compartment_name": {"type": "string", "minLength": 3, "maxLength": 95},
+    "discovered_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["passed", "blocked"]},
+    "imports": {
+      "type": "array", "maxItems": 32,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["address", "id", "resource_type", "display_name"],
+        "properties": {
+          "address": {"type": "string", "pattern": "^module\\.v1_live\\.[A-Za-z0-9_\\[\\].\"-]+$"},
+          "id": {"type": "string", "pattern": "^ocid1\\."},
+          "resource_type": {"type": "string", "pattern": "^oci_"},
+          "display_name": {"type": "string", "minLength": 1, "maxLength": 255}
+        }
+      }
+    },
+    "missing_addresses": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "unmanaged_resources": {
+      "type": "array", "maxItems": 64,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["kind", "display_name", "reason"],
+        "properties": {
+          "kind": {"type": "string"},
+          "display_name": {"type": "string"},
+          "reason": {"type": "string", "minLength": 3, "maxLength": 512}
+        }
+      }
+    },
+    "blockers": {"type": "array", "items": {"type": "string", "minLength": 3, "maxLength": 512}},
+    "oci_mutation_performed": {"const": false}
+  }
+}

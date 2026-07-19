@@ -1,0 +1,15 @@
+{
+  "schema_version": "liqi.infrastructure.adoption-result/v1",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "capacity_profile": "e5-temporary",
+  "operation": "validate",
+  "approval_reference": null,
+  "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "var_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "status": "validated",
+  "imported_addresses": [],
+  "already_present_addresses": [],
+  "blockers": [],
+  "state_mutation_performed": false,
+  "oci_mutation_performed": false
+}

@@ -14,12 +14,14 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from infrastructure.deployment import adopt_v1_live_state
 from infrastructure.deployment import build_host_bundle
 from infrastructure.deployment import enable_backup_timers
 from infrastructure.deployment import release_control
 from infrastructure.deployment import prepare_mix_deployment
 from infrastructure.deployment import configure_live_edge
 from infrastructure.deployment import stage_mix_release
+from infrastructure.validation import validate_adoption_result
 from infrastructure.validation import validate_v1_plan
 
 
@@ -163,6 +165,62 @@ class HostBundleTests(unittest.TestCase):
 
 
 
+class AdoptionStateTests(unittest.TestCase):
+    def test_state_ids_preserve_module_addresses_and_ids(self) -> None:
+        state = {
+            "resources": [
+                {
+                    "module": "module.v1_live",
+                    "type": "oci_core_vcn",
+                    "name": "main",
+                    "instances": [{"schema_version": 0, "attributes": {"id": "ocid1.vcn.oc1.example"}}],
+                },
+                {
+                    "module": "module.v1_live",
+                    "type": "oci_core_public_ip",
+                    "name": "reserved",
+                    "instances": [{"index_key": 0, "attributes": {"id": "ocid1.publicip.oc1.example"}}],
+                },
+            ]
+        }
+        self.assertEqual(
+            adopt_v1_live_state.state_ids(state),
+            {
+                "module.v1_live.oci_core_vcn.main": "ocid1.vcn.oc1.example",
+                "module.v1_live.oci_core_public_ip.reserved[0]": "ocid1.publicip.oc1.example",
+            },
+        )
+
+    def test_redaction_removes_oci_identifiers(self) -> None:
+        redacted = adopt_v1_live_state.redact("failure for ocid1.instance.oc1.ap-singapore-2.secret-value")
+        self.assertNotIn("secret-value", redacted)
+        self.assertIn("<oci-id-redacted>", redacted)
+
+    def test_exact_adoption_result_requires_executed_pass(self) -> None:
+        document = json.loads((ROOT / "contracts/infrastructure/adoption-result-v1.example.json").read_text(encoding="utf-8"))
+        document.update({
+            "git_sha": "a" * 40,
+            "operation": "execute",
+            "approval_reference": "APPROVAL-1",
+            "status": "passed",
+        })
+        validate_adoption_result.validate_result(document, "a" * 40)
+        document["operation"] = "validate"
+        with self.assertRaises(ValueError):
+            validate_adoption_result.validate_result(document, "a" * 40)
+
+    def test_plan_and_apply_bind_state_adoption(self) -> None:
+        plan = (ROOT / "infrastructure/deployment/plan_v1_live.sh").read_text(encoding="utf-8")
+        apply = (ROOT / "infrastructure/deployment/apply_v1_live.sh").read_text(encoding="utf-8")
+        self.assertIn("validate_adoption_result.py", plan)
+        self.assertIn("adoption_result_sha256", plan)
+        self.assertIn("approved apply requires an adopt-existing plan", plan)
+        self.assertIn('doc.get("capacity_profile") != "e5-temporary"', apply)
+        self.assertIn('doc.get("plan_mode") != "adopt-existing"', apply)
+        self.assertIn("plan result is not bound to state adoption evidence", apply)
+        self.assertIn('for field in ("plan_json", "validation")', apply)
+
+
 class PlanValidationTests(unittest.TestCase):
     def test_initial_plan_action_counts_are_exact(self) -> None:
         changes = []
@@ -178,6 +236,51 @@ class PlanValidationTests(unittest.TestCase):
         changes[0]["change"]["actions"] = ["update"]
         with self.assertRaises(AssertionError):
             validate_v1_plan.validate_actions({"resource_changes": changes}, allow_reserved_ip=False)
+
+    def test_adoption_actions_reject_replacement(self) -> None:
+        changes = [
+            {
+                "mode": "managed",
+                "type": "oci_core_instance",
+                "address": "module.v1_live.oci_core_instance.host",
+                "change": {"actions": ["update"]},
+            },
+            {
+                "mode": "managed",
+                "type": "oci_core_volume",
+                "address": "module.v1_live.oci_core_volume.data",
+                "change": {"actions": ["create"]},
+            },
+        ]
+        validate_v1_plan.validate_actions(
+            {"resource_changes": changes}, allow_reserved_ip=False, plan_mode="adopt-existing"
+        )
+        changes[0]["change"]["actions"] = ["delete", "create"]
+        with self.assertRaises(AssertionError):
+            validate_v1_plan.validate_actions(
+                {"resource_changes": changes}, allow_reserved_ip=False, plan_mode="adopt-existing"
+            )
+
+    def test_e5_instance_profile_is_explicit(self) -> None:
+        import base64
+        import gzip
+
+        cloud_init = b"liqi-bootstrap-host liqi-install-host-bundle sshd.service sshd.socket"
+        encoded = base64.b64encode(gzip.compress(cloud_init, mtime=0)).decode("ascii")
+        resources = [{
+            "type": "oci_core_instance",
+            "values": {
+                "shape": "VM.Standard.E5.Flex",
+                "shape_config": [{"ocpus": 4, "memory_in_gbs": 24}],
+                "source_details": [{"boot_volume_size_in_gbs": 200}],
+                "metadata": {"user_data": encoded},
+                "agent_config": [{"plugins_config": [{"name": "Compute Instance Run Command", "desired_state": "ENABLED"}]}],
+            },
+        }]
+        validate_v1_plan.validate_instance(resources, "e5-temporary")
+        resources[0]["values"]["shape"] = "VM.Standard.A1.Flex"
+        with self.assertRaises(AssertionError):
+            validate_v1_plan.validate_instance(resources, "e5-temporary")
 
     def test_public_ingress_is_exactly_80_and_443(self) -> None:
         def rule(port: int) -> dict[str, object]:
@@ -210,7 +313,7 @@ class PlanValidationTests(unittest.TestCase):
                 "agent_config": [{"plugins_config": [{"name": "Compute Instance Run Command", "desired_state": "ENABLED"}]}],
             },
         }]
-        rendered = validate_v1_plan.validate_instance(resources)
+        rendered = validate_v1_plan.validate_instance(resources, "a1-target")
         self.assertIn("liqi-bootstrap-host", rendered)
 
     def test_management_tunnel_is_outbound_to_one_peer(self) -> None:

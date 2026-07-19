@@ -17,13 +17,108 @@ variable "region" {
   }
 }
 
+
+variable "capacity_profile" {
+  description = "Explicit host lane: target A1 remains the default; E5 is a time-bounded paid bridge while A1 capacity is unavailable."
+  type        = string
+  default     = "a1-target"
+  validation {
+    condition     = contains(["a1-target", "e5-temporary"], var.capacity_profile)
+    error_message = "capacity_profile must be a1-target or e5-temporary."
+  }
+}
+
+variable "temporary_e5_expires_at" {
+  description = "RFC3339 expiry for the temporary E5 bridge. Required only for e5-temporary and bounded to 90 days by guardrails."
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.temporary_e5_expires_at == "" || can(timecmp(var.temporary_e5_expires_at, "2026-01-01T00:00:00Z"))
+    error_message = "temporary_e5_expires_at must be empty or an RFC3339 timestamp."
+  }
+}
+
+variable "network_config" {
+  description = "Reviewed VCN/subnet profile. Values are restricted to the original source profile or the tech-lead adoption profile."
+  type = object({
+    vcn_cidr          = string
+    vcn_dns_label     = string
+    edge_subnet_cidr  = string
+    edge_subnet_label = string
+  })
+  default = {
+    vcn_cidr          = "10.40.0.0/16"
+    vcn_dns_label     = "liqiv1"
+    edge_subnet_cidr  = "10.40.10.0/24"
+    edge_subnet_label = "edge"
+  }
+  validation {
+    condition = contains([
+      "10.40.0.0/16|10.40.10.0/24|liqiv1|edge",
+      "10.42.0.0/16|10.42.10.0/24|liqilive|live",
+      ], join("|", [
+        var.network_config.vcn_cidr,
+        var.network_config.edge_subnet_cidr,
+        var.network_config.vcn_dns_label,
+        var.network_config.edge_subnet_label,
+    ]))
+    error_message = "network_config must match an explicitly reviewed V1 network profile."
+  }
+}
+
+variable "resource_names" {
+  description = "Reviewed OCI display names. Override only to adopt an existing environment without replacement-by-rename."
+  type = object({
+    compartment        = string
+    vcn                = string
+    internet_gateway   = string
+    route_table        = string
+    security_list      = string
+    subnet             = string
+    nsg                = string
+    instance           = string
+    vnic               = string
+    data_volume        = string
+    data_attachment    = string
+    vault              = string
+    key                = string
+    reserved_public_ip = string
+    dynamic_group      = string
+    policy             = string
+  })
+  default = {
+    compartment        = "liqi-v1-live"
+    vcn                = "liqi-v1-live-vcn"
+    internet_gateway   = "liqi-v1-live-internet-gateway"
+    route_table        = "liqi-v1-live-edge-routes"
+    security_list      = "liqi-v1-live-empty-security-list"
+    subnet             = "liqi-v1-live-edge-subnet"
+    nsg                = "liqi-v1-live-host-nsg"
+    instance           = "liqi-v1-live-host-01"
+    vnic               = "liqi-v1-live-host-vnic"
+    data_volume        = "liqi-v1-live-data"
+    data_attachment    = "liqi-v1-live-data-attachment"
+    vault              = "liqi-v1-live-vault"
+    key                = "liqi-v1-live-software-key"
+    reserved_public_ip = "liqi-v1-live-edge-ip"
+    dynamic_group      = "liqi_v1_live_host"
+    policy             = "liqi_v1_live_host_policy"
+  }
+  validation {
+    condition = alltrue([
+      for value in values(var.resource_names) : can(regex("^[A-Za-z0-9][A-Za-z0-9._-]{2,95}$", value))
+    ])
+    error_message = "resource_names values must be stable OCI-safe identifiers."
+  }
+}
+
 variable "availability_domain" {
-  description = "Availability domain for the A1 host and preserved block volume."
+  description = "Availability domain for the selected temporary-E5 or target-A1 host and preserved block volume."
   type        = string
 }
 
 variable "oracle_linux_image_ocid" {
-  description = "Pinned Oracle Linux 9 aarch64 image OCID reviewed for the V1 release."
+  description = "Pinned Oracle Linux 9 image OCID whose architecture matches capacity_profile."
   type        = string
   validation {
     condition     = can(regex("^ocid1\\.image\\.", var.oracle_linux_image_ocid))

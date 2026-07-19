@@ -1,6 +1,6 @@
 resource "oci_identity_dynamic_group" "host" {
   compartment_id = var.tenancy_ocid
-  name           = "liqi_v1_live_host"
+  name           = var.resource_names.dynamic_group
   description    = "Exact-instance principal for the LIQI v1-live host."
   matching_rule  = "ALL {instance.id = '${oci_core_instance.host.id}'}"
   freeform_tags  = local.common_tags
@@ -8,7 +8,7 @@ resource "oci_identity_dynamic_group" "host" {
 
 resource "oci_identity_policy" "host" {
   compartment_id = var.tenancy_ocid
-  name           = "liqi_v1_live_host_policy"
+  name           = var.resource_names.policy
   description    = "Least-privilege OCI Vault secret-bundle access for the exact v1-live host."
   statements     = local.vault_secret_statements
   freeform_tags  = local.common_tags

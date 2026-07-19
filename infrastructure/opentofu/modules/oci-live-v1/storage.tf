@@ -1,6 +1,6 @@
 resource "oci_kms_vault" "main" {
   compartment_id = oci_identity_compartment.environment.id
-  display_name   = "${local.prefix}-vault"
+  display_name   = var.resource_names.vault
   vault_type     = "DEFAULT"
   freeform_tags  = local.stateful_tags
 
@@ -11,7 +11,7 @@ resource "oci_kms_vault" "main" {
 
 resource "oci_kms_key" "main" {
   compartment_id      = oci_identity_compartment.environment.id
-  display_name        = "${local.prefix}-software-key"
+  display_name        = var.resource_names.key
   management_endpoint = oci_kms_vault.main.management_endpoint
   protection_mode     = "SOFTWARE"
   freeform_tags       = local.stateful_tags
@@ -29,7 +29,7 @@ resource "oci_kms_key" "main" {
 resource "oci_core_volume" "data" {
   availability_domain = var.availability_domain
   compartment_id      = oci_identity_compartment.environment.id
-  display_name        = "${local.prefix}-data"
+  display_name        = var.resource_names.data_volume
   size_in_gbs         = local.capacity.data_volume_gib
   vpus_per_gb         = 0
   freeform_tags       = local.stateful_tags

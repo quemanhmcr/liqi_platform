@@ -10,6 +10,9 @@ ROOT = Path(__file__).resolve().parents[2]
 PAIRS = [
     ("contracts/infrastructure/state-backend-evidence-v1.schema.json", "contracts/infrastructure/state-backend-evidence-v1.example.json"),
     ("contracts/infrastructure/oci-live-v1.schema.json", "contracts/infrastructure/oci-live-v1.example.json"),
+    ("contracts/infrastructure/oci-live-v1.schema.json", "contracts/infrastructure/oci-live-v1.e5-temporary.example.json"),
+    ("contracts/infrastructure/adoption-manifest-v1.schema.json", "contracts/infrastructure/adoption-manifest-v1.example.json"),
+    ("contracts/infrastructure/adoption-result-v1.schema.json", "contracts/infrastructure/adoption-result-v1.example.json"),
     ("contracts/infrastructure/host-runtime-v1.schema.json", "contracts/infrastructure/host-runtime-v1.example.json"),
     ("contracts/infrastructure/secret-mapping-v1.schema.json", "contracts/infrastructure/secret-mapping-v1.example.json"),
     ("contracts/infrastructure/host-bundle-v1.schema.json", "contracts/infrastructure/host-bundle-v1.example.json"),
@@ -56,6 +59,14 @@ def main() -> int:
         failures.append(f"public ingress must be exactly TCP 80/443, got {sorted(ingress)}")
     if oci["mutation"]["applied"] or oci["mutation"]["approval_reference"] is not None:
         failures.append("source fixture must not claim approved OCI mutation")
+
+
+    adoption = examples["contracts/infrastructure/adoption-manifest-v1.example.json"]
+    if (adoption["status"] == "passed") != (len(adoption["blockers"]) == 0):
+        failures.append("adoption manifest status must match blocker presence")
+    addresses = [item["address"] for item in adoption["imports"]]
+    if len(addresses) != len(set(addresses)):
+        failures.append("adoption manifest import addresses must be unique")
 
     release = examples["contracts/deployment/mix-release-v1.example.json"]
     db = release["database_compatibility"]

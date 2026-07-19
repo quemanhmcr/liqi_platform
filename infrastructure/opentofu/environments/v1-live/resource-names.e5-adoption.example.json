@@ -1,0 +1,17 @@
+{
+  "compartment": "liqi-live",
+  "vcn": "liqi-live-vcn",
+  "internet_gateway": "liqi-live-igw",
+  "route_table": "liqi-live-public-rt",
+  "security_list": "liqi-live-egress-only-sl",
+  "subnet": "liqi-live-public-subnet",
+  "nsg": "liqi-live-v1-host-nsg",
+  "instance": "liqi-live-primary",
+  "data_volume": "liqi-live-data",
+  "data_attachment": "liqi-live-data-attachment",
+  "vault": "liqi-live-vault",
+  "key": "liqi-live-software-key",
+  "reserved_public_ip": "liqi-live-edge-ip",
+  "dynamic_group": "liqi_v1_live_host",
+  "policy": "liqi_v1_live_host_policy"
+}

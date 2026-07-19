@@ -9,28 +9,28 @@
     "availability_domain": "example-AD-1"
   },
   "capacity": {
-    "shape": "VM.Standard.A1.Flex",
-    "architecture": "aarch64",
+    "shape": "VM.Standard.E5.Flex",
+    "architecture": "x86_64",
     "ocpus": 4,
     "memory_gib": 24,
-    "boot_volume_gib": 50,
+    "boot_volume_gib": 200,
     "data_volume_gib": 130,
-    "combined_storage_gib": 180,
+    "combined_storage_gib": 330,
     "provider_cpu_ceiling": 3,
     "provider_memory_ceiling_gib": 20,
-    "provider_disk_ceiling_gib": 180,
+    "provider_disk_ceiling_gib": 330,
     "host_reserve": {
       "ocpus": 1,
       "memory_gib": 4,
       "disk_gib": 20,
       "swap_is_capacity": false
     },
-    "cost_classification": "free-trial-only",
-    "profile": "a1-target",
-    "target_triple": "aarch64-unknown-linux-gnu",
-    "temporary": false,
-    "expires_at": null,
-    "migration_target_profile": null
+    "cost_classification": "paid-approved",
+    "profile": "e5-temporary",
+    "target_triple": "x86_64-unknown-linux-gnu",
+    "temporary": true,
+    "expires_at": "2026-09-30T00:00:00Z",
+    "migration_target_profile": "a1-target"
   },
   "network": {
     "vcn_id": "ocid1.vcn.oc1.example",
@@ -68,7 +68,7 @@
   },
   "host": {
     "instance_id": "ocid1.instance.oc1.example",
-    "image_id": "ocid1.image.oc1.example",
+    "image_id": "ocid1.image.oc1.examplee5",
     "private_ipv4": "10.40.10.10",
     "public_ipv4": "203.0.113.10",
     "public_ip_mode": "ephemeral",

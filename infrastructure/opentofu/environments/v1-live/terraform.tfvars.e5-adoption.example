@@ -1,0 +1,53 @@
+# Temporary paid E5 bridge. Copy into a protected tfvars file; do not commit live OCIDs or approvals.
+tenancy_ocid            = "ocid1.tenancy.oc1..replace"
+region                  = "ap-singapore-2"
+availability_domain     = "replace:AP-SINGAPORE-2-AD-1"
+oracle_linux_image_ocid = "REPLACE_WITH_REVIEWED_X86_64_IMAGE_OCID"
+source_git_sha           = "0000000000000000000000000000000000000000"
+
+capacity_profile          = "e5-temporary"
+temporary_e5_expires_at   = "2026-09-30T00:00:00Z"
+acknowledge_capacity_availability_and_cost = false
+operation_mode            = "plan"
+apply_approval_reference  = ""
+
+network_config = {
+  vcn_cidr          = "10.42.0.0/16"
+  vcn_dns_label     = "liqilive"
+  edge_subnet_cidr  = "10.42.10.0/24"
+  edge_subnet_label = "live"
+}
+
+resource_names = {
+  compartment        = "liqi-live"
+  vcn                = "liqi-live-vcn"
+  internet_gateway   = "liqi-live-igw"
+  route_table        = "liqi-live-public-rt"
+  security_list      = "liqi-live-egress-only-sl"
+  subnet             = "liqi-live-public-subnet"
+  nsg                = "liqi-live-v1-host-nsg"
+  instance           = "liqi-live-primary"
+  vnic               = "liqi-live-primary-v2"
+  data_volume        = "liqi-live-data"
+  data_attachment    = "liqi-live-data-attachment"
+  vault              = "liqi-live-vault"
+  key                = "liqi-live-software-key"
+  reserved_public_ip = "liqi-live-edge-ip"
+  dynamic_group      = "liqi_v1_live_host"
+  policy             = "liqi_v1_live_host_policy"
+}
+
+enable_reserved_public_ip      = false
+acknowledge_reserved_public_ip = false
+vault_secret_ocids             = []
+management_wireguard_peer_cidr = "198.51.100.10/32"
+management_wireguard_port      = 51820
+management_plane_evidence_id   = ""
+state_backend_lock_evidence_id = ""
+host_bundle_signing_key_id     = "replace-reviewed-production-key-id"
+host_bundle_signing_public_key_pem = <<-EOT
+-----BEGIN PUBLIC KEY-----
+REPLACE_WITH_REVIEWED_ED25519_PUBLIC_KEY
+-----END PUBLIC KEY-----
+EOT
+acknowledge_host_bundle_signing_key = false

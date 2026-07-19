@@ -34,7 +34,7 @@
       "pattern": "^[0-9a-f]{40}$"
     },
     "infrastructure_output_version": {
-      "const": "1.1.0"
+      "const": "1.2.0"
     },
     "region": {
       "type": "object",
@@ -70,14 +70,25 @@
         "provider_memory_ceiling_gib",
         "provider_disk_ceiling_gib",
         "host_reserve",
-        "cost_classification"
+        "cost_classification",
+        "profile",
+        "target_triple",
+        "temporary",
+        "expires_at",
+        "migration_target_profile"
       ],
       "properties": {
         "shape": {
-          "const": "VM.Standard.A1.Flex"
+          "enum": [
+            "VM.Standard.A1.Flex",
+            "VM.Standard.E5.Flex"
+          ]
         },
         "architecture": {
-          "const": "aarch64"
+          "enum": [
+            "aarch64",
+            "x86_64"
+          ]
         },
         "ocpus": {
           "const": 4
@@ -86,13 +97,19 @@
           "const": 24
         },
         "boot_volume_gib": {
-          "const": 50
+          "enum": [
+            50,
+            200
+          ]
         },
         "data_volume_gib": {
           "const": 130
         },
         "combined_storage_gib": {
-          "const": 180
+          "enum": [
+            180,
+            330
+          ]
         },
         "provider_cpu_ceiling": {
           "const": 3
@@ -101,7 +118,10 @@
           "const": 20
         },
         "provider_disk_ceiling_gib": {
-          "const": 180
+          "enum": [
+            180,
+            330
+          ]
         },
         "host_reserve": {
           "type": "object",
@@ -129,13 +149,136 @@
         },
         "cost_classification": {
           "enum": [
-            "always-free-eligible-capacity-not-guaranteed",
             "free-trial-only",
-            "paid-approved",
-            "unknown-blocked"
+            "paid-approved"
+          ]
+        },
+        "profile": {
+          "enum": [
+            "a1-target",
+            "e5-temporary"
+          ]
+        },
+        "target_triple": {
+          "enum": [
+            "aarch64-unknown-linux-gnu",
+            "x86_64-unknown-linux-gnu"
+          ]
+        },
+        "temporary": {
+          "type": "boolean"
+        },
+        "expires_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "format": "date-time"
+            }
+          ]
+        },
+        "migration_target_profile": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "const": "a1-target"
+            }
           ]
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "profile": {
+                "const": "a1-target"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "shape": {
+                "const": "VM.Standard.A1.Flex"
+              },
+              "architecture": {
+                "const": "aarch64"
+              },
+              "target_triple": {
+                "const": "aarch64-unknown-linux-gnu"
+              },
+              "boot_volume_gib": {
+                "const": 50
+              },
+              "combined_storage_gib": {
+                "const": 180
+              },
+              "provider_disk_ceiling_gib": {
+                "const": 180
+              },
+              "cost_classification": {
+                "const": "free-trial-only"
+              },
+              "temporary": {
+                "const": false
+              },
+              "expires_at": {
+                "type": "null"
+              },
+              "migration_target_profile": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "profile": {
+                "const": "e5-temporary"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "shape": {
+                "const": "VM.Standard.E5.Flex"
+              },
+              "architecture": {
+                "const": "x86_64"
+              },
+              "target_triple": {
+                "const": "x86_64-unknown-linux-gnu"
+              },
+              "boot_volume_gib": {
+                "const": 200
+              },
+              "combined_storage_gib": {
+                "const": 330
+              },
+              "provider_disk_ceiling_gib": {
+                "const": 330
+              },
+              "cost_classification": {
+                "const": "paid-approved"
+              },
+              "temporary": {
+                "const": true
+              },
+              "expires_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "migration_target_profile": {
+                "const": "a1-target"
+              }
+            }
+          }
+        }
+      ]
     },
     "network": {
       "type": "object",

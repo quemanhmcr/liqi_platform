@@ -1,0 +1,27 @@
+{
+  "schema_version": "liqi.infrastructure.adoption-manifest/v1",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "capacity_profile": "e5-temporary",
+  "region": "ap-singapore-2",
+  "compartment_name": "liqi-live",
+  "discovered_at": "2026-07-19T00:00:00Z",
+  "status": "passed",
+  "imports": [
+    {
+      "address": "module.v1_live.oci_identity_compartment.environment",
+      "id": "ocid1.compartment.oc1.example",
+      "resource_type": "oci_identity_compartment",
+      "display_name": "liqi-live"
+    }
+  ],
+  "missing_addresses": ["module.v1_live.oci_core_volume.data"],
+  "unmanaged_resources": [
+    {
+      "kind": "network-security-group",
+      "display_name": "liqi-live-workload-nsg",
+      "reason": "Existing SSH transition NSG remains outside the source-managed no-SSH boundary."
+    }
+  ],
+  "blockers": [],
+  "oci_mutation_performed": false
+}

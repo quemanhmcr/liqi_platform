@@ -154,24 +154,40 @@ def validate_static_policy() -> None:
         "https": "443",
         "ocpus": "4",
         "memory_gib": "24",
-        "boot_volume_gib": "50",
         "data_volume_gib": "130",
-        "combined_storage_gib": "180",
     }
     for name, value in required_assignments.items():
         if not re.search(rf"(?m)^\s*{re.escape(name)}\s*=\s*{re.escape(value)}\s*$", module_text):
             raise AssertionError(f"missing capacity/network invariant: {name}={value}")
     for token in (
-        'cost_classification = "free-trial-only"',
+        'a1-target = {',
+        'shape                    = "VM.Standard.A1.Flex"',
+        'architecture             = "aarch64"',
+        'target_triple            = "aarch64-unknown-linux-gnu"',
+        'boot_volume_gib          = 50',
+        'combined_storage_gib     = 180',
+        'cost_classification      = "free-trial-only"',
+        'e5-temporary = {',
+        'shape                    = "VM.Standard.E5.Flex"',
+        'architecture             = "x86_64"',
+        'target_triple            = "x86_64-unknown-linux-gnu"',
+        'boot_volume_gib          = 200',
+        'combined_storage_gib     = 330',
+        'cost_classification      = "paid-approved"',
+        'migration_target_profile = "a1-target"',
         'var.operation_mode == "plan"',
-        'Always Free A1 as 2 OCPU/12 GiB total',
+        'var.capacity_profile == "e5-temporary"',
+        'timeadd(timestamp(), "2160h")',
     ):
         if token not in module_text:
-            raise AssertionError(f"V1 non-Always-Free cost gate is missing {token}")
+            raise AssertionError(f"V1 A1/E5 profile or expiry guard is missing {token}")
     cost_manifest = json.loads((ENV / "cost-classification.json").read_text(encoding="utf-8"))
     compute_cost = next(item for item in cost_manifest["resources"] if item["resource"] == "VM.Standard.A1.Flex 4 OCPU / 24 GiB")
     if compute_cost.get("classification") != "free-trial-only" or compute_cost.get("apply_allowed_under_current_approval") is not False:
-        raise AssertionError("V1 4/24 compute cost classification is not fail-closed")
+        raise AssertionError("V1 A1 4/24 cost classification is not fail-closed")
+    e5_cost = next(item for item in cost_manifest["resources"] if item["resource"] == "VM.Standard.E5.Flex 4 OCPU / 24 GiB temporary bridge")
+    if e5_cost.get("classification") != "paid-approved" or e5_cost.get("apply_allowed_under_current_approval") is not True:
+        raise AssertionError("temporary E5 cost classification or approval boundary is incorrect")
     if cost_manifest.get("documented_always_free_a1") != {"ocpus_total": 2, "memory_gib_total": 12}:
         raise AssertionError("V1 cost manifest does not pin the current documented Always Free A1 limit")
 
@@ -212,6 +228,18 @@ def validate_static_policy() -> None:
     for forbidden in ("oci os object", "--namespace-name", "--bucket-name", "object_prefix"):
         if forbidden in artifact_source:
             raise AssertionError(f"V1 artifact path retains Object Storage dependency: {forbidden}")
+    adoption_source = "\n".join((INFRA / path).read_text(encoding="utf-8") for path in (
+        "deployment/discover_v1_live_adoption.py", "deployment/adopt_v1_live_state.py",
+        "deployment/plan_v1_live.sh", "deployment/apply_v1_live.sh",
+        "validation/validate_adoption_result.py", "validation/validate_v1_plan.py",
+    ))
+    for token in (
+        "oci_mutation_performed", "state_mutation_performed", "adopt-existing",
+        "adoption plan forbids delete/replacement", "adoption_result_sha256",
+        "approved apply requires an adopt-existing plan", "e5-temporary",
+    ):
+        if token not in adoption_source:
+            raise AssertionError(f"E5 adoption source is missing fail-closed token {token}")
     for token in ("independent-management-storage", "operator-staged-local", "/var/lib/liqi/incoming/host"):
         if token not in artifact_source:
             raise AssertionError(f"V1 artifact provider is missing {token}")
@@ -294,6 +322,17 @@ def validate_static_policy() -> None:
     for token in ("database-role-urls", "pgbouncer-userlist.txt", "SCRAM-SHA-256$", "approval-reference"):
         if token not in database_credential_provider:
             raise AssertionError(f"database credential provider missing contract token: {token}")
+
+
+    commands = json.loads((INFRA / "deployment/commands-v1.json").read_text(encoding="utf-8"))
+    command_ids = {item["id"] for item in commands["commands"]}
+    for command_id in ("discover-e5-adoption", "validate-e5-state-adoption", "execute-e5-state-adoption", "read-only-live-plan", "approved-oci-apply"):
+        if command_id not in command_ids:
+            raise AssertionError(f"provider command registry is missing {command_id}")
+    runbook = (ROOT / "operations/runbooks/e5-temporary-adoption-v1.md").read_text(encoding="utf-8")
+    for token in ("state adoption", "does not create, update or delete OCI resources", "adopt-existing", "A1 remains the target profile"):
+        if token not in runbook:
+            raise AssertionError(f"E5 adoption runbook is missing {token}")
 
     otel = yaml.safe_load((INFRA / "otel/otelcol-v1.yaml").read_text(encoding="utf-8"))
     protocols = otel["receivers"]["otlp"]["protocols"]

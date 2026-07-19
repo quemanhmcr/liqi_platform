@@ -44,6 +44,9 @@ path, approval, current_sha = sys.argv[1:]
 doc = json.loads(Path(path).read_text(encoding="utf-8"))
 if doc.get("schema_version") != "liqi.infrastructure.plan-result/v1": raise SystemExit("invalid plan result schema")
 if doc.get("mode") != "approved-apply": raise SystemExit("plan result is not approved-apply mode")
+if doc.get("capacity_profile") != "e5-temporary": raise SystemExit("approved apply is restricted to e5-temporary")
+if doc.get("plan_mode") != "adopt-existing": raise SystemExit("approved apply requires an adopt-existing saved plan")
+if not doc.get("inputs", {}).get("adoption_result_sha256"): raise SystemExit("plan result is not bound to state adoption evidence")
 if doc.get("approval_reference") != approval: raise SystemExit("approval reference mismatch")
 if doc.get("git_sha") != current_sha: raise SystemExit("Git SHA mismatch")
 if doc.get("validation", {}).get("status") != "passed": raise SystemExit("plan validation is not passed")
@@ -51,6 +54,10 @@ plan = Path(doc["saved_plan"]["path"])
 if not plan.is_file(): raise SystemExit("saved plan is missing")
 actual = hashlib.sha256(plan.read_bytes()).hexdigest()
 if actual != doc["saved_plan"]["sha256"]: raise SystemExit("saved plan digest mismatch")
+for field in ("plan_json", "validation"):
+    artifact = Path(doc[field]["path"])
+    if not artifact.is_file(): raise SystemExit(f"{field} artifact is missing")
+    if hashlib.sha256(artifact.read_bytes()).hexdigest() != doc[field]["sha256"]: raise SystemExit(f"{field} digest mismatch")
 print(plan)
 print(doc["tf_data_dir"])
 print(Path(path).resolve().parent)
@@ -79,6 +86,8 @@ doc = {
   "environment": "v1-live",
   "git_sha": git_sha,
   "approval_reference": approval,
+  "capacity_profile": plan["capacity_profile"],
+  "plan_mode": plan["plan_mode"],
   "saved_plan_sha256": plan["saved_plan"]["sha256"],
   "completed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
   "status": "applied",
