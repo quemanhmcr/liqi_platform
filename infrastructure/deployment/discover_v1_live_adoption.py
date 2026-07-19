@@ -102,7 +102,12 @@ def oci(profile: str, region: str, *args: str) -> Any:
             return []
         raise RuntimeError("OCI get command returned empty JSON")
     try:
-        return json.loads(payload).get("data")
+        data = json.loads(payload).get("data")
+        # Most OCI CLI list commands return data as an array. NLB list uses a
+        # paginated collection object with an items array.
+        if isinstance(data, dict) and isinstance(data.get("items"), list):
+            return data["items"]
+        return data
     except json.JSONDecodeError as exc:
         raise RuntimeError("OCI command returned invalid JSON") from exc
 

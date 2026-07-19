@@ -263,6 +263,11 @@ class AdoptionStateTests(unittest.TestCase):
         self.assertNotIn("secret-value", redacted)
         self.assertIn("<oci-id-redacted>", redacted)
 
+    def test_oci_nlb_paginated_collection_returns_items(self) -> None:
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout='{"data":{"items":[]}}', stderr="")
+        with patch("infrastructure.deployment.discover_v1_live_adoption.subprocess.run", return_value=completed):
+            self.assertEqual(discover_v1_live_adoption.oci("DEFAULT", "ap-singapore-2", "nlb", "network-load-balancer", "list"), [])
+
     def test_oci_empty_list_is_empty_but_empty_get_fails(self) -> None:
         completed = subprocess.CompletedProcess(["oci"], 0, stdout="", stderr="")
         with patch("infrastructure.deployment.discover_v1_live_adoption.subprocess.run", return_value=completed):
