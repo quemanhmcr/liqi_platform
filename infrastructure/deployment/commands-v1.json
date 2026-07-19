@@ -75,6 +75,43 @@
       "output": "adoption-result-v1 status=passed"
     },
     {
+      "id": "pre-apply-readiness",
+      "command": [
+        "python",
+        "infrastructure/validation/pre_apply_readiness.py",
+        "--adoption-manifest",
+        "<adoption-manifest-v1.json>",
+        "--state-backend-evidence",
+        "<state-backend-evidence-v1.json>",
+        "--adoption-result",
+        "<adoption-result-v1.json>",
+        "--var-file",
+        "<protected-e5.tfvars>",
+        "--linux-release-build-result",
+        "<linux-release-build-result-v1.json>",
+        "--release-trust-dir",
+        "<release-public-key-dir>",
+        "--native-trust-dir",
+        "<native-public-key-dir>",
+        "--rollback-target",
+        "<release-target-v1.json>",
+        "--output",
+        "<pre-apply-readiness-v1.json>"
+      ],
+      "working_directory": "repository-root-clean",
+      "required_environment": [
+        "TF_ENCRYPTION",
+        "PG_CONN_STR with sslmode=verify-full",
+        "PG_SCHEMA_NAME=opentofu_v1_live",
+        "PG_SKIP_SCHEMA_CREATION=true",
+        "PG_SKIP_TABLE_CREATION=true",
+        "PG_SKIP_INDEX_CREATION=true"
+      ],
+      "mutation": "none",
+      "output": "pre-apply-readiness-v1",
+      "failure_policy": "emit blocked for incomplete handoff or missing protected inputs; fail on schema, digest, signature, target, rollback, symlink or secret-hygiene mismatch; never print protected values"
+    },
+    {
       "id": "read-only-live-plan",
       "command": [
         "infrastructure/deployment/plan_v1_live.sh",

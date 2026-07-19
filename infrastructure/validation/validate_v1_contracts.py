@@ -13,6 +13,7 @@ PAIRS = [
     ("contracts/infrastructure/oci-live-v1.schema.json", "contracts/infrastructure/oci-live-v1.e5-temporary.example.json"),
     ("contracts/infrastructure/adoption-manifest-v1.schema.json", "contracts/infrastructure/adoption-manifest-v1.example.json"),
     ("contracts/infrastructure/adoption-result-v1.schema.json", "contracts/infrastructure/adoption-result-v1.example.json"),
+    ("contracts/infrastructure/pre-apply-readiness-v1.schema.json", "contracts/infrastructure/pre-apply-readiness-v1.example.json"),
     ("contracts/infrastructure/host-runtime-v1.schema.json", "contracts/infrastructure/host-runtime-v1.example.json"),
     ("contracts/infrastructure/secret-mapping-v1.schema.json", "contracts/infrastructure/secret-mapping-v1.example.json"),
     ("contracts/infrastructure/host-bundle-v1.schema.json", "contracts/infrastructure/host-bundle-v1.example.json"),
@@ -71,6 +72,20 @@ def main() -> int:
     addresses = [item["address"] for item in adoption["imports"]]
     if len(addresses) != len(set(addresses)):
         failures.append("adoption manifest import addresses must be unique")
+
+
+    pre_apply = examples["contracts/infrastructure/pre-apply-readiness-v1.example.json"]
+    expected_pre_apply_checks = [
+        "oci-adoption-handoff", "state-backend", "state-adoption",
+        "protected-tfvars", "signed-x86-release", "rollback-target",
+        "protected-environment",
+    ]
+    if [item["name"] for item in pre_apply["checks"]] != expected_pre_apply_checks:
+        failures.append("pre-apply readiness checks must remain exact and ordered")
+    if pre_apply["status"] == "passed" and (pre_apply["blockers"] or any(value is None for value in pre_apply["inputs"].values())):
+        failures.append("passed pre-apply readiness must bind every input and have zero blockers")
+    if pre_apply["state_mutation_performed"] or pre_apply["oci_mutation_performed"]:
+        failures.append("pre-apply readiness fixture must never claim state or OCI mutation")
 
     target_pairs = {
         "aarch64-unknown-linux-gnu": "aarch64",

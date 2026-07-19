@@ -36,9 +36,10 @@ The builder uses a temporary `git archive`, injects only the verified NIF, creat
 2. Review the manifest. A blocked manifest cannot be consumed.
 3. Run `validate-e5-state-adoption` without `--execute`. This validates exact SHA and inputs without changing state.
 4. Run `execute-e5-state-adoption` with an explicit approval. This mutates encrypted OpenTofu state only; it does not create, update or delete OCI resources.
-5. Run `read-only-live-plan` in `e5-temporary` and `adopt-existing` mode. The plan validator allows create/no-op/in-place update but rejects delete, replacement, unknown resource counts, public SSH, architecture mismatch and secret material.
-6. Review the saved plan, JSON plan, validation result, adoption evidence digest, expected cost and E5 expiry.
-7. Run `approved-oci-apply` only with the matching approval. The wrapper applies the exact saved plan and refuses re-planning.
+5. Run `pre-apply-readiness` with the handoff manifest, state evidence/result, protected E5 tfvars, cryptographically verified x86_64 publication, trust directories and retained V0 rollback descriptor. It can be run early to enumerate blockers, but status must be `passed` before planning. It performs no state or OCI mutation and never emits protected values.
+6. Run `read-only-live-plan` in `e5-temporary` and `adopt-existing` mode. The plan validator allows create/no-op/in-place update but rejects delete, replacement, unknown resource counts, public SSH, architecture mismatch and secret material.
+7. Review the saved plan, JSON plan, validation result, adoption evidence digest, expected cost and E5 expiry.
+8. Run `approved-oci-apply` only with the matching approval. The wrapper applies the exact saved plan and refuses re-planning.
 
 ## A1 migration
 

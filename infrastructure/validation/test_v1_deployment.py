@@ -277,8 +277,13 @@ class AdoptionStateTests(unittest.TestCase):
             "operation": "execute",
             "approval_reference": "APPROVAL-1",
             "status": "passed",
+            "state_mutation_performed": True,
         })
         validate_adoption_result.validate_result(document, "a" * 40)
+        document["state_mutation_performed"] = False
+        with self.assertRaises(ValueError):
+            validate_adoption_result.validate_result(document, "a" * 40)
+        document["state_mutation_performed"] = True
         document["operation"] = "validate"
         with self.assertRaises(ValueError):
             validate_adoption_result.validate_result(document, "a" * 40)

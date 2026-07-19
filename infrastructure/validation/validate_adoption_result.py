@@ -21,6 +21,8 @@ def validate_result(document: dict[str, object], git_sha: str) -> None:
         raise ValueError("adoption result source/profile mismatch")
     if document.get("operation") != "execute" or document.get("status") != "passed" or document.get("blockers"):
         raise ValueError("adoption result is not an executed pass")
+    if document.get("state_mutation_performed") is not True:
+        raise ValueError("executed adoption result must record OpenTofu state mutation")
     if document.get("oci_mutation_performed") is not False:
         raise ValueError("adoption result incorrectly claims OCI mutation")
 

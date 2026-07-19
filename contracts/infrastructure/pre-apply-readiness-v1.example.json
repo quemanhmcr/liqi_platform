@@ -1,0 +1,27 @@
+{
+  "schema_version": "liqi.infrastructure.pre-apply-readiness/v1",
+  "generated_at": "2026-07-19T00:00:00Z",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "capacity_profile": "e5-temporary",
+  "status": "passed",
+  "checks": [
+    {"name": "oci-adoption-handoff", "owner": "infrastructure-lead", "status": "passed", "detail": "All reviewed OCI resources are present and compatible for no-replacement adoption."},
+    {"name": "state-backend", "owner": "deployment-operator", "status": "passed", "detail": "Independent PostgreSQL state backend evidence is exact-SHA and passed."},
+    {"name": "state-adoption", "owner": "deployment-operator", "status": "passed", "detail": "All compatible existing resources are present in encrypted OpenTofu state."},
+    {"name": "protected-tfvars", "owner": "deployment-operator", "status": "passed", "detail": "Protected E5 tfvars contain no placeholders or private key material."},
+    {"name": "signed-x86-release", "owner": "deployment-operator", "status": "passed", "detail": "The exact-SHA x86_64 publication passed cryptographic cross-binding verification."},
+    {"name": "rollback-target", "owner": "deployment-operator", "status": "passed", "detail": "The retained V0 rollback descriptor is compatible through migration 8."},
+    {"name": "protected-environment", "owner": "deployment-operator", "status": "passed", "detail": "Encrypted state and verify-full PostgreSQL backend environment is present."}
+  ],
+  "inputs": {
+    "adoption_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "state_backend_evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "adoption_result_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "var_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "linux_release_build_result_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "rollback_target_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "blockers": [],
+  "state_mutation_performed": false,
+  "oci_mutation_performed": false
+}

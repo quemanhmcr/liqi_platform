@@ -355,16 +355,20 @@ def validate_static_policy() -> None:
 
     commands = json.loads((INFRA / "deployment/commands-v1.json").read_text(encoding="utf-8"))
     command_ids = {item["id"] for item in commands["commands"]}
-    for command_id in ("discover-e5-adoption", "validate-e5-state-adoption", "execute-e5-state-adoption", "read-only-live-plan", "approved-oci-apply", "build-signed-linux-release"):
+    for command_id in ("discover-e5-adoption", "validate-e5-state-adoption", "execute-e5-state-adoption", "pre-apply-readiness", "read-only-live-plan", "approved-oci-apply", "build-signed-linux-release"):
         if command_id not in command_ids:
             raise AssertionError(f"provider command registry is missing {command_id}")
+    pre_apply = (INFRA / "validation/pre_apply_readiness.py").read_text(encoding="utf-8")
+    for token in ("validate_linux_release_build_result.py", "state_mutation_performed", "oci_mutation_performed", "protected-environment"):
+        if token not in pre_apply:
+            raise AssertionError(f"pre-apply readiness aggregator is missing {token}")
     release_builder = (ROOT / "beam/scripts/build_linux_release.py").read_text(encoding="utf-8")
     for token in ("release build requires a clean exact-SHA worktree", "verify_deployment_manifest.py", "artifact and manifest signing key IDs must be distinct", "self-verification did not pass", "os.replace(staged_output, final_output)"):
         if token not in release_builder:
             raise AssertionError(f"canonical Linux release builder is missing {token}")
 
     runbook = (ROOT / "operations/runbooks/e5-temporary-adoption-v1.md").read_text(encoding="utf-8")
-    for token in ("state adoption", "does not create, update or delete OCI resources", "adopt-existing", "A1 remains the target profile"):
+    for token in ("state adoption", "pre-apply-readiness", "does not create, update or delete OCI resources", "adopt-existing", "A1 remains the target profile"):
         if token not in runbook:
             raise AssertionError(f"E5 adoption runbook is missing {token}")
 
