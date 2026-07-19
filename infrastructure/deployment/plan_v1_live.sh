@@ -70,15 +70,19 @@ args=(-input=false -lock=true -lock-timeout=60s -out="$plan_file" -var-file="$va
 tofu -chdir="$env_dir" plan "${args[@]}" >"$output_dir/tofu-plan.log" 2>&1
 tofu -chdir="$env_dir" show -json "$plan_file" >"$plan_json" 2>"$output_dir/tofu-show.log"
 vargs=("$plan_json" --mode "$mode" --capacity-profile "$capacity_profile" --plan-mode "$plan_mode" --output "$validation"); [[ "$allow_reserved_ip" == true ]] && vargs+=(--allow-reserved-ip); python "$validator" "${vargs[@]}" >/dev/null
-python - "$evidence" "$git_sha" "$mode" "$approval_reference" "$capacity_profile" "$plan_mode" "$plan_file" "$plan_json" "$validation" "$state_evidence" "$adoption_result" "$pre_apply_readiness" "$var_file" "$TF_DATA_DIR" <<'PY'
+python - "$evidence" "$git_sha" "$mode" "$approval_reference" "$capacity_profile" "$plan_mode" "$plan_file" "$plan_json" "$validation" "$state_evidence" "$adoption_result" "$pre_apply_readiness" "$var_file" "$TF_DATA_DIR" "$root/contracts/infrastructure/plan-result-v1.schema.json" <<'PY'
 import hashlib,json,sys
+from jsonschema import Draft202012Validator,FormatChecker
 from datetime import datetime,timezone
 from pathlib import Path
 def sha(p): return hashlib.sha256(Path(p).read_bytes()).hexdigest()
-out,git_sha,mode,approval,capacity_profile,plan_mode,plan,plan_json,validation,state_evidence,adoption_result,pre_apply_readiness,var_file,tf_data=sys.argv[1:]
+out,git_sha,mode,approval,capacity_profile,plan_mode,plan,plan_json,validation,state_evidence,adoption_result,pre_apply_readiness,var_file,tf_data,schema_path=sys.argv[1:]
 readiness=json.loads(Path(pre_apply_readiness).read_text(encoding='utf-8')) if pre_apply_readiness else {"inputs":{}}
 readiness_inputs=readiness.get("inputs",{})
 doc={"schema_version":"liqi.infrastructure.plan-result/v1","environment":"v1-live","git_sha":git_sha,"mode":mode,"capacity_profile":capacity_profile,"plan_mode":plan_mode,"approval_reference":approval or None,"created_at":datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),"saved_plan":{"path":plan,"sha256":sha(plan)},"plan_json":{"path":plan_json,"sha256":sha(plan_json)},"validation":{"path":validation,"sha256":sha(validation),"status":"passed"},"inputs":{"state_backend_evidence_sha256":sha(state_evidence),"adoption_result_sha256":sha(adoption_result) if adoption_result else None,"pre_apply_readiness_sha256":sha(pre_apply_readiness) if pre_apply_readiness else None,"var_file_sha256":sha(var_file),"adoption_manifest_sha256":readiness_inputs.get("adoption_manifest_sha256"),"linux_release_build_result_sha256":readiness_inputs.get("linux_release_build_result_sha256"),"rollback_target_sha256":readiness_inputs.get("rollback_target_sha256")},"state_backend":{"kind":"postgresql-self-hosted","schema":"opentofu_v1_live","tls":"verify-full"},"tf_data_dir":tf_data,"oci_mutation_performed":False}
+schema=json.loads(Path(schema_path).read_text(encoding='utf-8'))
+errors=list(Draft202012Validator(schema,format_checker=FormatChecker()).iter_errors(doc))
+if errors: raise SystemExit(f'generated plan result is invalid: {errors[0].message}')
 Path(out).write_text(json.dumps(doc,indent=2,sort_keys=True)+'\n',encoding='utf-8')
 PY
 chmod 600 "$output_dir"/* 2>/dev/null || true

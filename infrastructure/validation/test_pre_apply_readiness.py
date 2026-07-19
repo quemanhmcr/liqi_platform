@@ -136,6 +136,31 @@ acknowledge_host_bundle_signing_key = true
         with self.assertRaisesRegex(ValueError, "not passed"):
             binding_validator.validate_document(document, SHA)
 
+    def test_plan_and_apply_result_contracts_fail_closed_without_breaking_a1(self) -> None:
+        plan_schema = json.loads((ROOT / "contracts/infrastructure/plan-result-v1.schema.json").read_text(encoding="utf-8"))
+        apply_schema = json.loads((ROOT / "contracts/infrastructure/apply-result-v1.schema.json").read_text(encoding="utf-8"))
+        plan = json.loads((ROOT / "contracts/infrastructure/plan-result-v1.example.json").read_text(encoding="utf-8"))
+        apply = json.loads((ROOT / "contracts/infrastructure/apply-result-v1.example.json").read_text(encoding="utf-8"))
+        plan_validator = Draft202012Validator(plan_schema, format_checker=FormatChecker())
+        apply_validator = Draft202012Validator(apply_schema, format_checker=FormatChecker())
+        self.assertEqual([], list(plan_validator.iter_errors(plan)))
+        self.assertEqual([], list(apply_validator.iter_errors(apply)))
+
+        plan["inputs"]["pre_apply_readiness_sha256"] = None
+        self.assertNotEqual([], list(plan_validator.iter_errors(plan)))
+
+        a1 = json.loads((ROOT / "contracts/infrastructure/plan-result-v1.example.json").read_text(encoding="utf-8"))
+        a1.update({"mode": "plan", "capacity_profile": "a1-target", "plan_mode": "initial-create", "approval_reference": None})
+        for name in (
+            "adoption_result_sha256", "pre_apply_readiness_sha256", "adoption_manifest_sha256",
+            "linux_release_build_result_sha256", "rollback_target_sha256",
+        ):
+            a1["inputs"][name] = None
+        self.assertEqual([], list(plan_validator.iter_errors(a1)))
+
+        apply["oci_mutation_performed"] = False
+        self.assertNotEqual([], list(apply_validator.iter_errors(apply)))
+
     def test_environment_check_never_emits_connection_string(self) -> None:
         secret = "sentinel-sensitive-backend-value?sslmode=verify-full"
         values = {

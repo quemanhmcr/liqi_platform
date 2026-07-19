@@ -42,11 +42,14 @@ current_sha="$(git rev-parse HEAD)"
 readarray -t fields < <(python - "$plan_result" "$approval_reference" "$current_sha" "$pre_apply_readiness" "$root" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
+from jsonschema import Draft202012Validator, FormatChecker
 path, approval, current_sha, readiness_path, root = sys.argv[1:]
 sys.path.insert(0, root)
 from infrastructure.validation import validate_pre_apply_readiness as pre
 doc = json.loads(Path(path).read_text(encoding="utf-8"))
-if doc.get("schema_version") != "liqi.infrastructure.plan-result/v1": raise SystemExit("invalid plan result schema")
+plan_schema = json.loads((Path(root) / "contracts/infrastructure/plan-result-v1.schema.json").read_text(encoding="utf-8"))
+plan_errors = list(Draft202012Validator(plan_schema, format_checker=FormatChecker()).iter_errors(doc))
+if plan_errors: raise SystemExit(f"invalid plan result: {plan_errors[0].message}")
 if doc.get("mode") != "approved-apply": raise SystemExit("plan result is not approved-apply mode")
 if doc.get("capacity_profile") != "e5-temporary": raise SystemExit("approved apply is restricted to e5-temporary")
 if doc.get("plan_mode") != "adopt-existing": raise SystemExit("approved apply requires an adopt-existing saved plan")
@@ -95,13 +98,26 @@ apply_result="$output_dir/v1-live.apply-result.json"
 tofu -chdir="$env_dir" apply -input=false -lock=true -lock-timeout=60s "$plan_file" >"$apply_log" 2>&1
 tofu -chdir="$env_dir" output -json oci_live_v1 >"$output_json"
 
-python - "$apply_result" "$plan_result" "$approval_reference" "$current_sha" "$output_json" <<'PY'
+python - "$apply_result" "$plan_result" "$approval_reference" "$current_sha" "$output_json" "$root/contracts/infrastructure/apply-result-v1.schema.json" "$root/contracts/infrastructure/oci-live-v1.schema.json" <<'PY'
 import hashlib, json, sys
+from jsonschema import Draft202012Validator, FormatChecker
 from datetime import datetime, timezone
 from pathlib import Path
-out, plan_result, approval, git_sha, output_json = sys.argv[1:]
+out, plan_result, approval, git_sha, output_json, apply_schema_path, oci_schema_path = sys.argv[1:]
 plan = json.loads(Path(plan_result).read_text(encoding="utf-8"))
 oci = json.loads(Path(output_json).read_text(encoding="utf-8"))
+oci_schema = json.loads(Path(oci_schema_path).read_text(encoding="utf-8"))
+oci_errors = list(Draft202012Validator(oci_schema, format_checker=FormatChecker()).iter_errors(oci))
+if oci_errors: raise SystemExit(f"invalid OCI live output: {oci_errors[0].message}")
+mutation = oci.get("mutation", {})
+if (
+    oci.get("git_sha") != git_sha
+    or oci.get("capacity", {}).get("profile") != "e5-temporary"
+    or mutation.get("applied") is not True
+    or mutation.get("approval_reference") != approval
+    or mutation.get("plan_sha256") != plan["saved_plan"]["sha256"]
+):
+    raise SystemExit("OCI live output identity does not match approved apply")
 doc = {
   "schema_version": "liqi.infrastructure.apply-result/v1",
   "environment": "v1-live",
@@ -119,6 +135,9 @@ doc = {
   "oci_output": oci,
   "oci_mutation_performed": True,
 }
+apply_schema = json.loads(Path(apply_schema_path).read_text(encoding="utf-8"))
+apply_errors = list(Draft202012Validator(apply_schema, format_checker=FormatChecker()).iter_errors(doc))
+if apply_errors: raise SystemExit(f"generated apply result is invalid: {apply_errors[0].message}")
 Path(out).write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY
 chmod 0600 "$apply_log" "$output_json" "$apply_result"

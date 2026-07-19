@@ -14,6 +14,8 @@ PAIRS = [
     ("contracts/infrastructure/adoption-manifest-v1.schema.json", "contracts/infrastructure/adoption-manifest-v1.example.json"),
     ("contracts/infrastructure/adoption-result-v1.schema.json", "contracts/infrastructure/adoption-result-v1.example.json"),
     ("contracts/infrastructure/pre-apply-readiness-v1.schema.json", "contracts/infrastructure/pre-apply-readiness-v1.example.json"),
+    ("contracts/infrastructure/plan-result-v1.schema.json", "contracts/infrastructure/plan-result-v1.example.json"),
+    ("contracts/infrastructure/apply-result-v1.schema.json", "contracts/infrastructure/apply-result-v1.example.json"),
     ("contracts/infrastructure/host-runtime-v1.schema.json", "contracts/infrastructure/host-runtime-v1.example.json"),
     ("contracts/infrastructure/secret-mapping-v1.schema.json", "contracts/infrastructure/secret-mapping-v1.example.json"),
     ("contracts/infrastructure/host-bundle-v1.schema.json", "contracts/infrastructure/host-bundle-v1.example.json"),
@@ -86,6 +88,30 @@ def main() -> int:
         failures.append("passed pre-apply readiness must bind every input and have zero blockers")
     if pre_apply["state_mutation_performed"] or pre_apply["oci_mutation_performed"]:
         failures.append("pre-apply readiness fixture must never claim state or OCI mutation")
+
+    plan_result = examples["contracts/infrastructure/plan-result-v1.example.json"]
+    apply_result = examples["contracts/infrastructure/apply-result-v1.example.json"]
+    if plan_result["oci_mutation_performed"] or plan_result["mode"] != "approved-apply" or plan_result["plan_mode"] != "adopt-existing":
+        failures.append("plan result fixture must be a non-mutating approved E5 adoption plan")
+    for name, value in plan_result["inputs"].items():
+        if value is None:
+            failures.append(f"approved adoption plan fixture is missing input binding {name}")
+    if not apply_result["oci_mutation_performed"] or apply_result["status"] != "applied":
+        failures.append("apply result fixture must record an approved OCI mutation")
+    for name in ("pre_apply_readiness_sha256", "linux_release_build_result_sha256", "rollback_target_sha256"):
+        if apply_result[name] != plan_result["inputs"][name]:
+            failures.append(f"apply result fixture differs from plan binding {name}")
+    if apply_result["saved_plan_sha256"] != plan_result["saved_plan"]["sha256"]:
+        failures.append("apply result fixture differs from saved plan digest")
+    apply_oci = apply_result["oci_output"]
+    if (
+        apply_oci["git_sha"] != apply_result["git_sha"]
+        or apply_oci["capacity"]["profile"] != "e5-temporary"
+        or apply_oci["mutation"]["applied"] is not True
+        or apply_oci["mutation"]["approval_reference"] != apply_result["approval_reference"]
+        or apply_oci["mutation"]["plan_sha256"] != apply_result["saved_plan_sha256"]
+    ):
+        failures.append("apply result fixture does not cross-bind exact OCI output identity")
 
     target_pairs = {
         "aarch64-unknown-linux-gnu": "aarch64",

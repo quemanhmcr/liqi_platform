@@ -312,6 +312,11 @@ class AdoptionStateTests(unittest.TestCase):
         ):
             self.assertIn(token, plan)
         self.assertIn("--pre-apply-readiness", apply)
+        self.assertIn("plan-result-v1.schema.json", plan)
+        self.assertIn("plan-result-v1.schema.json", apply)
+        self.assertIn("apply-result-v1.schema.json", apply)
+        self.assertIn("oci-live-v1.schema.json", apply)
+        self.assertIn("OCI live output identity does not match approved apply", apply)
 
 
 class PlanValidationTests(unittest.TestCase):

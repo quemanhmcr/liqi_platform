@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liqi.example/contracts/infrastructure/plan-result-v1.schema.json",
+  "title": "LIQI V1 saved OpenTofu plan result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "environment", "git_sha", "mode", "capacity_profile",
+    "plan_mode", "approval_reference", "created_at", "saved_plan", "plan_json",
+    "validation", "inputs", "state_backend", "tf_data_dir", "oci_mutation_performed"
+  ],
+  "properties": {
+    "schema_version": {"const": "liqi.infrastructure.plan-result/v1"},
+    "environment": {"const": "v1-live"},
+    "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "mode": {"enum": ["plan", "approved-apply"]},
+    "capacity_profile": {"enum": ["a1-target", "e5-temporary"]},
+    "plan_mode": {"enum": ["initial-create", "adopt-existing"]},
+    "approval_reference": {"type": ["string", "null"], "minLength": 3, "maxLength": 256},
+    "created_at": {"type": "string", "format": "date-time"},
+    "saved_plan": {"$ref": "#/$defs/artifact"},
+    "plan_json": {"$ref": "#/$defs/artifact"},
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "status"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "status": {"const": "passed"}
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_backend_evidence_sha256", "adoption_result_sha256",
+        "pre_apply_readiness_sha256", "var_file_sha256",
+        "adoption_manifest_sha256", "linux_release_build_result_sha256",
+        "rollback_target_sha256"
+      ],
+      "properties": {
+        "state_backend_evidence_sha256": {"$ref": "#/$defs/sha256"},
+        "adoption_result_sha256": {"$ref": "#/$defs/optional_sha256"},
+        "pre_apply_readiness_sha256": {"$ref": "#/$defs/optional_sha256"},
+        "var_file_sha256": {"$ref": "#/$defs/sha256"},
+        "adoption_manifest_sha256": {"$ref": "#/$defs/optional_sha256"},
+        "linux_release_build_result_sha256": {"$ref": "#/$defs/optional_sha256"},
+        "rollback_target_sha256": {"$ref": "#/$defs/optional_sha256"}
+      }
+    },
+    "state_backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "schema", "tls"],
+      "properties": {
+        "kind": {"const": "postgresql-self-hosted"},
+        "schema": {"const": "opentofu_v1_live"},
+        "tls": {"const": "verify-full"}
+      }
+    },
+    "tf_data_dir": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "oci_mutation_performed": {"const": false}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "optional_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"mode": {"const": "approved-apply"}}},
+      "then": {
+        "properties": {
+          "capacity_profile": {"const": "e5-temporary"},
+          "plan_mode": {"const": "adopt-existing"},
+          "approval_reference": {"type": "string"}
+        }
+      },
+      "else": {"properties": {"approval_reference": {"type": "null"}}}
+    },
+    {
+      "if": {"properties": {"plan_mode": {"const": "adopt-existing"}}},
+      "then": {
+        "properties": {
+          "capacity_profile": {"const": "e5-temporary"},
+          "inputs": {
+            "properties": {
+              "adoption_result_sha256": {"type": "string"},
+              "pre_apply_readiness_sha256": {"type": "string"},
+              "adoption_manifest_sha256": {"type": "string"},
+              "linux_release_build_result_sha256": {"type": "string"},
+              "rollback_target_sha256": {"type": "string"}
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "inputs": {
+            "properties": {
+              "adoption_result_sha256": {"type": "null"},
+              "pre_apply_readiness_sha256": {"type": "null"},
+              "adoption_manifest_sha256": {"type": "null"},
+              "linux_release_build_result_sha256": {"type": "null"},
+              "rollback_target_sha256": {"type": "null"}
+            }
+          }
+        }
+      }
+    }
+  ]
+}

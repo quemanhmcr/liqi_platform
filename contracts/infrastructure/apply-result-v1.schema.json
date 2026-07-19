@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liqi.example/contracts/infrastructure/apply-result-v1.schema.json",
+  "title": "LIQI V1 approved OCI apply result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "environment", "git_sha", "approval_reference",
+    "capacity_profile", "plan_mode", "saved_plan_sha256",
+    "pre_apply_readiness_sha256", "linux_release_build_result_sha256",
+    "rollback_target_sha256", "completed_at", "status", "oci_output_sha256",
+    "oci_output", "oci_mutation_performed"
+  ],
+  "properties": {
+    "schema_version": {"const": "liqi.infrastructure.apply-result/v1"},
+    "environment": {"const": "v1-live"},
+    "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "approval_reference": {"type": "string", "minLength": 3, "maxLength": 256},
+    "capacity_profile": {"const": "e5-temporary"},
+    "plan_mode": {"const": "adopt-existing"},
+    "saved_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "pre_apply_readiness_sha256": {"$ref": "#/$defs/sha256"},
+    "linux_release_build_result_sha256": {"$ref": "#/$defs/sha256"},
+    "rollback_target_sha256": {"$ref": "#/$defs/sha256"},
+    "completed_at": {"type": "string", "format": "date-time"},
+    "status": {"const": "applied"},
+    "oci_output_sha256": {"$ref": "#/$defs/sha256"},
+    "oci_output": {"type": "object"},
+    "oci_mutation_performed": {"const": true}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

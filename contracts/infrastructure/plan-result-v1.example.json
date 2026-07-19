@@ -1,0 +1,25 @@
+{
+  "schema_version": "liqi.infrastructure.plan-result/v1",
+  "environment": "v1-live",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "mode": "approved-apply",
+  "capacity_profile": "e5-temporary",
+  "plan_mode": "adopt-existing",
+  "approval_reference": "approval-example",
+  "created_at": "2026-07-19T00:00:00Z",
+  "saved_plan": {"path": "/var/lib/liqi/evidence/v1-live.tfplan", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+  "plan_json": {"path": "/var/lib/liqi/evidence/v1-live.plan.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+  "validation": {"path": "/var/lib/liqi/evidence/v1-live.plan-validation.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "status": "passed"},
+  "inputs": {
+    "state_backend_evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "adoption_result_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "pre_apply_readiness_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "var_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "adoption_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "linux_release_build_result_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "rollback_target_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "state_backend": {"kind": "postgresql-self-hosted", "schema": "opentofu_v1_live", "tls": "verify-full"},
+  "tf_data_dir": "/var/lib/liqi/evidence/tfdata",
+  "oci_mutation_performed": false
+}

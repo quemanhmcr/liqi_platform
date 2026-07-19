@@ -237,6 +237,8 @@ def validate_static_policy() -> None:
         "oci_mutation_performed", "state_mutation_performed", "adopt-existing",
         "adoption plan forbids delete/replacement", "adoption_result_sha256",
         "pre_apply_readiness_sha256", "pre-apply readiness digest mismatch",
+        "plan-result-v1.schema.json", "apply-result-v1.schema.json",
+        "OCI live output identity does not match approved apply",
         "approved apply requires an adopt-existing plan", "e5-temporary",
     ):
         if token not in adoption_source:
