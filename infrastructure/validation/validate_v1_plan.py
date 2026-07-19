@@ -184,6 +184,18 @@ def port_range(values: dict[str, Any], kind: str = "tcp_options") -> tuple[int, 
     return int(ranges[0]["min"]), int(ranges[0]["max"])
 
 
+def validate_security_list(resources: list[dict[str, Any]]) -> None:
+    values = one(resources, "oci_core_security_list")["values"]
+    if values.get("ingress_security_rules") not in (None, []):
+        fail("subnet Security List must contain no ingress rules")
+    egress = values.get("egress_security_rules") or []
+    if len(egress) != 1:
+        fail("subnet Security List must contain exactly one stateful egress rule")
+    rule = egress[0]
+    if rule.get("destination") != "0.0.0.0/0" or rule.get("destination_type") != "CIDR_BLOCK" or rule.get("protocol") != "all" or rule.get("stateless") is not False:
+        fail("subnet Security List egress baseline does not match technical acceptance")
+
+
 def validate_network(resources: list[dict[str, Any]]) -> None:
     igw = one(resources, "oci_core_internet_gateway")["values"]
     nat = one(resources, "oci_core_nat_gateway")["values"]
@@ -356,6 +368,7 @@ def main() -> int:
         validate_planned_resource_counts(resources, args.allow_reserved_ip)
         validate_instance(resources, args.capacity_profile, args.plan_mode)
         validate_storage(resources)
+        validate_security_list(resources)
         validate_network(resources)
         validate_ingress(resources)
         validate_nlb(resources)

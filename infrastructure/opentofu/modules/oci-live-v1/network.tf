@@ -74,7 +74,19 @@ resource "oci_core_security_list" "empty" {
   compartment_id = oci_identity_compartment.environment.id
   vcn_id         = oci_core_vcn.main.id
   display_name   = var.resource_names.security_list
-  freeform_tags  = local.common_tags
+
+  # Preserve the technically accepted subnet baseline: no ingress and one
+  # stateful outbound rule. Workload NSGs remain the least-privilege egress
+  # authority attached to the primary and NLB.
+  egress_security_rules {
+    destination      = "0.0.0.0/0"
+    destination_type = "CIDR_BLOCK"
+    protocol         = "all"
+    stateless        = false
+    description      = "Stateful outbound traffic only; no unsolicited ingress"
+  }
+
+  freeform_tags = local.common_tags
 }
 
 # This address intentionally adopts the existing 10.42.10.0/24 subnet. It is

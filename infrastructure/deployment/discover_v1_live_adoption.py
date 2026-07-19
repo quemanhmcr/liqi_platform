@@ -217,8 +217,18 @@ def main() -> int:
             blockers.append("adopted host subnet must be exactly 10.42.10.0/24")
         if public_edge_subnet and public_edge_subnet.get("cidr-block") != "10.42.30.0/24":
             blockers.append("public NLB edge subnet must be exactly 10.42.30.0/24")
-        if security_list and ((security_list.get("ingress-security-rules") or []) or (security_list.get("egress-security-rules") or [])):
-            blockers.append("adopted subnet Security List must remain empty")
+        if security_list:
+            ingress_rules = security_list.get("ingress-security-rules") or []
+            egress_rules = security_list.get("egress-security-rules") or []
+            egress_ok = (
+                len(egress_rules) == 1
+                and egress_rules[0].get("destination") == "0.0.0.0/0"
+                and egress_rules[0].get("destination-type") == "CIDR_BLOCK"
+                and egress_rules[0].get("protocol") == "all"
+                and not egress_rules[0].get("is-stateless", False)
+            )
+            if ingress_rules or not egress_ok:
+                blockers.append("adopted subnet Security List must have zero ingress and one stateful all-protocol egress rule")
 
         if host_nsg:
             rules = oci(args.profile, region, "network", "nsg", "rules", "list", "--nsg-id", host_nsg["id"], "--all")
