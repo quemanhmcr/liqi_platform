@@ -54,4 +54,11 @@ EOF_HCL
 )
 export TF_ENCRYPTION
 
+# OpenTofu's pg backend accepts PG_CONN_STR and standard password input but
+# fails closed on libpq service/passfile variables it does not implement.
+# PostgreSQL administration scripts still receive those variables unchanged.
+if [ "$(basename "$1")" = "tofu" ]; then
+  unset PGSERVICEFILE PGPASSFILE
+fi
+
 exec "$@"

@@ -239,7 +239,7 @@ class StateBackendBootstrapTests(unittest.TestCase):
             "STATE_RUNTIME_CREDENTIAL_FILE", "STATE_ENCRYPTION_PASSPHRASE_FILE", "PGPASSFILE",
             "sslmode=verify-full", "PG_SKIP_SCHEMA_CREATION", "PG_SKIP_TABLE_CREATION",
             "PG_SKIP_INDEX_CREATION", "pbkdf2", "aes_gcm", "600000", "sha512",
-            'exec "$@"',
+            'unset PGSERVICEFILE PGPASSFILE', 'exec "$@"',
         ):
             self.assertIn(token, source)
         self.assertNotIn("set -x", source)
