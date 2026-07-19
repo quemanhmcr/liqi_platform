@@ -239,10 +239,13 @@ class StateBackendBootstrapTests(unittest.TestCase):
             "STATE_ADMIN_SERVICE", "lock test database must never be the live state database",
             "createdb", "dropdb", "--owner=", "GRANT CREATE ON SCHEMA public",
             "lock test requires a PostgreSQL connection URI",
-            "unset PGSERVICEFILE PGPASSFILE", '"isolated_database":True',
+            "unset PGSERVICEFILE PGPASSFILE", "first contender failed before lock verification",
+            '"isolated_database":True',
         ):
             self.assertIn(token, source)
         self.assertNotIn("GRANT CREATE ON SCHEMA public", source.split("dbname=$lock_database", 1)[0])
+        lock_main = (ROOT / "infrastructure/management/state-postgres/lock-test/main.tf").read_text(encoding="utf-8")
+        self.assertIn('interpreter = ["bash", "-c"]', lock_main)
 
 
 

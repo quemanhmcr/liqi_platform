@@ -47,7 +47,9 @@ started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 tofu -chdir="$stack" apply -auto-approve -input=false -var=hold_seconds=20 >"$a" 2>&1 & pid=$!
 sleep 3
 set +e; tofu -chdir="$stack" apply -auto-approve -input=false -lock-timeout=5s -var=hold_seconds=1 >"$b" 2>&1; rc=$?; set -e
-wait "$pid"; pid=''; [ "$rc" -ne 0 ] || fail 'second contender unexpectedly acquired the state lock'
+set +e; wait "$pid"; first_rc=$?; set -e; pid=''
+[ "$first_rc" -eq 0 ] || fail 'first contender failed before lock verification'
+[ "$rc" -ne 0 ] || fail 'second contender unexpectedly acquired the state lock'
 grep -Eqi 'lock|state' "$b" || fail 'second contender failed without lock evidence'
 python - "$output" "$started" "$rc" <<'PY2'
 import json,sys

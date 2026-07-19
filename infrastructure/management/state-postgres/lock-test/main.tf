@@ -7,6 +7,7 @@ resource "terraform_data" "lock_holder" {
   triggers_replace = timestamp()
 
   provisioner "local-exec" {
-    command = "${path.module}/hold-lock.sh ${var.hold_seconds}"
+    interpreter = ["bash", "-c"]
+    command     = "${path.module}/hold-lock.sh ${var.hold_seconds}"
   }
 }
