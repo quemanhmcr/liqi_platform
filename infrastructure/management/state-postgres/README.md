@@ -21,6 +21,8 @@ Use a root/operator-owned libpq service file with mode `0600` or `0400`. Do not 
 ```text
 PGSERVICEFILE=/protected/path/pg_service.conf
 STATE_ADMIN_SERVICE=liqi-state-admin
+STATE_FINALIZE_SERVICE=liqi-state-postgres # protected local bootstrap superuser; finalization/repair only
+STATE_OWNER_ROLE=liqi_state_admin
 STATE_RUNTIME_SERVICE=liqi-state-runtime
 STATE_ROLE_PASSWORD_FILE=/protected/path/state-role-password
 STATE_RUNTIME_PASSFILE=/protected/path/runtime.pgpass
@@ -41,7 +43,7 @@ The runtime OpenTofu shell must export `PG_CONN_STR` with `sslmode=verify-full`,
 ./scripts/bootstrap.sh
 # First init only, with temporary schema/table/index creation privileges.
 ./scripts/with-protected-environment.sh tofu -chdir=../../opentofu/environments/v1-live init -reconfigure -input=false
-./scripts/finalize-privileges.sh
+STATE_FINALIZE_SERVICE=liqi-state-postgres STATE_OWNER_ROLE=liqi_state_admin ./scripts/finalize-privileges.sh
 ./scripts/test-locking.sh --output /protected/evidence/locking.json
 ./scripts/backup.sh --output /protected/evidence/backup.json
 ./scripts/restore-test.sh --manifest /independent-storage/opentofu-state/<backup>.manifest.json --output /protected/evidence/restore.json

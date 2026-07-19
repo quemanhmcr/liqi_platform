@@ -215,6 +215,7 @@ def validate_static_policy() -> None:
         "state runtime role must never be superuser or replication-capable",
         "ALTER ROLE %I LOGIN NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD",
         "count(*)=1", "pg_get_userbyid(nspowner)=:'r'",
+        "STATE_FINALIZE_SERVICE", "protected local bootstrap superuser",
         "ALTER SCHEMA %I OWNER TO %I", "ALTER TABLE %I.states OWNER TO %I",
         "ALTER SEQUENCE public.global_states_id_seq OWNER TO %I",
         "unexpected Windows principal",
