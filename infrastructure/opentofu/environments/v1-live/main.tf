@@ -7,6 +7,7 @@ locals {
     { path = "/usr/local/libexec/liqi-install-host-bundle", owner = "root:root", permissions = "0755", content = file("${local.infrastructure_root}/bin/liqi-install-host-bundle") },
     { path = "/etc/liqi/trust/host-bundle-ed25519.pub.pem", owner = "root:root", permissions = "0444", content = var.host_bundle_signing_public_key_pem },
     { path = "/etc/liqi/trust/host-bundle-key-id", owner = "root:root", permissions = "0444", content = "${var.host_bundle_signing_key_id}\n" },
+    { path = "/usr/local/libexec/liqi-configure-bastion-ssh", owner = "root:root", permissions = "0755", content = templatefile("${local.infrastructure_root}/cloud-init/configure-bastion-ssh.sh.tftpl", { bastion_cidrs = sort(tolist(var.bastion_ssh_source_cidrs)) }) },
   ]
   cloud_init_user_data = templatefile("${local.infrastructure_root}/cloud-init/host-bootstrap-v1.yaml.tftpl", {
     files          = local.cloud_init_files
@@ -33,8 +34,7 @@ module "v1_live" {
   enable_reserved_public_ip                  = var.enable_reserved_public_ip
   acknowledge_reserved_public_ip             = var.acknowledge_reserved_public_ip
   vault_secret_ocids                         = var.vault_secret_ocids
-  management_wireguard_peer_cidr             = var.management_wireguard_peer_cidr
-  management_wireguard_port                  = var.management_wireguard_port
+  bastion_ssh_source_cidrs                   = var.bastion_ssh_source_cidrs
   management_plane_evidence_id               = var.management_plane_evidence_id
   state_backend_lock_evidence_id             = var.state_backend_lock_evidence_id
   host_bundle_signing_key_id                 = var.host_bundle_signing_key_id

@@ -317,6 +317,8 @@ class AdoptionStateTests(unittest.TestCase):
         self.assertIn("apply-result-v1.schema.json", apply)
         self.assertIn("oci-live-v1.schema.json", apply)
         self.assertIn("OCI live output identity does not match approved apply", apply)
+        self.assertIn('mutation.get("plan_sha256") is not None', apply)
+        self.assertNotIn('mutation.get("plan_sha256") != plan["saved_plan"]["sha256"]', apply)
 
 
 class PlanValidationTests(unittest.TestCase):
@@ -363,7 +365,7 @@ class PlanValidationTests(unittest.TestCase):
         import base64
         import gzip
 
-        cloud_init = b"liqi-bootstrap-host liqi-install-host-bundle sshd.service sshd.socket"
+        cloud_init = b"liqi-bootstrap-host liqi-install-host-bundle liqi-configure-bastion-ssh"
         encoded = base64.b64encode(gzip.compress(cloud_init, mtime=0)).decode("ascii")
         resources = [{
             "type": "oci_core_instance",
@@ -372,6 +374,7 @@ class PlanValidationTests(unittest.TestCase):
                 "shape_config": [{"ocpus": 4, "memory_in_gbs": 24}],
                 "source_details": [{"boot_volume_size_in_gbs": 200}],
                 "metadata": {"user_data": encoded},
+                "create_vnic_details": [{"assign_public_ip": "false"}],
                 "agent_config": [{"plugins_config": [{"name": "Compute Instance Run Command", "desired_state": "ENABLED"}]}],
             },
         }]
@@ -380,26 +383,38 @@ class PlanValidationTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             validate_v1_plan.validate_instance(resources, "e5-temporary")
 
-    def test_public_ingress_is_exactly_80_and_443(self) -> None:
-        def rule(port: int) -> dict[str, object]:
+    def test_public_ingress_is_exactly_nlb_80_and_443_with_exact_bastion_ssh(self) -> None:
+        def rule(address: str, port: int, source: str, source_type: str = "CIDR_BLOCK") -> dict[str, object]:
             return {
+                "address": address,
                 "type": "oci_core_network_security_group_security_rule",
                 "values": {
                     "direction": "INGRESS",
-                    "source": "0.0.0.0/0",
+                    "source": source,
+                    "source_type": source_type,
                     "protocol": "6",
                     "tcp_options": [{"destination_port_range": [{"min": port, "max": port}]}],
                 },
             }
-        validate_v1_plan.validate_ingress([rule(80), rule(443)])
+        resources = [
+            rule('module.v1_live.oci_core_network_security_group_security_rule.public_edge_ingress["http"]', 80, "0.0.0.0/0"),
+            rule('module.v1_live.oci_core_network_security_group_security_rule.public_edge_ingress["https"]', 443, "0.0.0.0/0"),
+            rule('module.v1_live.oci_core_network_security_group_security_rule.bastion_ssh_ingress["10.42.20.100/32"]', 22, "10.42.20.100/32"),
+            rule('module.v1_live.oci_core_network_security_group_security_rule.bastion_ssh_ingress["10.42.20.109/32"]', 22, "10.42.20.109/32"),
+            rule('module.v1_live.oci_core_network_security_group_security_rule.host_edge_ingress["http"]', 80, "ocid1.networksecuritygroup.oc1.edge", "NETWORK_SECURITY_GROUP"),
+            rule('module.v1_live.oci_core_network_security_group_security_rule.host_edge_ingress["https"]', 443, "ocid1.networksecuritygroup.oc1.edge", "NETWORK_SECURITY_GROUP"),
+        ]
+        validate_v1_plan.validate_ingress(resources)
+        resources[2]["values"]["source"] = "0.0.0.0/0"
         with self.assertRaises(AssertionError):
-            validate_v1_plan.validate_ingress([rule(22), rule(443)])
+            validate_v1_plan.validate_ingress(resources)
+
 
     def test_instance_metadata_is_bounded_and_hardened(self) -> None:
         import base64
         import gzip
 
-        cloud_init = b"liqi-bootstrap-host liqi-install-host-bundle sshd.service sshd.socket"
+        cloud_init = b"liqi-bootstrap-host liqi-install-host-bundle liqi-configure-bastion-ssh"
         encoded = base64.b64encode(gzip.compress(cloud_init, mtime=0)).decode("ascii")
         resources = [{
             "type": "oci_core_instance",
@@ -408,24 +423,44 @@ class PlanValidationTests(unittest.TestCase):
                 "shape_config": [{"ocpus": 4, "memory_in_gbs": 24}],
                 "source_details": [{"boot_volume_size_in_gbs": 50}],
                 "metadata": {"user_data": encoded},
+                "create_vnic_details": [{"assign_public_ip": "false"}],
                 "agent_config": [{"plugins_config": [{"name": "Compute Instance Run Command", "desired_state": "ENABLED"}]}],
             },
         }]
         rendered = validate_v1_plan.validate_instance(resources, "a1-target")
         self.assertIn("liqi-bootstrap-host", rendered)
 
-    def test_management_tunnel_is_outbound_to_one_peer(self) -> None:
-        resources = [{
+    def test_management_rejects_superseded_external_wireguard_egress(self) -> None:
+        dns = [{
+            "type": "oci_core_network_security_group_security_rule",
+            "values": {
+                "direction": "EGRESS", "protocol": "17", "destination": "169.254.169.254/32",
+                "udp_options": [{"destination_port_range": [{"min": 53, "max": 53}]}],
+            },
+        }]
+        validate_v1_plan.validate_management(dns)
+        dns.append({
             "type": "oci_core_network_security_group_security_rule",
             "values": {
                 "direction": "EGRESS", "protocol": "17", "destination": "198.51.100.10/32",
                 "udp_options": [{"destination_port_range": [{"min": 51820, "max": 51820}]}],
             },
-        }]
-        validate_v1_plan.validate_management_tunnel(resources)
-        resources[0]["values"]["destination"] = "0.0.0.0/0"
+        })
         with self.assertRaises(AssertionError):
-            validate_v1_plan.validate_management_tunnel(resources)
+            validate_v1_plan.validate_management(dns)
+
+    def test_nlb_is_fail_closed_and_websocket_timeout_is_long_lived(self) -> None:
+        resources = []
+        for key, port in (("http", 80), ("https", 443)):
+            resources.extend([
+                {"address": f'module.v1_live.oci_network_load_balancer_backend_set.edge["{key}"]', "type": "oci_network_load_balancer_backend_set", "values": {"policy": "FIVE_TUPLE", "is_fail_open": False, "is_preserve_source": False, "health_checker": [{"protocol": "TCP", "port": port}]}},
+                {"address": f'module.v1_live.oci_network_load_balancer_backend.host["{key}"]', "type": "oci_network_load_balancer_backend", "values": {"port": port, "is_backup": False, "is_drain": False, "is_offline": False}},
+                {"address": f'module.v1_live.oci_network_load_balancer_listener.edge["{key}"]', "type": "oci_network_load_balancer_listener", "values": {"port": port, "protocol": "TCP", "tcp_idle_timeout": 3600}},
+            ])
+        validate_v1_plan.validate_nlb(resources)
+        resources[-1]["values"]["tcp_idle_timeout"] = 60
+        with self.assertRaises(AssertionError):
+            validate_v1_plan.validate_nlb(resources)
 
 
 

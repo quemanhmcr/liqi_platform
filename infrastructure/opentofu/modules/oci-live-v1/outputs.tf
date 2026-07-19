@@ -1,12 +1,15 @@
 locals {
-  public_ipv4 = var.enable_reserved_public_ip ? one(oci_core_public_ip.reserved[*].ip_address) : oci_core_instance.host.public_ip
+  nlb_public_ipv4 = one([
+    for address in oci_network_load_balancer_network_load_balancer.edge.ip_addresses : address.ip_address
+    if address.is_public && address.ip_version == "IPV4"
+  ])
 
   oci_live_v1 = {
     schema_version                = "liqi.infrastructure.oci-live/v1"
     environment                   = local.environment
-    classification                = "production-shaped-development"
+    classification                = "production"
     git_sha                       = var.source_git_sha
-    infrastructure_output_version = "1.2.0"
+    infrastructure_output_version = "1.3.0"
     region = {
       name                = var.region
       availability_domain = var.availability_domain
@@ -24,42 +27,44 @@ locals {
       provider_cpu_ceiling        = 3
       provider_memory_ceiling_gib = 20
       provider_disk_ceiling_gib   = local.capacity.combined_storage_gib
-      host_reserve = {
-        ocpus            = 1
-        memory_gib       = 4
-        disk_gib         = 20
-        swap_is_capacity = false
-      }
-      cost_classification      = local.capacity.cost_classification
-      temporary                = local.capacity.temporary
-      expires_at               = local.capacity.temporary ? var.temporary_e5_expires_at : null
-      migration_target_profile = local.capacity.migration_target_profile
+      host_reserve                = { ocpus = 1, memory_gib = 4, disk_gib = 20, swap_is_capacity = false }
+      cost_classification         = local.capacity.cost_classification
+      temporary                   = local.capacity.temporary
+      expires_at                  = local.capacity.temporary ? var.temporary_e5_expires_at : null
+      migration_target_profile    = local.capacity.migration_target_profile
     }
     network = {
-      vcn_id         = oci_core_vcn.main.id
-      edge_subnet_id = oci_core_subnet.edge.id
-      host_nsg_id    = oci_core_network_security_group.host.id
+      vcn_id                   = oci_core_vcn.main.id
+      host_subnet_id           = oci_core_subnet.edge.id
+      public_edge_subnet_id    = oci_core_subnet.public_edge.id
+      host_nsg_id              = oci_core_network_security_group.host.id
+      public_edge_nsg_id       = oci_core_network_security_group.public_edge.id
+      network_load_balancer_id = oci_network_load_balancer_network_load_balancer.edge.id
+      public_edge_ipv4         = local.nlb_public_ipv4
       public_ingress = [
         { protocol = "tcp", port = 80, purpose = "http-redirect-and-acme" },
-        { protocol = "tcp", port = 443, purpose = "https-edge" }
+        { protocol = "tcp", port = 443, purpose = "https-and-websocket-pass-through" }
       ]
-      ssh_default_enabled = false
-      loopback_services   = ["phoenix-http", "postgresql", "pgbouncer", "otlp-grpc", "otlp-http", "metrics"]
-      management_tunnel = {
-        mode                    = "outbound-only"
-        protocol                = "wireguard-udp"
-        peer_cidr               = var.management_wireguard_peer_cidr
-        peer_port               = var.management_wireguard_port
-        public_ingress_required = false
-        preflight_status        = length(trimspace(var.management_plane_evidence_id)) > 0 ? "validated" : "pending-management-plane-preflight"
+      host_public_ip_enabled = false
+      outbound_internet_path = "nat-gateway"
+      oracle_services_path   = "service-gateway"
+      ssh_default_enabled    = true
+      ssh_source_cidrs       = sort(tolist(var.bastion_ssh_source_cidrs))
+      loopback_services      = ["phoenix-http", "postgresql", "pgbouncer", "otlp-grpc", "otlp-http", "metrics"]
+      management_access = {
+        primary            = "oci-bastion-private-ssh"
+        secondary          = "oci-run-command"
+        public_ssh         = false
+        exact_source_cidrs = sort(tolist(var.bastion_ssh_source_cidrs))
+        preflight_status   = length(trimspace(var.management_plane_evidence_id)) > 0 ? "validated" : "pending-management-plane-preflight"
       }
     }
     host = {
       instance_id                = oci_core_instance.host.id
       image_id                   = var.oracle_linux_image_ocid
       private_ipv4               = oci_core_instance.host.private_ip
-      public_ipv4                = local.public_ipv4
-      public_ip_mode             = var.enable_reserved_public_ip ? "reserved-approved" : "ephemeral"
+      public_ipv4                = null
+      public_ip_mode             = "none"
       legacy_imds_disabled       = true
       run_command_plugin_enabled = true
     }
@@ -100,7 +105,7 @@ output "oci_live_v1" {
 }
 
 output "host_bootstrap_sha256" {
-  description = "Exact rendered cloud-init digest bound to host replacement."
+  description = "Exact rendered cloud-init digest bound to the source revision."
   value       = sha256(var.cloud_init_user_data)
 }
 
@@ -108,9 +113,10 @@ output "replacement_impact" {
   description = "Stateful preservation and external recovery authority for replacement planning."
   value = {
     host_replaceable            = true
+    host_public_ip_enabled      = false
+    public_edge_stable          = var.enable_reserved_public_ip
     data_volume_preserved       = true
     external_recovery_authority = true
     vault_preserved             = true
-    public_ip_stable            = var.enable_reserved_public_ip
   }
 }

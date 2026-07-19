@@ -1,68 +1,67 @@
 {
-  "schema_version": "liqi.infrastructure.apply-result/v1",
-  "environment": "v1-live",
-  "git_sha": "0000000000000000000000000000000000000000",
   "approval_reference": "approval-example",
   "capacity_profile": "e5-temporary",
-  "plan_mode": "adopt-existing",
-  "saved_plan_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-  "pre_apply_readiness_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-  "linux_release_build_result_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-  "rollback_target_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "completed_at": "2026-07-19T00:00:00Z",
-  "status": "applied",
-  "oci_output_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "environment": "v1-live",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "linux_release_build_result_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "oci_mutation_performed": true,
   "oci_output": {
-    "schema_version": "liqi.infrastructure.oci-live/v1",
-    "environment": "v1-live",
-    "classification": "production-shaped-development",
-    "git_sha": "0000000000000000000000000000000000000000",
-    "infrastructure_output_version": "1.2.0",
-    "region": {
-      "name": "ap-singapore-2",
-      "availability_domain": "example-AD-1"
-    },
     "capacity": {
-      "shape": "VM.Standard.E5.Flex",
       "architecture": "x86_64",
-      "ocpus": 4,
-      "memory_gib": 24,
       "boot_volume_gib": 200,
-      "data_volume_gib": 130,
       "combined_storage_gib": 330,
-      "provider_cpu_ceiling": 3,
-      "provider_memory_ceiling_gib": 20,
-      "provider_disk_ceiling_gib": 330,
+      "cost_classification": "paid-approved",
+      "data_volume_gib": 130,
+      "expires_at": "2026-09-30T00:00:00Z",
       "host_reserve": {
-        "ocpus": 1,
-        "memory_gib": 4,
         "disk_gib": 20,
+        "memory_gib": 4,
+        "ocpus": 1,
         "swap_is_capacity": false
       },
-      "cost_classification": "paid-approved",
+      "memory_gib": 24,
+      "migration_target_profile": "a1-target",
+      "ocpus": 4,
       "profile": "e5-temporary",
+      "provider_cpu_ceiling": 3,
+      "provider_disk_ceiling_gib": 330,
+      "provider_memory_ceiling_gib": 20,
+      "shape": "VM.Standard.E5.Flex",
       "target_triple": "x86_64-unknown-linux-gnu",
-      "temporary": true,
-      "expires_at": "2026-09-30T00:00:00Z",
-      "migration_target_profile": "a1-target"
+      "temporary": true
+    },
+    "classification": "production",
+    "environment": "v1-live",
+    "git_sha": "0000000000000000000000000000000000000000",
+    "host": {
+      "image_id": "ocid1.image.oc1.examplee5",
+      "instance_id": "ocid1.instance.oc1.example",
+      "legacy_imds_disabled": true,
+      "private_ipv4": "10.40.10.10",
+      "public_ip_mode": "none",
+      "public_ipv4": null,
+      "run_command_plugin_enabled": true
+    },
+    "identity": {
+      "capabilities": [
+        "vault-secret-bundle-read"
+      ],
+      "dynamic_group_id": "ocid1.dynamicgroup.oc1.example",
+      "instance_principal": true,
+      "user_api_keys_present": false
+    },
+    "infrastructure_output_version": "1.3.0",
+    "mutation": {
+      "applied": true,
+      "approval_reference": "approval-example",
+      "approval_required": true,
+      "plan_sha256": null
     },
     "network": {
-      "vcn_id": "ocid1.vcn.oc1.example",
-      "edge_subnet_id": "ocid1.subnet.oc1.example",
-      "host_nsg_id": "ocid1.networksecuritygroup.oc1.example",
-      "public_ingress": [
-        {
-          "protocol": "tcp",
-          "port": 80,
-          "purpose": "http-redirect-and-acme"
-        },
-        {
-          "protocol": "tcp",
-          "port": 443,
-          "purpose": "https-edge"
-        }
-      ],
-      "ssh_default_enabled": false,
+      "host_nsg_id": "ocid1.networksecuritygroup.oc1.examplehost",
+      "host_public_ip_enabled": false,
+      "host_subnet_id": "ocid1.subnet.oc1.examplehost",
       "loopback_services": [
         "phoenix-http",
         "postgresql",
@@ -71,54 +70,68 @@
         "otlp-http",
         "metrics"
       ],
-      "management_tunnel": {
-        "mode": "outbound-only",
-        "protocol": "wireguard-udp",
-        "peer_cidr": "198.51.100.10/32",
-        "peer_port": 51820,
-        "public_ingress_required": false,
-        "preflight_status": "pending-management-plane-preflight"
-      }
+      "management_access": {
+        "exact_source_cidrs": [
+          "10.42.20.100/32",
+          "10.42.20.109/32"
+        ],
+        "preflight_status": "pending-management-plane-preflight",
+        "primary": "oci-bastion-private-ssh",
+        "public_ssh": false,
+        "secondary": "oci-run-command"
+      },
+      "network_load_balancer_id": "ocid1.networkloadbalancer.oc1.example",
+      "oracle_services_path": "service-gateway",
+      "outbound_internet_path": "nat-gateway",
+      "public_edge_ipv4": "203.0.113.10",
+      "public_edge_nsg_id": "ocid1.networksecuritygroup.oc1.exampleedge",
+      "public_edge_subnet_id": "ocid1.subnet.oc1.exampleedge",
+      "public_ingress": [
+        {
+          "port": 80,
+          "protocol": "tcp",
+          "purpose": "http-redirect-and-acme"
+        },
+        {
+          "port": 443,
+          "protocol": "tcp",
+          "purpose": "https-and-websocket-pass-through"
+        }
+      ],
+      "ssh_default_enabled": true,
+      "ssh_source_cidrs": [
+        "10.42.20.100/32",
+        "10.42.20.109/32"
+      ],
+      "vcn_id": "ocid1.vcn.oc1.example"
     },
-    "host": {
-      "instance_id": "ocid1.instance.oc1.example",
-      "image_id": "ocid1.image.oc1.examplee5",
-      "private_ipv4": "10.40.10.10",
-      "public_ipv4": "203.0.113.10",
-      "public_ip_mode": "ephemeral",
-      "legacy_imds_disabled": true,
-      "run_command_plugin_enabled": true
+    "region": {
+      "availability_domain": "example-AD-1",
+      "name": "ap-singapore-2"
+    },
+    "schema_version": "liqi.infrastructure.oci-live/v1",
+    "state_backend": {
+      "compatibility_status": "pending-state-backend-evidence",
+      "credentials_in_source": false,
+      "kind": "postgresql-self-hosted",
+      "locking": "postgresql-advisory-locks",
+      "remote": true,
+      "versioned": false
     },
     "storage": {
+      "application_backup_authority": "independent-management-storage",
+      "artifact_archive_authority": "independent-management-storage",
       "data_volume_id": "ocid1.volume.oc1.example",
       "data_volume_preserved": true,
       "kms_key_id": "ocid1.key.oc1.example",
-      "vault_id": "ocid1.vault.oc1.example",
-      "application_backup_authority": "independent-management-storage",
-      "artifact_archive_authority": "independent-management-storage"
-    },
-    "identity": {
-      "dynamic_group_id": "ocid1.dynamicgroup.oc1.example",
-      "instance_principal": true,
-      "capabilities": [
-        "vault-secret-bundle-read"
-      ],
-      "user_api_keys_present": false
-    },
-    "state_backend": {
-      "kind": "postgresql-self-hosted",
-      "remote": true,
-      "versioned": false,
-      "locking": "postgresql-advisory-locks",
-      "credentials_in_source": false,
-      "compatibility_status": "pending-state-backend-evidence"
-    },
-    "mutation": {
-      "approval_required": true,
-      "applied": true,
-      "approval_reference": "approval-example",
-      "plan_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "vault_id": "ocid1.vault.oc1.example"
     }
   },
-  "oci_mutation_performed": true
+  "oci_output_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "plan_mode": "adopt-existing",
+  "pre_apply_readiness_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "rollback_target_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "saved_plan_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "schema_version": "liqi.infrastructure.apply-result/v1",
+  "status": "applied"
 }

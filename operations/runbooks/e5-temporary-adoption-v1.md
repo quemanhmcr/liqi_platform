@@ -6,7 +6,13 @@ This runbook adopts the infrastructure lead's reviewed OCI resources into the in
 
 The infrastructure lead owns creation and completion of the temporary E5 host and supporting OCI resources. The deployment operator only performs read-only discovery, imports compatible identities into OpenTofu state after approval, reviews a no-delete/no-replacement saved plan, and applies that exact plan after a separate approval.
 
-The existing transition SSH NSG and stopped fallback instance remain outside the source-managed production graph unless a later reviewed change explicitly adopts or removes them.
+The technically accepted workload NSG is adopted into the source graph with exactly two OCI Bastion SSH `/32` rules. The stopped fallback instance remains outside the single-primary graph as an explicitly retained rollback/cost resource.
+
+## Accepted network topology
+
+The temporary E5 primary has no public IP. Its existing `10.42.10.0/24` subnet is source-managed as a private host subnet with default egress through NAT Gateway and Oracle Services through Service Gateway. A separate `10.42.30.0/24` public edge subnet and public OCI Network Load Balancer terminate only Layer-4 reachability; TCP 80/443 pass through to Caddy on the private host. The NLB uses full NAT, fail-closed backend sets and a 3600-second TCP idle timeout for WebSocket longevity. SSH is never public: only the two technically accepted OCI Bastion private `/32` addresses may reach TCP/22, with OCI Run Command as the secondary management path.
+
+Enabling the Internet Gateway is safe only together with the separated public edge route table; the private host route table must remain NAT/Service-Gateway based.
 
 ## Required protected inputs
 
@@ -32,7 +38,7 @@ The builder uses a temporary `git archive`, injects only the verified NIF, creat
 
 ## Sequence
 
-1. Run `discover-e5-adoption`. It performs OCI list/get calls only and writes an `adoption-manifest-v1` file with compatible imports, missing source-managed resources, unmanaged transition resources and blockers.
+1. Run `discover-e5-adoption`. It performs OCI list/get calls only and verifies the private E5 primary, NAT default route, Oracle Services Service Gateway route, empty Security List, exact Bastion `/32` rules and separated public-NLB graph. It writes an `adoption-manifest-v1` file with compatible imports, missing source-managed resources, unmanaged transition resources and blockers.
 2. Review the manifest. A blocked manifest cannot be consumed.
 3. Run `validate-e5-state-adoption` without `--execute`. This validates exact SHA and inputs without changing state.
 4. Run `execute-e5-state-adoption` with an explicit approval. This mutates encrypted OpenTofu state only; it does not create, update or delete OCI resources.

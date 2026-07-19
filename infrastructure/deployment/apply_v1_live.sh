@@ -115,7 +115,7 @@ if (
     or oci.get("capacity", {}).get("profile") != "e5-temporary"
     or mutation.get("applied") is not True
     or mutation.get("approval_reference") != approval
-    or mutation.get("plan_sha256") != plan["saved_plan"]["sha256"]
+    or mutation.get("plan_sha256") is not None
 ):
     raise SystemExit("OCI live output identity does not match approved apply")
 doc = {

@@ -1,63 +1,212 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://liqi.example/contracts/infrastructure/oci-live-v1.schema.json",
-  "title": "LIQI OCI live environment V1 provider output",
-  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "environment",
-    "classification",
-    "git_sha",
-    "infrastructure_output_version",
-    "region",
-    "capacity",
-    "network",
-    "host",
-    "storage",
-    "identity",
-    "state_backend",
-    "mutation"
-  ],
   "properties": {
-    "schema_version": {
-      "const": "liqi.infrastructure.oci-live/v1"
-    },
-    "environment": {
-      "const": "v1-live"
-    },
-    "classification": {
-      "const": "production-shaped-development"
-    },
-    "git_sha": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{40}$"
-    },
-    "infrastructure_output_version": {
-      "const": "1.2.0"
-    },
-    "region": {
-      "type": "object",
+    "capacity": {
       "additionalProperties": false,
-      "required": [
-        "name",
-        "availability_domain"
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "profile": {
+                "const": "a1-target"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "architecture": {
+                "const": "aarch64"
+              },
+              "boot_volume_gib": {
+                "const": 50
+              },
+              "combined_storage_gib": {
+                "const": 180
+              },
+              "cost_classification": {
+                "const": "free-trial-only"
+              },
+              "expires_at": {
+                "type": "null"
+              },
+              "migration_target_profile": {
+                "type": "null"
+              },
+              "provider_disk_ceiling_gib": {
+                "const": 180
+              },
+              "shape": {
+                "const": "VM.Standard.A1.Flex"
+              },
+              "target_triple": {
+                "const": "aarch64-unknown-linux-gnu"
+              },
+              "temporary": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "profile": {
+                "const": "e5-temporary"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "architecture": {
+                "const": "x86_64"
+              },
+              "boot_volume_gib": {
+                "const": 200
+              },
+              "combined_storage_gib": {
+                "const": 330
+              },
+              "cost_classification": {
+                "const": "paid-approved"
+              },
+              "expires_at": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "migration_target_profile": {
+                "const": "a1-target"
+              },
+              "provider_disk_ceiling_gib": {
+                "const": 330
+              },
+              "shape": {
+                "const": "VM.Standard.E5.Flex"
+              },
+              "target_triple": {
+                "const": "x86_64-unknown-linux-gnu"
+              },
+              "temporary": {
+                "const": true
+              }
+            }
+          }
+        }
       ],
       "properties": {
-        "name": {
-          "type": "string",
-          "pattern": "^[a-z]{2}-[a-z]+-[0-9]+$"
+        "architecture": {
+          "enum": [
+            "aarch64",
+            "x86_64"
+          ]
         },
-        "availability_domain": {
-          "type": "string",
-          "minLength": 3,
-          "maxLength": 128
+        "boot_volume_gib": {
+          "enum": [
+            50,
+            200
+          ]
+        },
+        "combined_storage_gib": {
+          "enum": [
+            180,
+            330
+          ]
+        },
+        "cost_classification": {
+          "enum": [
+            "free-trial-only",
+            "paid-approved"
+          ]
+        },
+        "data_volume_gib": {
+          "const": 130
+        },
+        "expires_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "format": "date-time",
+              "type": "string"
+            }
+          ]
+        },
+        "host_reserve": {
+          "additionalProperties": false,
+          "properties": {
+            "disk_gib": {
+              "const": 20
+            },
+            "memory_gib": {
+              "const": 4
+            },
+            "ocpus": {
+              "const": 1
+            },
+            "swap_is_capacity": {
+              "const": false
+            }
+          },
+          "required": [
+            "ocpus",
+            "memory_gib",
+            "disk_gib",
+            "swap_is_capacity"
+          ],
+          "type": "object"
+        },
+        "memory_gib": {
+          "const": 24
+        },
+        "migration_target_profile": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "const": "a1-target"
+            }
+          ]
+        },
+        "ocpus": {
+          "const": 4
+        },
+        "profile": {
+          "enum": [
+            "a1-target",
+            "e5-temporary"
+          ]
+        },
+        "provider_cpu_ceiling": {
+          "const": 3
+        },
+        "provider_disk_ceiling_gib": {
+          "enum": [
+            180,
+            330
+          ]
+        },
+        "provider_memory_ceiling_gib": {
+          "const": 20
+        },
+        "shape": {
+          "enum": [
+            "VM.Standard.A1.Flex",
+            "VM.Standard.E5.Flex"
+          ]
+        },
+        "target_triple": {
+          "enum": [
+            "aarch64-unknown-linux-gnu",
+            "x86_64-unknown-linux-gnu"
+          ]
+        },
+        "temporary": {
+          "type": "boolean"
         }
-      }
-    },
-    "capacity": {
-      "type": "object",
-      "additionalProperties": false,
+      },
       "required": [
         "shape",
         "architecture",
@@ -77,326 +226,50 @@
         "expires_at",
         "migration_target_profile"
       ],
-      "properties": {
-        "shape": {
-          "enum": [
-            "VM.Standard.A1.Flex",
-            "VM.Standard.E5.Flex"
-          ]
-        },
-        "architecture": {
-          "enum": [
-            "aarch64",
-            "x86_64"
-          ]
-        },
-        "ocpus": {
-          "const": 4
-        },
-        "memory_gib": {
-          "const": 24
-        },
-        "boot_volume_gib": {
-          "enum": [
-            50,
-            200
-          ]
-        },
-        "data_volume_gib": {
-          "const": 130
-        },
-        "combined_storage_gib": {
-          "enum": [
-            180,
-            330
-          ]
-        },
-        "provider_cpu_ceiling": {
-          "const": 3
-        },
-        "provider_memory_ceiling_gib": {
-          "const": 20
-        },
-        "provider_disk_ceiling_gib": {
-          "enum": [
-            180,
-            330
-          ]
-        },
-        "host_reserve": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "ocpus",
-            "memory_gib",
-            "disk_gib",
-            "swap_is_capacity"
-          ],
-          "properties": {
-            "ocpus": {
-              "const": 1
-            },
-            "memory_gib": {
-              "const": 4
-            },
-            "disk_gib": {
-              "const": 20
-            },
-            "swap_is_capacity": {
-              "const": false
-            }
-          }
-        },
-        "cost_classification": {
-          "enum": [
-            "free-trial-only",
-            "paid-approved"
-          ]
-        },
-        "profile": {
-          "enum": [
-            "a1-target",
-            "e5-temporary"
-          ]
-        },
-        "target_triple": {
-          "enum": [
-            "aarch64-unknown-linux-gnu",
-            "x86_64-unknown-linux-gnu"
-          ]
-        },
-        "temporary": {
-          "type": "boolean"
-        },
-        "expires_at": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string",
-              "format": "date-time"
-            }
-          ]
-        },
-        "migration_target_profile": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "const": "a1-target"
-            }
-          ]
-        }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "profile": {
-                "const": "a1-target"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "shape": {
-                "const": "VM.Standard.A1.Flex"
-              },
-              "architecture": {
-                "const": "aarch64"
-              },
-              "target_triple": {
-                "const": "aarch64-unknown-linux-gnu"
-              },
-              "boot_volume_gib": {
-                "const": 50
-              },
-              "combined_storage_gib": {
-                "const": 180
-              },
-              "provider_disk_ceiling_gib": {
-                "const": 180
-              },
-              "cost_classification": {
-                "const": "free-trial-only"
-              },
-              "temporary": {
-                "const": false
-              },
-              "expires_at": {
-                "type": "null"
-              },
-              "migration_target_profile": {
-                "type": "null"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "profile": {
-                "const": "e5-temporary"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "shape": {
-                "const": "VM.Standard.E5.Flex"
-              },
-              "architecture": {
-                "const": "x86_64"
-              },
-              "target_triple": {
-                "const": "x86_64-unknown-linux-gnu"
-              },
-              "boot_volume_gib": {
-                "const": 200
-              },
-              "combined_storage_gib": {
-                "const": 330
-              },
-              "provider_disk_ceiling_gib": {
-                "const": 330
-              },
-              "cost_classification": {
-                "const": "paid-approved"
-              },
-              "temporary": {
-                "const": true
-              },
-              "expires_at": {
-                "type": "string",
-                "format": "date-time"
-              },
-              "migration_target_profile": {
-                "const": "a1-target"
-              }
-            }
-          }
-        }
-      ]
+      "type": "object"
     },
-    "network": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "vcn_id",
-        "edge_subnet_id",
-        "host_nsg_id",
-        "public_ingress",
-        "ssh_default_enabled",
-        "loopback_services",
-        "management_tunnel"
-      ],
-      "properties": {
-        "vcn_id": {
-          "type": "string",
-          "pattern": "^ocid1\\.vcn\\."
-        },
-        "edge_subnet_id": {
-          "type": "string",
-          "pattern": "^ocid1\\.subnet\\."
-        },
-        "host_nsg_id": {
-          "type": "string",
-          "pattern": "^ocid1\\.networksecuritygroup\\."
-        },
-        "public_ingress": {
-          "type": "array",
-          "minItems": 2,
-          "maxItems": 2,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "protocol",
-              "port",
-              "purpose"
-            ],
-            "properties": {
-              "protocol": {
-                "const": "tcp"
-              },
-              "port": {
-                "enum": [
-                  80,
-                  443
-                ]
-              },
-              "purpose": {
-                "enum": [
-                  "http-redirect-and-acme",
-                  "https-edge"
-                ]
-              }
-            }
-          }
-        },
-        "ssh_default_enabled": {
-          "const": false
-        },
-        "loopback_services": {
-          "type": "array",
-          "minItems": 5,
-          "uniqueItems": true,
-          "items": {
-            "enum": [
-              "phoenix-http",
-              "postgresql",
-              "pgbouncer",
-              "otlp-grpc",
-              "otlp-http",
-              "metrics"
-            ]
-          }
-        },
-        "management_tunnel": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "mode",
-            "protocol",
-            "peer_cidr",
-            "peer_port",
-            "public_ingress_required",
-            "preflight_status"
-          ],
-          "properties": {
-            "mode": {
-              "const": "outbound-only"
-            },
-            "protocol": {
-              "const": "wireguard-udp"
-            },
-            "peer_cidr": {
-              "type": "string",
-              "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}/32$"
-            },
-            "peer_port": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 65535
-            },
-            "public_ingress_required": {
-              "const": false
-            },
-            "preflight_status": {
-              "enum": [
-                "pending-management-plane-preflight",
-                "validated"
-              ]
-            }
-          }
-        }
-      }
+    "classification": {
+      "const": "production"
+    },
+    "environment": {
+      "const": "v1-live"
+    },
+    "git_sha": {
+      "pattern": "^[0-9a-f]{40}$",
+      "type": "string"
     },
     "host": {
-      "type": "object",
       "additionalProperties": false,
+      "properties": {
+        "image_id": {
+          "pattern": "^ocid1\\.image\\.",
+          "type": "string"
+        },
+        "instance_id": {
+          "pattern": "^ocid1\\.instance\\.",
+          "type": "string"
+        },
+        "legacy_imds_disabled": {
+          "const": true
+        },
+        "private_ipv4": {
+          "format": "ipv4",
+          "type": "string"
+        },
+        "public_ip_mode": {
+          "const": "none"
+        },
+        "public_ipv4": {
+          "format": "ipv4",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "run_command_plugin_enabled": {
+          "const": true
+        }
+      },
       "required": [
         "instance_id",
         "image_id",
@@ -406,108 +279,288 @@
         "legacy_imds_disabled",
         "run_command_plugin_enabled"
       ],
-      "properties": {
-        "instance_id": {
-          "type": "string",
-          "pattern": "^ocid1\\.instance\\."
-        },
-        "image_id": {
-          "type": "string",
-          "pattern": "^ocid1\\.image\\."
-        },
-        "private_ipv4": {
-          "type": "string",
-          "format": "ipv4"
-        },
-        "public_ipv4": {
-          "type": "string",
-          "format": "ipv4"
-        },
-        "public_ip_mode": {
-          "enum": [
-            "ephemeral",
-            "reserved-approved"
-          ]
-        },
-        "legacy_imds_disabled": {
-          "const": true
-        },
-        "run_command_plugin_enabled": {
-          "const": true
-        }
-      }
-    },
-    "storage": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "data_volume_id",
-        "data_volume_preserved",
-        "application_backup_authority",
-        "artifact_archive_authority",
-        "kms_key_id",
-        "vault_id"
-      ],
-      "properties": {
-        "data_volume_id": {
-          "type": "string",
-          "pattern": "^ocid1\\.volume\\."
-        },
-        "data_volume_preserved": {
-          "const": true
-        },
-        "kms_key_id": {
-          "type": "string",
-          "pattern": "^ocid1\\.key\\."
-        },
-        "vault_id": {
-          "type": "string",
-          "pattern": "^ocid1\\.vault\\."
-        },
-        "application_backup_authority": {
-          "const": "independent-management-storage"
-        },
-        "artifact_archive_authority": {
-          "const": "independent-management-storage"
-        }
-      }
+      "type": "object"
     },
     "identity": {
-      "type": "object",
       "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "items": {
+            "enum": [
+              "vault-secret-bundle-read"
+            ]
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "dynamic_group_id": {
+          "pattern": "^ocid1\\.dynamicgroup\\.",
+          "type": "string"
+        },
+        "instance_principal": {
+          "const": true
+        },
+        "user_api_keys_present": {
+          "const": false
+        }
+      },
       "required": [
         "dynamic_group_id",
         "instance_principal",
         "capabilities",
         "user_api_keys_present"
       ],
+      "type": "object"
+    },
+    "infrastructure_output_version": {
+      "const": "1.3.0"
+    },
+    "mutation": {
+      "additionalProperties": false,
       "properties": {
-        "dynamic_group_id": {
-          "type": "string",
-          "pattern": "^ocid1\\.dynamicgroup\\."
+        "applied": {
+          "type": "boolean"
         },
-        "instance_principal": {
+        "approval_reference": {
+          "maxLength": 256,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "approval_required": {
           "const": true
         },
-        "capabilities": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
+        "plan_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "approval_required",
+        "applied",
+        "approval_reference",
+        "plan_sha256"
+      ],
+      "type": "object"
+    },
+    "network": {
+      "additionalProperties": false,
+      "properties": {
+        "host_nsg_id": {
+          "pattern": "^ocid1\\.networksecuritygroup\\.",
+          "type": "string"
+        },
+        "host_public_ip_enabled": {
+          "const": false
+        },
+        "host_subnet_id": {
+          "pattern": "^ocid1\\.subnet\\.",
+          "type": "string"
+        },
+        "loopback_services": {
           "items": {
             "enum": [
-              "vault-secret-bundle-read"
+              "phoenix-http",
+              "postgresql",
+              "pgbouncer",
+              "otlp-grpc",
+              "otlp-http",
+              "metrics"
             ]
           },
-          "maxItems": 1
+          "minItems": 5,
+          "type": "array",
+          "uniqueItems": true
         },
-        "user_api_keys_present": {
-          "const": false
+        "management_access": {
+          "additionalProperties": false,
+          "properties": {
+            "exact_source_cidrs": {
+              "items": {
+                "enum": [
+                  "10.42.20.100/32",
+                  "10.42.20.109/32"
+                ]
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "preflight_status": {
+              "enum": [
+                "pending-management-plane-preflight",
+                "validated"
+              ]
+            },
+            "primary": {
+              "const": "oci-bastion-private-ssh"
+            },
+            "public_ssh": {
+              "const": false
+            },
+            "secondary": {
+              "const": "oci-run-command"
+            }
+          },
+          "required": [
+            "primary",
+            "secondary",
+            "public_ssh",
+            "exact_source_cidrs",
+            "preflight_status"
+          ],
+          "type": "object"
+        },
+        "network_load_balancer_id": {
+          "pattern": "^ocid1\\.networkloadbalancer\\.",
+          "type": "string"
+        },
+        "oracle_services_path": {
+          "const": "service-gateway"
+        },
+        "outbound_internet_path": {
+          "const": "nat-gateway"
+        },
+        "public_edge_ipv4": {
+          "format": "ipv4",
+          "type": "string"
+        },
+        "public_edge_nsg_id": {
+          "pattern": "^ocid1\\.networksecuritygroup\\.",
+          "type": "string"
+        },
+        "public_edge_subnet_id": {
+          "pattern": "^ocid1\\.subnet\\.",
+          "type": "string"
+        },
+        "public_ingress": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "port": {
+                "enum": [
+                  80,
+                  443
+                ]
+              },
+              "protocol": {
+                "const": "tcp"
+              },
+              "purpose": {
+                "enum": [
+                  "http-redirect-and-acme",
+                  "https-and-websocket-pass-through"
+                ]
+              }
+            },
+            "required": [
+              "protocol",
+              "port",
+              "purpose"
+            ],
+            "type": "object"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "ssh_default_enabled": {
+          "const": true
+        },
+        "ssh_source_cidrs": {
+          "items": {
+            "enum": [
+              "10.42.20.100/32",
+              "10.42.20.109/32"
+            ]
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "vcn_id": {
+          "pattern": "^ocid1\\.vcn\\.",
+          "type": "string"
         }
-      }
+      },
+      "required": [
+        "vcn_id",
+        "host_subnet_id",
+        "public_edge_subnet_id",
+        "host_nsg_id",
+        "public_edge_nsg_id",
+        "network_load_balancer_id",
+        "public_edge_ipv4",
+        "public_ingress",
+        "host_public_ip_enabled",
+        "outbound_internet_path",
+        "oracle_services_path",
+        "ssh_default_enabled",
+        "ssh_source_cidrs",
+        "loopback_services",
+        "management_access"
+      ],
+      "type": "object"
+    },
+    "region": {
+      "additionalProperties": false,
+      "properties": {
+        "availability_domain": {
+          "maxLength": 128,
+          "minLength": 3,
+          "type": "string"
+        },
+        "name": {
+          "pattern": "^[a-z]{2}-[a-z]+-[0-9]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "availability_domain"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "const": "liqi.infrastructure.oci-live/v1"
     },
     "state_backend": {
-      "type": "object",
       "additionalProperties": false,
+      "properties": {
+        "compatibility_status": {
+          "enum": [
+            "pending-state-backend-evidence",
+            "validated"
+          ]
+        },
+        "credentials_in_source": {
+          "const": false
+        },
+        "kind": {
+          "const": "postgresql-self-hosted"
+        },
+        "locking": {
+          "const": "postgresql-advisory-locks"
+        },
+        "remote": {
+          "const": true
+        },
+        "versioned": {
+          "const": false
+        }
+      },
       "required": [
         "kind",
         "remote",
@@ -516,65 +569,59 @@
         "credentials_in_source",
         "compatibility_status"
       ],
-      "properties": {
-        "kind": {
-          "const": "postgresql-self-hosted"
-        },
-        "remote": {
-          "const": true
-        },
-        "versioned": {
-          "const": false
-        },
-        "locking": {
-          "const": "postgresql-advisory-locks"
-        },
-        "credentials_in_source": {
-          "const": false
-        },
-        "compatibility_status": {
-          "enum": [
-            "pending-state-backend-evidence",
-            "validated"
-          ]
-        }
-      }
+      "type": "object"
     },
-    "mutation": {
-      "type": "object",
+    "storage": {
       "additionalProperties": false,
-      "required": [
-        "approval_required",
-        "applied",
-        "approval_reference",
-        "plan_sha256"
-      ],
       "properties": {
-        "approval_required": {
+        "application_backup_authority": {
+          "const": "independent-management-storage"
+        },
+        "artifact_archive_authority": {
+          "const": "independent-management-storage"
+        },
+        "data_volume_id": {
+          "pattern": "^ocid1\\.volume\\.",
+          "type": "string"
+        },
+        "data_volume_preserved": {
           "const": true
         },
-        "applied": {
-          "type": "boolean"
+        "kms_key_id": {
+          "pattern": "^ocid1\\.key\\.",
+          "type": "string"
         },
-        "approval_reference": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "maxLength": 256
-        },
-        "plan_sha256": {
-          "anyOf": [
-            {
-              "type": "string",
-              "pattern": "^[0-9a-f]{64}$"
-            },
-            {
-              "type": "null"
-            }
-          ]
+        "vault_id": {
+          "pattern": "^ocid1\\.vault\\.",
+          "type": "string"
         }
-      }
+      },
+      "required": [
+        "data_volume_id",
+        "data_volume_preserved",
+        "application_backup_authority",
+        "artifact_archive_authority",
+        "kms_key_id",
+        "vault_id"
+      ],
+      "type": "object"
     }
-  }
+  },
+  "required": [
+    "schema_version",
+    "environment",
+    "classification",
+    "git_sha",
+    "infrastructure_output_version",
+    "region",
+    "capacity",
+    "network",
+    "host",
+    "storage",
+    "identity",
+    "state_backend",
+    "mutation"
+  ],
+  "title": "LIQI OCI live environment V1 provider output",
+  "type": "object"
 }

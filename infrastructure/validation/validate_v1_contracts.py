@@ -109,7 +109,7 @@ def main() -> int:
         or apply_oci["capacity"]["profile"] != "e5-temporary"
         or apply_oci["mutation"]["applied"] is not True
         or apply_oci["mutation"]["approval_reference"] != apply_result["approval_reference"]
-        or apply_oci["mutation"]["plan_sha256"] != apply_result["saved_plan_sha256"]
+        or apply_oci["mutation"]["plan_sha256"] is not None
     ):
         failures.append("apply result fixture does not cross-bind exact OCI output identity")
 

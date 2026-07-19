@@ -116,13 +116,30 @@ def main() -> int:
     failed |= not selinux_enforcing
 
     ssh_rc, ssh_out = command("systemctl", "is-enabled", "sshd.service")
-    root_login_disabled = password_ssh_disabled = ssh_rc != 0 or ssh_out in {"disabled", "masked"}
-    checks.append({"name": "ssh-disabled", "status": "passed" if root_login_disabled else "failed", "detail": ssh_out or "not-enabled"})
-    failed |= not root_login_disabled
+    sshd_rc, sshd_out = command("sshd", "-T")
+    effective = {line.strip().lower() for line in sshd_out.splitlines()}
+    root_login_disabled = sshd_rc == 0 and "permitrootlogin no" in effective
+    password_ssh_disabled = sshd_rc == 0 and "passwordauthentication no" in effective and "kbdinteractiveauthentication no" in effective
+    services_rc, firewall_services = command("firewall-cmd", "--list-services")
+    rich_rc, rich_rules = command("firewall-cmd", "--list-rich-rules")
+    accepted_sources = {"10.42.20.100/32", "10.42.20.109/32"}
+    observed_sources = set(re.findall(r'source address="([0-9./]+)"[^\n]*port port="22" protocol="tcp" accept', rich_rules))
+    bastion_only = (
+        ssh_rc == 0 and ssh_out == "enabled"
+        and root_login_disabled and password_ssh_disabled
+        and services_rc == 0 and "ssh" not in firewall_services.split()
+        and rich_rc == 0 and observed_sources == accepted_sources
+    )
+    checks.append({
+        "name": "ssh-bastion-only",
+        "status": "passed" if bastion_only else "failed",
+        "detail": json.dumps({"service": ssh_out or "unknown", "generic_firewall_service": "ssh" in firewall_services.split(), "source_cidrs": sorted(observed_sources)}),
+    })
+    failed |= not bastion_only
 
     ports = public_tcp_ports()
-    ports_ok = set(ports).issubset({80, 443}) and 80 in ports
-    checks.append({"name": "public-listeners", "status": "passed" if ports_ok else "failed", "detail": json.dumps(ports)})
+    ports_ok = set(ports).issubset({22, 80, 443}) and {22, 80, 443}.issubset(set(ports))
+    checks.append({"name": "private-host-listeners", "status": "passed" if ports_ok else "failed", "detail": json.dumps(ports)})
     failed |= not ports_ok
 
     world_writable: list[str] = []

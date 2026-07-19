@@ -8,15 +8,14 @@ variable "tenancy_ocid" {
 }
 
 variable "region" {
-  description = "OCI home region selected for the production-shaped V1 environment."
+  description = "OCI region selected for the live V1 environment."
   type        = string
   default     = "ap-singapore-2"
   validation {
-    condition     = can(regex("^[a-z]{2}-[a-z]+-[0-9]+$", var.region))
-    error_message = "region must be an OCI region identifier."
+    condition     = var.region == "ap-singapore-2"
+    error_message = "V1 live is restricted to ap-singapore-2."
   }
 }
-
 
 variable "capacity_profile" {
   description = "Explicit host lane: target A1 remains the default; E5 is a time-bounded paid bridge while A1 capacity is unavailable."
@@ -39,70 +38,88 @@ variable "temporary_e5_expires_at" {
 }
 
 variable "network_config" {
-  description = "Reviewed VCN/subnet profile. Values are restricted to the original source profile or the tech-lead adoption profile."
+  description = "Reviewed VCN, private host subnet, and separated public NLB edge subnet profile."
   type = object({
-    vcn_cidr          = string
-    vcn_dns_label     = string
-    edge_subnet_cidr  = string
-    edge_subnet_label = string
+    vcn_cidr                 = string
+    vcn_dns_label            = string
+    host_subnet_cidr         = string
+    host_subnet_label        = string
+    public_edge_subnet_cidr  = string
+    public_edge_subnet_label = string
   })
   default = {
-    vcn_cidr          = "10.40.0.0/16"
-    vcn_dns_label     = "liqiv1"
-    edge_subnet_cidr  = "10.40.10.0/24"
-    edge_subnet_label = "edge"
+    vcn_cidr                 = "10.40.0.0/16"
+    vcn_dns_label            = "liqiv1"
+    host_subnet_cidr         = "10.40.10.0/24"
+    host_subnet_label        = "host"
+    public_edge_subnet_cidr  = "10.40.30.0/24"
+    public_edge_subnet_label = "edge"
   }
   validation {
     condition = contains([
-      "10.40.0.0/16|10.40.10.0/24|liqiv1|edge",
-      "10.42.0.0/16|10.42.10.0/24|liqilive|live",
+      "10.40.0.0/16|10.40.10.0/24|10.40.30.0/24|liqiv1|host|edge",
+      "10.42.0.0/16|10.42.10.0/24|10.42.30.0/24|liqilive|live|edge",
       ], join("|", [
         var.network_config.vcn_cidr,
-        var.network_config.edge_subnet_cidr,
+        var.network_config.host_subnet_cidr,
+        var.network_config.public_edge_subnet_cidr,
         var.network_config.vcn_dns_label,
-        var.network_config.edge_subnet_label,
+        var.network_config.host_subnet_label,
+        var.network_config.public_edge_subnet_label,
     ]))
-    error_message = "network_config must match an explicitly reviewed V1 network profile."
+    error_message = "network_config must match an explicitly reviewed private-host/public-NLB profile."
   }
 }
 
 variable "resource_names" {
   description = "Reviewed OCI display names. Override only to adopt an existing environment without replacement-by-rename."
   type = object({
-    compartment        = string
-    vcn                = string
-    internet_gateway   = string
-    route_table        = string
-    security_list      = string
-    subnet             = string
-    nsg                = string
-    instance           = string
-    vnic               = string
-    data_volume        = string
-    data_attachment    = string
-    vault              = string
-    key                = string
-    reserved_public_ip = string
-    dynamic_group      = string
-    policy             = string
+    compartment             = string
+    vcn                     = string
+    internet_gateway        = string
+    nat_gateway             = string
+    service_gateway         = string
+    route_table             = string
+    public_edge_route_table = string
+    security_list           = string
+    subnet                  = string
+    public_edge_subnet      = string
+    nsg                     = string
+    nlb_nsg                 = string
+    network_load_balancer   = string
+    instance                = string
+    vnic                    = string
+    data_volume             = string
+    data_attachment         = string
+    vault                   = string
+    key                     = string
+    reserved_public_ip      = string
+    dynamic_group           = string
+    policy                  = string
   })
   default = {
-    compartment        = "liqi-v1-live"
-    vcn                = "liqi-v1-live-vcn"
-    internet_gateway   = "liqi-v1-live-internet-gateway"
-    route_table        = "liqi-v1-live-edge-routes"
-    security_list      = "liqi-v1-live-empty-security-list"
-    subnet             = "liqi-v1-live-edge-subnet"
-    nsg                = "liqi-v1-live-host-nsg"
-    instance           = "liqi-v1-live-host-01"
-    vnic               = "liqi-v1-live-host-vnic"
-    data_volume        = "liqi-v1-live-data"
-    data_attachment    = "liqi-v1-live-data-attachment"
-    vault              = "liqi-v1-live-vault"
-    key                = "liqi-v1-live-software-key"
-    reserved_public_ip = "liqi-v1-live-edge-ip"
-    dynamic_group      = "liqi_v1_live_host"
-    policy             = "liqi_v1_live_host_policy"
+    compartment             = "liqi-v1-live"
+    vcn                     = "liqi-v1-live-vcn"
+    internet_gateway        = "liqi-v1-live-internet-gateway"
+    nat_gateway             = "liqi-v1-live-nat-gateway"
+    service_gateway         = "liqi-v1-live-service-gateway"
+    route_table             = "liqi-v1-live-host-routes"
+    public_edge_route_table = "liqi-v1-live-public-edge-routes"
+    security_list           = "liqi-v1-live-empty-security-list"
+    subnet                  = "liqi-v1-live-host-subnet"
+    public_edge_subnet      = "liqi-v1-live-public-edge-subnet"
+    nsg                     = "liqi-v1-live-host-nsg"
+    nlb_nsg                 = "liqi-v1-live-public-edge-nsg"
+    network_load_balancer   = "liqi-v1-live-edge-nlb"
+    instance                = "liqi-v1-live-host-01"
+    vnic                    = "liqi-v1-live-host-vnic"
+    data_volume             = "liqi-v1-live-data"
+    data_attachment         = "liqi-v1-live-data-attachment"
+    vault                   = "liqi-v1-live-vault"
+    key                     = "liqi-v1-live-software-key"
+    reserved_public_ip      = "liqi-v1-live-edge-ip"
+    dynamic_group           = "liqi_v1_live_host"
+    policy                  = "liqi_v1_live_host_policy"
   }
   validation {
     condition = alltrue([
@@ -161,44 +178,35 @@ variable "apply_approval_reference" {
 }
 
 variable "acknowledge_capacity_availability_and_cost" {
-  description = "Explicit acknowledgement that the fixed 4/24 profile exceeds the documented 2 OCPU/12 GiB Always Free A1 limit and that capacity, quota and cost were reviewed for a read-only plan."
+  description = "Explicit acknowledgement that capacity, quota, expiry and E5 cost were reviewed."
   type        = bool
   default     = false
 }
 
 variable "enable_reserved_public_ip" {
-  description = "Use a reserved public IPv4 address after explicit cost/quota approval. Disabled by default."
+  description = "Use a reserved IPv4 for the public NLB after explicit cost/quota approval. Disabled by default."
   type        = bool
   default     = false
 }
 
 variable "acknowledge_reserved_public_ip" {
-  description = "Explicit acknowledgement required when reserved public IP is enabled."
+  description = "Explicit acknowledgement required when the NLB reserved public IP is enabled."
   type        = bool
   default     = false
 }
 
-variable "management_wireguard_peer_cidr" {
-  description = "Exact public IPv4 /32 of the independent management WireGuard peer. The OCI host initiates the encrypted tunnel; no public tunnel ingress is created."
-  type        = string
+variable "bastion_ssh_source_cidrs" {
+  description = "Exact OCI Bastion private /32 addresses allowed to reach host SSH."
+  type        = set(string)
+  default     = ["10.42.20.100/32", "10.42.20.109/32"]
   validation {
-    condition     = can(cidrhost(var.management_wireguard_peer_cidr, 0)) && can(regex("/32$", var.management_wireguard_peer_cidr))
-    error_message = "management_wireguard_peer_cidr must be an exact IPv4 /32 peer endpoint."
-  }
-}
-
-variable "management_wireguard_port" {
-  description = "UDP listener port on the independent management WireGuard peer."
-  type        = number
-  default     = 51820
-  validation {
-    condition     = var.management_wireguard_port >= 1 && var.management_wireguard_port <= 65535
-    error_message = "management_wireguard_port must be between 1 and 65535."
+    condition     = var.bastion_ssh_source_cidrs == toset(["10.42.20.100/32", "10.42.20.109/32"])
+    error_message = "bastion_ssh_source_cidrs must remain the two technically accepted OCI Bastion /32 addresses."
   }
 }
 
 variable "management_plane_evidence_id" {
-  description = "Exact-SHA evidence identifier for independent storage authority and encrypted private management connectivity."
+  description = "Evidence identifier for tested OCI Bastion/Run Command access and independent management authority."
   type        = string
   default     = ""
   validation {
@@ -220,7 +228,7 @@ variable "vault_secret_ocids" {
 }
 
 variable "state_backend_lock_evidence_id" {
-  description = "Machine evidence identifier proving TLS, PostgreSQL advisory locking, encrypted backup and isolated restore for the independent state backend."
+  description = "Evidence identifier proving TLS, PostgreSQL advisory locking, encrypted backup and isolated restore for the independent state backend."
   type        = string
   default     = ""
   validation {

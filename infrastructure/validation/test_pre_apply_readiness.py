@@ -67,21 +67,21 @@ class PreApplyReadinessTests(unittest.TestCase):
             path = self.write_json(root, "adoption.json", document)
             result, _ = module.adoption_check(path, SHA)
             self.assertEqual("passed", result["status"])
-            self.assertIn("may create 7", result["detail"])
+            self.assertIn(f"may create {len(all_addresses) - 7}", result["detail"])
 
     def test_protected_tfvars_pass_and_placeholders_block(self) -> None:
         now = datetime(2026, 7, 19, tzinfo=timezone.utc)
         expiry = (now + timedelta(days=30)).isoformat().replace("+00:00", "Z")
         valid = f'''tenancy_ocid = "ocid1.tenancy.oc1..live"
 region = "ap-singapore-2"
-availability_domain = "AP-SINGAPORE-2-AD-1"
+availability_domain = "nwuj:AP-SINGAPORE-2-AD-1"
 oracle_linux_image_ocid = "ocid1.image.oc1.ap-singapore-2.live"
 source_git_sha = "{SHA}"
 capacity_profile = "e5-temporary"
 temporary_e5_expires_at = "{expiry}"
 acknowledge_capacity_availability_and_cost = true
 operation_mode = "plan"
-management_wireguard_peer_cidr = "203.12.34.56/32"
+bastion_ssh_source_cidrs = ["10.42.20.100/32", "10.42.20.109/32"]
 management_plane_evidence_id = "management-evidence-v1"
 state_backend_lock_evidence_id = "state-evidence-v1"
 host_bundle_signing_key_id = "production-host-key-v1"
@@ -100,7 +100,7 @@ acknowledge_host_bundle_signing_key = true
             result, digest = module.tfvars_check(path, SHA, now)
             self.assertEqual("passed", result["status"])
             self.assertRegex(digest or "", r"^[0-9a-f]{64}$")
-            path.write_text(valid.replace('AP-SINGAPORE-2-AD-1', 'replace:AP-SINGAPORE-2-AD-1'), encoding="utf-8", newline="\n")
+            path.write_text(valid.replace('nwuj:AP-SINGAPORE-2-AD-1', 'nwuj:AP-SINGAPORE-2-AD-2'), encoding="utf-8", newline="\n")
             result, _ = module.tfvars_check(path, SHA, now)
             self.assertEqual("blocked", result["status"])
             self.assertIn("availability_domain", result["detail"])

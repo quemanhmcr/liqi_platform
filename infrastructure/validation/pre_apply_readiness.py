@@ -167,8 +167,9 @@ def tfvars_check(path: Path | None, git_sha: str, now: datetime) -> tuple[dict[s
         blockers.append("operation_mode must remain plan before saved-plan approval")
     if assignment(text, "source_git_sha") != git_sha:
         blockers.append("source_git_sha must match the exact checkout")
-    if assignment(text, "availability_domain") != "AP-SINGAPORE-2-AD-1":
-        blockers.append("availability_domain must be AP-SINGAPORE-2-AD-1")
+    availability_domain = assignment(text, "availability_domain") or ""
+    if not (availability_domain == "AP-SINGAPORE-2-AD-1" or availability_domain.endswith(":AP-SINGAPORE-2-AD-1")):
+        blockers.append("availability_domain must resolve to AP-SINGAPORE-2-AD-1")
     image = assignment(text, "oracle_linux_image_ocid") or ""
     if not image.startswith("ocid1.image.oc1.ap-singapore-2.") or "REPLACE" in image.upper():
         blockers.append("reviewed Singapore x86_64 Oracle Linux image OCID is missing")
@@ -184,9 +185,14 @@ def tfvars_check(path: Path | None, git_sha: str, now: datetime) -> tuple[dict[s
         blockers.append("reviewed production host-bundle key ID is missing")
     if "REPLACE_WITH_REVIEWED_ED25519_PUBLIC_KEY" in text or "-----BEGIN PUBLIC KEY-----" not in text:
         blockers.append("reviewed host-bundle Ed25519 public key is missing")
-    peer = assignment(text, "management_wireguard_peer_cidr") or ""
-    if not re.fullmatch(r"(?:\d{1,3}\.){3}\d{1,3}/32", peer) or peer.startswith(("192.0.2.", "198.51.100.", "203.0.113.")):
-        blockers.append("reviewed management WireGuard peer /32 is missing")
+    bastion_sources = {"10.42.20.100/32", "10.42.20.109/32"}
+    if not all(source in text for source in bastion_sources):
+        blockers.append("both technically accepted OCI Bastion /32 sources are required")
+    bastion_assignment = re.search(r"(?ms)^\s*bastion_ssh_source_cidrs\s*=\s*\[(.*?)\]", text)
+    if bastion_assignment is None or "0.0.0.0/0" in bastion_assignment.group(1):
+        blockers.append("Bastion SSH sources must remain exact and non-world")
+    if "management_wireguard_peer_cidr" in text:
+        blockers.append("superseded WireGuard management input is forbidden")
     expires = assignment(text, "temporary_e5_expires_at") or ""
     try:
         expiry = datetime.fromisoformat(expires.replace("Z", "+00:00"))

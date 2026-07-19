@@ -1,78 +1,79 @@
 {
-  "schema_version": "liqi.infrastructure.cost-classification/v1",
-  "environment": "v1-live",
+  "capacity_acknowledgement_required": true,
   "classification": "production-shaped-development",
+  "documented_always_free_a1": {
+    "memory_gib_total": 12,
+    "ocpus_total": 2
+  },
+  "environment": "v1-live",
+  "paid_resource_default_enabled": false,
+  "primary_source": "https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm",
+  "required_v1_a1": {
+    "memory_gib": 24,
+    "ocpus": 4
+  },
   "resources": [
     {
-      "resource": "VM.Standard.A1.Flex 4 OCPU / 24 GiB",
-      "classification": "free-trial-only",
-      "approval_required": true,
       "apply_allowed_under_current_approval": false,
-      "rationale": "Oracle documents Always Free A1 as 2 OCPUs and 12 GiB total. The required 4/24 profile exceeds that limit; read-only plan review is allowed after acknowledgement, but apply requires a new paid/non-billable entitlement approval and source revision."
+      "approval_required": true,
+      "classification": "free-trial-only",
+      "rationale": "Oracle documents Always Free A1 as 2 OCPUs and 12 GiB total. The required 4/24 profile exceeds that limit; read-only plan review is allowed after acknowledgement, but apply requires a new paid/non-billable entitlement approval and source revision.",
+      "resource": "VM.Standard.A1.Flex 4 OCPU / 24 GiB"
     },
     {
-      "resource": "VM.Standard.E5.Flex 4 OCPU / 24 GiB temporary bridge",
-      "classification": "paid-approved",
-      "approval_required": true,
       "apply_allowed_under_current_approval": true,
-      "rationale": "Temporary x86_64 bridge while A1 capacity is unavailable. Apply requires an explicit approval reference, a future expiry no more than 90 days away, and a reviewed source/plan bound to the E5 profile."
-    },
-    {
-      "resource": "boot plus block volume 180 GiB",
-      "classification": "always-free-eligible-tenancy-usage-dependent",
       "approval_required": true,
-      "rationale": "Oracle documents 200 GB combined boot and block volume Always Free storage in the home region; existing tenancy usage must be inspected before plan approval."
+      "classification": "paid-approved",
+      "rationale": "Temporary x86_64 bridge while A1 capacity is unavailable. Apply requires an explicit approval reference, a future expiry no more than 90 days away, and a reviewed source/plan bound to the E5 profile.",
+      "resource": "VM.Standard.E5.Flex 4 OCPU / 24 GiB temporary bridge"
     },
     {
-      "resource": "DEFAULT Vault with software-protected AES key",
+      "approval_required": true,
+      "classification": "always-free-eligible-tenancy-usage-dependent",
+      "rationale": "Oracle documents 200 GB combined boot and block volume Always Free storage in the home region; existing tenancy usage must be inspected before plan approval.",
+      "resource": "boot plus block volume 180 GiB"
+    },
+    {
+      "approval_required": false,
       "classification": "free",
-      "approval_required": false
+      "resource": "DEFAULT Vault with software-protected AES key"
     },
     {
-      "resource": "OCI Secret Management",
+      "approval_required": false,
       "classification": "free-with-service-limits",
-      "approval_required": false
+      "resource": "OCI Secret Management"
     },
     {
-      "resource": "reserved public IPv4",
+      "approval_required": true,
       "classification": "disabled-until-approved",
-      "approval_required": true
+      "resource": "reserved public IPv4"
     },
     {
-      "resource": "VCN, NSG, gateways, IAM",
+      "approval_required": false,
       "classification": "no-direct-resource-charge",
-      "approval_required": false
+      "rationale": "OCI VCN control-plane resources and Network Load Balancer have no direct hourly resource charge; public IPv4, traffic and external services remain separately reviewed.",
+      "resource": "VCN, NSG, NAT/Service/Internet Gateways, public Network Load Balancer, IAM"
     },
     {
-      "resource": "outbound-only WireGuard NSG rule to independent management peer",
+      "approval_required": false,
       "classification": "no-direct-resource-charge-external-peer-owner",
-      "approval_required": false
+      "resource": "outbound-only WireGuard NSG rule to independent management peer"
     },
     {
-      "resource": "independent management/storage hardware",
+      "approval_required": true,
       "classification": "external-owner-input-not-created-by-oci-plan",
-      "approval_required": true
+      "resource": "independent management/storage hardware"
     }
   ],
-  "paid_resource_default_enabled": false,
-  "capacity_acknowledgement_required": true,
   "reviewed_at": "2026-07-19",
-  "primary_source": "https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm",
-  "documented_always_free_a1": {
-    "ocpus_total": 2,
-    "memory_gib_total": 12
-  },
-  "required_v1_a1": {
-    "ocpus": 4,
-    "memory_gib": 24
-  },
+  "schema_version": "liqi.infrastructure.cost-classification/v1",
   "temporary_e5_policy": {
-    "profile": "e5-temporary",
-    "shape": "VM.Standard.E5.Flex",
-    "ocpus": 4,
-    "memory_gib": 24,
+    "default_enabled": false,
     "maximum_lifetime_days": 90,
+    "memory_gib": 24,
     "migration_target_profile": "a1-target",
-    "default_enabled": false
+    "ocpus": 4,
+    "profile": "e5-temporary",
+    "shape": "VM.Standard.E5.Flex"
   }
 }

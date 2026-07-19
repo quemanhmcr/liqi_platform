@@ -35,7 +35,7 @@ locals {
   common_tags = merge({
     "liqi-project"          = "liqi-platform"
     "liqi-environment"      = local.environment
-    "liqi-classification"   = "production-shaped-development"
+    "liqi-classification"   = "production"
     "liqi-managed-by"       = "opentofu"
     "liqi-source-sha"       = var.source_git_sha
     "liqi-capacity-profile" = var.capacity_profile
@@ -52,6 +52,17 @@ locals {
     http  = 80
     https = 443
   }
+
+  bastion_ssh_sources = {
+    "10.42.20.100/32" = "OCI Bastion service VNIC primary IP only"
+    "10.42.20.109/32" = "OCI Bastion private endpoint IP only"
+  }
+
+  regional_oracle_services = [
+    for service in data.oci_core_services.regional.services : service
+    if can(regex("^All .* Services In Oracle Services Network$", service.name))
+  ]
+  regional_oracle_service = one(local.regional_oracle_services)
 
   vault_secret_statements = [
     for secret_ocid in sort(tolist(var.vault_secret_ocids)) :

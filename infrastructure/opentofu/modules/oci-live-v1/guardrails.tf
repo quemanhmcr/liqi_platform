@@ -72,16 +72,19 @@ resource "terraform_data" "capacity_guard" {
 
 resource "terraform_data" "management_plane_guard" {
   input = {
-    peer_cidr                 = var.management_wireguard_peer_cidr
-    peer_port                 = var.management_wireguard_port
+    bastion_source_cidrs      = sort(tolist(var.bastion_ssh_source_cidrs))
     management_evidence_id    = var.management_plane_evidence_id
     state_backend_evidence_id = var.state_backend_lock_evidence_id
   }
 
   lifecycle {
     precondition {
+      condition     = var.bastion_ssh_source_cidrs == toset(["10.42.20.100/32", "10.42.20.109/32"])
+      error_message = "Management SSH must remain restricted to the two technically accepted OCI Bastion /32 addresses."
+    }
+    precondition {
       condition     = length(trimspace(var.management_plane_evidence_id)) >= 3
-      error_message = "Independent management/storage and reviewed WireGuard peer preflight evidence is required before a live plan."
+      error_message = "Tested OCI Bastion/Run Command and independent management authority evidence is required before a live plan."
     }
     precondition {
       condition     = length(trimspace(var.state_backend_lock_evidence_id)) >= 3

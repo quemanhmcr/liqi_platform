@@ -143,12 +143,21 @@ def validate_static_policy() -> None:
     module_text = "\n".join(path.read_text(encoding="utf-8") for path in sorted((INFRA / "opentofu/modules/oci-live-v1").glob("*.tf")))
     if "oci_vault_secret" in module_text or 'port = 22' in module_text or "enable_admin_ssh" in module_text:
         raise AssertionError("source introduces secret-in-state or SSH ingress")
-    for forbidden in ("oci_objectstorage_bucket", "oci_core_service_gateway", "Object Storage", "object_storage"):
+    for forbidden in ("oci_objectstorage_bucket", "Object Storage bucket", "object_storage_bucket"):
         if forbidden in module_text:
             raise AssertionError(f"V1 OCI module retains forbidden Object Storage dependency: {forbidden}")
-    for token in ("management_tunnel_egress", "management_wireguard_peer_cidr", "Compute Instance Run Command"):
+    for token in (
+        "oci_core_nat_gateway", "oci_core_service_gateway",
+        "oci_network_load_balancer_network_load_balancer",
+        "oci_network_load_balancer_listener", "oci_network_load_balancer_backend_set",
+        "10.42.20.100/32", "10.42.20.109/32", "Compute Instance Run Command",
+        'assign_public_ip = "false"', 'prohibit_public_ip_on_vnic = true',
+        'outbound_internet_path = "nat-gateway"', 'oracle_services_path   = "service-gateway"',
+    ):
         if token not in module_text:
-            raise AssertionError(f"V1 management bootstrap/tunnel source is missing {token}")
+            raise AssertionError(f"V1 private-host/NLB/Bastion source is missing {token}")
+    if "management_wireguard_peer_cidr" in module_text or "management_tunnel_egress" in module_text:
+        raise AssertionError("V1 source retains superseded WireGuard management assumptions")
     required_assignments = {
         "http": "80",
         "https": "443",

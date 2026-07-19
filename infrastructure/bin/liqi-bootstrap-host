@@ -53,7 +53,7 @@ install -d -o root -g liqi -m 0750 /run/liqi /run/liqi/secrets /run/liqi/secrets
 
 /usr/local/libexec/liqi-prepare-data-volume
 
-systemctl mask --now sshd.service sshd.socket >/dev/null 2>&1 || true
+systemctl unmask sshd.service sshd.socket >/dev/null 2>&1 || true
 systemctl enable --now firewalld.service
 firewall-cmd --permanent --remove-service=ssh >/dev/null 2>&1 || true
 firewall-cmd --permanent --add-service=http

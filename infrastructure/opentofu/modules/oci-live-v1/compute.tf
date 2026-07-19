@@ -11,7 +11,7 @@ resource "oci_core_instance" "host" {
   }
 
   create_vnic_details {
-    assign_public_ip = var.enable_reserved_public_ip ? "false" : "true"
+    assign_public_ip = "false"
     display_name     = var.resource_names.vnic
     hostname_label   = "host01"
     nsg_ids          = [oci_core_network_security_group.host.id]
@@ -50,10 +50,23 @@ resource "oci_core_instance" "host" {
   preserve_boot_volume = false
 
   lifecycle {
-    replace_triggered_by = [terraform_data.bootstrap_revision]
+    # The temporary E5 host is adopted after a separate technical-acceptance
+    # process. Immutable launch metadata is evidence-owned and must not trigger
+    # replacement during state adoption. The later A1 migration uses a new
+    # reviewed source revision and parallel instance rather than in-place drift.
+    ignore_changes = [
+      source_details,
+      metadata,
+      create_vnic_details,
+      availability_config,
+      preserve_boot_volume,
+    ]
     precondition {
-      condition     = local.capacity.architecture == "aarch64"
-      error_message = "V1 A1 host requires aarch64."
+      condition = (
+        (var.capacity_profile == "a1-target" && local.capacity.architecture == "aarch64") ||
+        (var.capacity_profile == "e5-temporary" && local.capacity.architecture == "x86_64")
+      )
+      error_message = "Capacity profile architecture does not match its reviewed target."
     }
   }
 
@@ -75,23 +88,4 @@ resource "oci_core_volume_attachment" "data" {
   is_pv_encryption_in_transit_enabled = true
   is_read_only                        = false
   is_shareable                        = false
-}
-
-data "oci_core_vnic_attachments" "host" {
-  compartment_id = oci_identity_compartment.environment.id
-  instance_id    = oci_core_instance.host.id
-}
-
-data "oci_core_private_ips" "host" {
-  vnic_id = one(data.oci_core_vnic_attachments.host.vnic_attachments).vnic_id
-}
-
-resource "oci_core_public_ip" "reserved" {
-  count = var.enable_reserved_public_ip ? 1 : 0
-
-  compartment_id = oci_identity_compartment.environment.id
-  display_name   = var.resource_names.reserved_public_ip
-  lifetime       = "RESERVED"
-  private_ip_id  = one([for address in data.oci_core_private_ips.host.private_ips : address.id if address.is_primary])
-  freeform_tags  = local.common_tags
 }
