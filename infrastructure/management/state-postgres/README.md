@@ -23,6 +23,7 @@ PGSERVICEFILE=/protected/path/pg_service.conf
 STATE_ADMIN_SERVICE=liqi-state-admin
 STATE_RUNTIME_SERVICE=liqi-state-runtime
 STATE_ROLE_PASSWORD_FILE=/protected/path/state-role-password
+STATE_RUNTIME_PASSFILE=/protected/path/runtime.pgpass
 STATE_BACKUP_PASSPHRASE_FILE=/protected/path/state-backup-passphrase
 STATE_BACKUP_DIR=/independent-storage/opentofu-state
 TF_ENCRYPTION=<protected OpenTofu encryption configuration>

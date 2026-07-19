@@ -232,6 +232,17 @@ class HostBundleTests(unittest.TestCase):
 
 
 
+class StateBackendBootstrapTests(unittest.TestCase):
+    def test_runtime_passfile_is_optional_protected_and_not_reported(self) -> None:
+        source = (ROOT / "infrastructure/management/state-postgres/scripts/bootstrap.sh").read_text(encoding="utf-8")
+        self.assertIn('STATE_RUNTIME_PASSFILE', source)
+        self.assertIn('protect_file "$STATE_RUNTIME_PASSFILE" 600', source)
+        self.assertIn("printf '%s:%s:%s:%s:%s\\n'", source)
+        result_line = next(line for line in source.splitlines() if 'ready-for-first-tofu-init' in line)
+        self.assertNotIn('role_credential', result_line)
+        self.assertNotIn('STATE_RUNTIME_PASSFILE', result_line)
+
+
 class AdoptionStateTests(unittest.TestCase):
     def test_state_ids_preserve_module_addresses_and_ids(self) -> None:
         state = {

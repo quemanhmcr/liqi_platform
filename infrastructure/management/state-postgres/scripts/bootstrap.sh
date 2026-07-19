@@ -5,6 +5,12 @@ validate_common; require_command psql; require_command createdb
 : "${STATE_ROLE_PASSWORD_FILE:?STATE_ROLE_PASSWORD_FILE is required}"
 require_file_0600 "$STATE_ROLE_PASSWORD_FILE"
 role_credential=$(cat "$STATE_ROLE_PASSWORD_FILE"); [ ${#role_credential} -ge 24 ] || fail 'state role password must be at least 24 characters'
+if [ -n "${STATE_RUNTIME_PASSFILE:-}" ]; then
+  runtime_host=${STATE_RUNTIME_HOST:-Admin.localdomain}
+  runtime_port=${STATE_RUNTIME_PORT:-55432}
+  printf '%s:%s:%s:%s:%s\n' "$runtime_host" "$runtime_port" "$STATE_DATABASE" "$STATE_ROLE" "$role_credential" > "$STATE_RUNTIME_PASSFILE"
+  protect_file "$STATE_RUNTIME_PASSFILE" 600
+fi
 tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT
 python - "$tmp" "$STATE_ROLE" "$role_credential" <<'PY2'
 import pathlib,sys
