@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2];RUNNER=ROOT/'scripts/operations/run_provider_gates.py';EXTRACT=ROOT/'scripts/operations/extract_provider_output.py';REG=ROOT/'tests/contract/fixtures/provider-gates/registry.json'
 class ExtractProviderOutputTests(unittest.TestCase):
  def test_extracts_passed_json_gate_by_id(self):
+  (ROOT/'.artifacts').mkdir(parents=True,exist_ok=True)
   with tempfile.TemporaryDirectory(dir=ROOT/'.artifacts') as tmp:
    base=Path(tmp);integration=base/'integration.json';evidence=base/'evidence';out=base/'selected.json'
    env=dict(__import__('os').environ);env['LIQI_TEST_PLAN_PATH']='C:/fixture/plan.json'
