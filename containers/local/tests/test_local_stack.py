@@ -65,6 +65,17 @@ class LocalContainerSourceTests(unittest.TestCase):
         self.assertIn("compose up --detach --no-deps pgbouncer", startup)
         self.assertIn("compose up --detach --no-deps runtime", startup)
 
+    def test_pgbouncer_version_matches_production_timeout_contract(self) -> None:
+        sidecars = (LOCAL / "Dockerfile.sidecars").read_text(encoding="utf-8")
+        config = (LOCAL / "config" / "pgbouncer.ini").read_text(encoding="utf-8")
+        production = (
+            ROOT / "infrastructure" / "packages" / "oracle-linux-9-aarch64-v1.json"
+        ).read_text(encoding="utf-8")
+        self.assertIn("PGBOUNCER_ALPINE_IMAGE=alpine:3.24.1@sha256:", sidecars)
+        self.assertIn("pgbouncer=1.25.2-r0", sidecars)
+        self.assertIn('"pgbouncer-1.25.2"', production)
+        self.assertIn("transaction_timeout = 60", config)
+
     def test_local_database_authentication_is_explicitly_scoped(self) -> None:
         compose = (LOCAL / "compose.yaml").read_text(encoding="utf-8")
         init = (LOCAL / "bin" / "database-init.sh").read_text(encoding="utf-8")

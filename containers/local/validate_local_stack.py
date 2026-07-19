@@ -94,6 +94,24 @@ def validate() -> list[str]:
                 f"{service_name} startup must not rerun completed one-shot dependencies"
             )
 
+    sidecar_dockerfile = (LOCAL / "Dockerfile.sidecars").read_text(encoding="utf-8")
+    local_match = re.search(r"pgbouncer=(\d+\.\d+\.\d+)-r\d+", sidecar_dockerfile)
+    production_text = (
+        ROOT / "infrastructure" / "packages" / "oracle-linux-9-aarch64-v1.json"
+    ).read_text(encoding="utf-8")
+    production_match = re.search(r'"pgbouncer-(\d+\.\d+\.\d+)"', production_text)
+    if local_match is None or production_match is None:
+        failures.append("PgBouncer version pins are not parseable")
+    else:
+        local_version = tuple(int(part) for part in local_match.group(1).split("."))
+        production_version = production_match.group(1)
+        if local_match.group(1) != production_version:
+            failures.append(
+                f"local PgBouncer {local_match.group(1)} differs from production {production_version}"
+            )
+        if "transaction_timeout" in pgbouncer and local_version < (1, 25, 0):
+            failures.append("transaction_timeout requires PgBouncer 1.25.0 or newer")
+
     runtime_dockerfile = (LOCAL / "Dockerfile.runtime").read_text(encoding="utf-8")
     config_copy = runtime_dockerfile.find("COPY beam/config beam/config")
     deps_get = runtime_dockerfile.find("mix deps.get --only prod --locked")
