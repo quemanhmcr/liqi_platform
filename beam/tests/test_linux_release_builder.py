@@ -53,9 +53,16 @@ class LinuxReleaseBuilderTests(unittest.TestCase):
             "artifact and manifest signing key IDs must be distinct",
             "artifact and manifest signing public keys must be distinct",
             "self-verification did not pass",
+            "BUILD_RESULT_SCHEMA",
+            "build_result.write_text",
             "os.replace(staged_output, final_output)",
         ):
             self.assertIn(token, source)
+
+    def test_build_result_is_written_before_atomic_publish(self) -> None:
+        source = PATH.read_text(encoding="utf-8")
+        self.assertLess(source.index("build_result.write_text"), source.index("os.replace(staged_output, final_output)"))
+
 
 
 if __name__ == "__main__":

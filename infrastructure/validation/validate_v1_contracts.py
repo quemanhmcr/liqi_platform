@@ -18,6 +18,7 @@ PAIRS = [
     ("contracts/infrastructure/host-bundle-v1.schema.json", "contracts/infrastructure/host-bundle-v1.example.json"),
     ("contracts/infrastructure/host-bundle-v1.schema.json", "contracts/infrastructure/host-bundle-v1.x86_64.example.json"),
     ("contracts/infrastructure/database-credentials-v1.schema.json", "contracts/infrastructure/database-credentials-v1.example.json"),
+    ("contracts/runtime/linux-release-build-result-v1.schema.json", "contracts/runtime/linux-release-build-result-v1.example.json"),
     ("contracts/deployment/mix-release-v1.schema.json", "contracts/deployment/mix-release-v1.example.json"),
     ("contracts/deployment/mix-release-v1.schema.json", "contracts/deployment/mix-release-v1.e5-temporary.example.json"),
     ("contracts/deployment/mix-deployment-v1.schema.json", "contracts/deployment/mix-deployment-v1.example.json"),

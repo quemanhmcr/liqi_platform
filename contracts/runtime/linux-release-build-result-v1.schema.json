@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.liqi.internal/runtime/linux-release-build-result-v1.schema.json",
+  "title": "LIQI exact-SHA Linux release build result V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "release_id", "git_sha", "target_triple", "status",
+    "build_on_host", "signing_mode", "manifest", "artifact",
+    "artifact_signature", "manifest_signature", "runtime_artifact_result",
+    "native_provider_manifest", "native_deployment_manifest", "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "liqi.runtime.linux-release-build-result/v1"},
+    "release_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"},
+    "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "target_triple": {"enum": ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"]},
+    "status": {"const": "passed"},
+    "build_on_host": {"const": false},
+    "signing_mode": {"const": "sigstore-keyless-native-plus-ed25519-release"},
+    "manifest": {"$ref": "#/$defs/json_file"},
+    "artifact": {"$ref": "#/$defs/archive_file"},
+    "artifact_signature": {"$ref": "#/$defs/signature_file"},
+    "manifest_signature": {"$ref": "#/$defs/signature_file"},
+    "runtime_artifact_result": {"$ref": "#/$defs/passed_json_file"},
+    "native_provider_manifest": {"$ref": "#/$defs/json_file"},
+    "native_deployment_manifest": {"$ref": "#/$defs/json_file"},
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "json_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filename", "sha256"],
+      "properties": {
+        "filename": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,191}\\.json$"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "passed_json_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filename", "sha256", "status"],
+      "properties": {
+        "filename": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,191}\\.json$"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "status": {"const": "passed"}
+      }
+    },
+    "archive_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filename", "sha256", "size_bytes"],
+      "properties": {
+        "filename": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\\.tar\\.gz$"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {"type": "integer", "minimum": 1, "maximum": 1073741824}
+      }
+    },
+    "signature_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filename", "sha256"],
+      "properties": {
+        "filename": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,191}\\.sig$"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

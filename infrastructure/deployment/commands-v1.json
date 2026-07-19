@@ -227,8 +227,29 @@
         "network access for locked Hex dependencies"
       ],
       "mutation": "build-and-sign-artifacts-only-no-host-or-oci-mutation",
-      "output": "mix-release-v1 plus runtime-artifact-result-v1 and complete native handoff",
-      "failure_policy": "reject dirty source, architecture mismatch, invalid native provenance/signature, shared signing key identity, non-deterministic archive shape or failed self-verification"
+      "output": "linux-release-build-result-v1 plus mix-release-v1, runtime-artifact-result-v1 and complete native handoff",
+      "failure_policy": "reject dirty source, architecture mismatch, invalid native provenance/signature, shared signing key identity, non-deterministic archive shape, non-portable result evidence or failed self-verification"
+    },
+    {
+      "id": "verify-linux-release-build-result",
+      "command": [
+        "python",
+        "beam/scripts/validate_linux_release_build_result.py",
+        "--result",
+        "<release-id>.linux-release-build-result-v1.json",
+        "--git-sha",
+        "<exact-sha>",
+        "--target-triple",
+        "x86_64-unknown-linux-gnu",
+        "--release-trust-dir",
+        "<release-public-key-dir>",
+        "--native-trust-dir",
+        "<native-public-key-dir>"
+      ],
+      "working_directory": "repository-root-clean-with-publication-directory",
+      "mutation": "none",
+      "output": "portable exact-SHA Linux release publication verification summary",
+      "failure_policy": "reject missing, symlinked, path-escaping, checksum-mismatched, signature-invalid, Sigstore-invalid or cross-target publication evidence"
     },
     {
       "id": "prepare-mix-deployment",

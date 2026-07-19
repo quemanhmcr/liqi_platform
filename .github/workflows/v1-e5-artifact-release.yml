@@ -219,6 +219,12 @@ jobs:
             --rollback-target-release-id "$ROLLBACK_ID" \
             --output-dir "$release_dir" \
             --build-jobs 2
+          python beam/scripts/validate_linux_release_build_result.py \
+            --result "$release_dir/${RELEASE_ID}.linux-release-build-result-v1.json" \
+            --git-sha "$GITHUB_SHA" \
+            --target-triple x86_64-unknown-linux-gnu \
+            --release-trust-dir "$RUNNER_TEMP/liqi-public-trust/release" \
+            --native-trust-dir "$RUNNER_TEMP/liqi-public-trust/native"
 
       - name: Assemble public publication package
         run: |

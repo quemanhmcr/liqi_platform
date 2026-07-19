@@ -110,6 +110,8 @@ defmodule Liqi.Runtime.ContractSourceTest do
           "contracts/runtime/runtime-source-result-v1.schema.json",
           "contracts/runtime/runtime-integration-result-v1.schema.json",
           "contracts/runtime/runtime-artifact-result-v1.schema.json",
+          "contracts/runtime/linux-release-build-result-v1.schema.json",
+          "contracts/runtime/linux-release-build-result-v1.example.json",
           "beam/release/mix-release-provider-v1.example.json",
           "beam/release/mix-release-provider-v1.e5-temporary.example.json"
         ] do

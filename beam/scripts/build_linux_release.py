@@ -23,6 +23,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[2]
 MIX_SCHEMA = ROOT / "contracts/deployment/mix-release-v1.schema.json"
+BUILD_RESULT_SCHEMA = ROOT / "contracts/runtime/linux-release-build-result-v1.schema.json"
 NATIVE_SCHEMA = ROOT / "contracts/native/native-artifact-v1.schema.json"
 DEPLOYMENT_NATIVE_SCHEMA = ROOT / "contracts/deployment/native-artifact-v1.schema.json"
 NATIVE_HANDOFF_VERIFIER = ROOT / "native/scripts/verify_deployment_manifest.py"
@@ -472,19 +473,34 @@ def main() -> int:
             raise RuntimeError("self-verification did not pass")
         os.chmod(runtime_result, 0o640)
 
+        native_provider_copy = staged_output / args.native_provider_manifest.resolve().name
+        native_deployment_copy = staged_output / args.native_deployment_manifest.resolve().name
+        build_result_name = f"{args.release_id}.linux-release-build-result-v1.json"
+        result = {
+            "schema_version": "liqi.runtime.linux-release-build-result/v1",
+            "release_id": args.release_id,
+            "git_sha": git_sha,
+            "target_triple": args.target_triple,
+            "status": "passed",
+            "build_on_host": False,
+            "signing_mode": "sigstore-keyless-native-plus-ed25519-release",
+            "manifest": {"filename": manifest_path.name, "sha256": digest(manifest_path)},
+            "artifact": {"filename": archive.name, "sha256": digest(archive), "size_bytes": archive.stat().st_size},
+            "artifact_signature": {"filename": artifact_signature.name, "sha256": digest(artifact_signature)},
+            "manifest_signature": {"filename": manifest_signature.name, "sha256": digest(manifest_signature)},
+            "runtime_artifact_result": {"filename": runtime_result.name, "sha256": digest(runtime_result), "status": result_document["status"]},
+            "native_provider_manifest": {"filename": native_provider_copy.name, "sha256": digest(native_provider_copy)},
+            "native_deployment_manifest": {"filename": native_deployment_copy.name, "sha256": digest(native_deployment_copy)},
+            "created_at": created_at,
+        }
+        validate(BUILD_RESULT_SCHEMA, result, "Linux release build result")
+        build_result = staged_output / build_result_name
+        build_result.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+        os.chmod(build_result, 0o640)
+
         os.replace(staged_output, final_output)
 
-    result = {
-        "schema_version": "liqi.runtime.linux-release-build-result/v1",
-        "release_id": args.release_id,
-        "git_sha": git_sha,
-        "target_triple": args.target_triple,
-        "status": "passed",
-        "manifest": {"path": str(final_output / manifest_name), "sha256": digest(final_output / manifest_name)},
-        "artifact": {"path": str(final_output / archive_name), "sha256": digest(final_output / archive_name)},
-        "runtime_artifact_result": {"path": str(final_output / runtime_result.name), "sha256": digest(final_output / runtime_result.name)},
-    }
-    print(json.dumps(result, indent=2, sort_keys=True))
+    print(json.dumps(load(final_output / build_result_name), indent=2, sort_keys=True))
     return 0
 
 

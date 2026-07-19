@@ -43,3 +43,5 @@ The builder uses a temporary `git archive`, injects only the verified NIF, creat
 ## A1 migration
 
 A1 remains the target profile. Migration requires an A1 capacity event, a separately reviewed source/plan, an `aarch64-unknown-linux-gnu` release and NIF, preserved data/recovery authority and a health-gated host switch. No database down migration or durable dual write is permitted.
+
+- The signed release output includes a schema-validated portable `*.linux-release-build-result-v1.json` in the same atomic publication directory.
