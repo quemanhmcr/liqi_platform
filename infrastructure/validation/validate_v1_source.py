@@ -212,6 +212,8 @@ def validate_static_policy() -> None:
     for token in (
         "sslmode=verify-full", "postgresql-advisory-locks", "state-backend-evidence-v1",
         "WITH SET TRUE, INHERIT FALSE", "REVOKE %I FROM %I", "protect_file",
+        "state runtime role must never be superuser or replication-capable",
+        "ALTER ROLE %I LOGIN NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD",
         "unexpected Windows principal",
     ):
         if token not in management_text:

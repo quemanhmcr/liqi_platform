@@ -20,8 +20,12 @@ pathlib.Path(path).write_text(f"""DO $$
 BEGIN
  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname={q(role)}) THEN
   EXECUTE format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION PASSWORD %L',{q(role)},{q(role_credential)});
+ ELSIF EXISTS (SELECT 1 FROM pg_roles WHERE rolname={q(role)} AND (rolsuper OR rolreplication)) THEN
+  RAISE EXCEPTION 'state runtime role must never be superuser or replication-capable';
  ELSE
-  EXECUTE format('ALTER ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION PASSWORD %L',{q(role)},{q(role_credential)});
+  -- PostgreSQL 17 permits CREATEROLE to manage ordinary role attributes, but
+  -- only a superuser may restate SUPERUSER/REPLICATION flags on ALTER ROLE.
+  EXECUTE format('ALTER ROLE %I LOGIN NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD %L',{q(role)},{q(role_credential)});
  END IF;
 END $$;
 """,encoding='utf-8')
