@@ -24,5 +24,5 @@ from datetime import datetime,timezone
 from pathlib import Path
 Path(sys.argv[1]).write_text(json.dumps({"schema_version":"liqi.infrastructure.state-lock-result/v1","observed_at":datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),"started_at":sys.argv[2],"mechanism":"postgresql-advisory-locks","contender_rejected":True,"contender_exit_code":int(sys.argv[3]),"status":"passed"},indent=2,sort_keys=True)+'\n',encoding='utf-8')
 PY2
-chmod 600 "$output"; printf 'state_lock_evidence=%s
+protect_file "$output" 600; printf 'state_lock_evidence=%s
 ' "$output"

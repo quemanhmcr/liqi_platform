@@ -20,7 +20,7 @@ BEGIN
 END $$;
 """,encoding='utf-8')
 PY2
-chmod 600 "$tmp"
+protect_file "$tmp" 600
 psql "service=$STATE_ADMIN_SERVICE dbname=postgres" -v ON_ERROR_STOP=1 -f "$tmp" >/dev/null
 exists=$(psql "service=$STATE_ADMIN_SERVICE dbname=postgres" -Atqc "SELECT 1 FROM pg_database WHERE datname='$STATE_DATABASE'")
 [ "$exists" = 1 ] || createdb --maintenance-db="service=$STATE_ADMIN_SERVICE dbname=postgres" "$STATE_DATABASE"

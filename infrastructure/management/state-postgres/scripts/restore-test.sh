@@ -16,5 +16,5 @@ from datetime import datetime,timezone
 from pathlib import Path
 Path(sys.argv[1]).write_text(json.dumps({"schema_version":"liqi.infrastructure.state-restore-result/v1","observed_at":datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),"isolated":True,"state_table_verified":True,"cleanup_required":True,"status":"passed"},indent=2,sort_keys=True)+'\n',encoding='utf-8')
 PY2
-chmod 600 "$output"; printf 'state_restore_evidence=%s
+protect_file "$output" 600; printf 'state_restore_evidence=%s
 ' "$output"

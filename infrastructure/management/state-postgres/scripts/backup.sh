@@ -15,6 +15,6 @@ from datetime import datetime,timezone
 from pathlib import Path
 archive=Path(sys.argv[2]); doc={"schema_version":"liqi.infrastructure.state-backup-result/v1","observed_at":datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),"database":"liqi_infra_state","schema":"opentofu_v1_live","encrypted":True,"off_host_from_oci_application":True,"archive":archive.name,"archive_sha256":hashlib.sha256(archive.read_bytes()).hexdigest(),"status":"passed"}; Path(sys.argv[1]).write_text(json.dumps(doc,indent=2,sort_keys=True)+'\n',encoding='utf-8')
 PY2
-chmod 400 "$base.gpg" "$base.gpg.sha256" "$base.manifest.json"; cp "$base.manifest.json" "$output"; chmod 600 "$output"; printf 'state_backup_manifest=%s
+protect_file "$base.gpg" 400; protect_file "$base.gpg.sha256" 400; protect_file "$base.manifest.json" 400; cp "$base.manifest.json" "$output"; protect_file "$output" 600; printf 'state_backup_manifest=%s
 state_backup_evidence=%s
 ' "$base.manifest.json" "$output"
