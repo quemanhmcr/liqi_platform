@@ -233,6 +233,19 @@ class HostBundleTests(unittest.TestCase):
 
 
 class StateBackendBootstrapTests(unittest.TestCase):
+    def test_protected_environment_enforces_tls_and_encryption_without_logging_material(self) -> None:
+        source = (ROOT / "infrastructure/management/state-postgres/scripts/with-protected-environment.sh").read_text(encoding="utf-8")
+        for token in (
+            "STATE_RUNTIME_CREDENTIAL_FILE", "STATE_ENCRYPTION_PASSPHRASE_FILE", "PGPASSFILE",
+            "sslmode=verify-full", "PG_SKIP_SCHEMA_CREATION", "PG_SKIP_TABLE_CREATION",
+            "PG_SKIP_INDEX_CREATION", "pbkdf2", "aes_gcm", "600000", "sha512",
+            'exec "$@"',
+        ):
+            self.assertIn(token, source)
+        self.assertNotIn("set -x", source)
+        self.assertNotIn("echo $runtime_credential", source)
+        self.assertNotIn("echo $encryption_passphrase", source)
+
     def test_runtime_passfile_is_optional_protected_and_not_reported(self) -> None:
         source = (ROOT / "infrastructure/management/state-postgres/scripts/bootstrap.sh").read_text(encoding="utf-8")
         self.assertIn('STATE_RUNTIME_PASSFILE', source)

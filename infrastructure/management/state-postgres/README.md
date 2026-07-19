@@ -24,6 +24,9 @@ STATE_ADMIN_SERVICE=liqi-state-admin
 STATE_RUNTIME_SERVICE=liqi-state-runtime
 STATE_ROLE_PASSWORD_FILE=/protected/path/state-role-password
 STATE_RUNTIME_PASSFILE=/protected/path/runtime.pgpass
+STATE_RUNTIME_CREDENTIAL_FILE=/protected/path/state-role-password
+STATE_ENCRYPTION_PASSPHRASE_FILE=/protected/path/state-encryption-passphrase
+PGPASSFILE=/protected/path/runtime.pgpass
 STATE_BACKUP_PASSPHRASE_FILE=/protected/path/state-backup-passphrase
 STATE_BACKUP_DIR=/independent-storage/opentofu-state
 TF_ENCRYPTION=<protected OpenTofu encryption configuration>
@@ -37,7 +40,7 @@ The runtime OpenTofu shell must export `PG_CONN_STR` with `sslmode=verify-full`,
 ```bash
 ./scripts/bootstrap.sh
 # First init only, with temporary schema/table/index creation privileges.
-tofu -chdir=../../opentofu/environments/v1-live init -reconfigure -input=false
+./scripts/with-protected-environment.sh tofu -chdir=../../opentofu/environments/v1-live init -reconfigure -input=false
 ./scripts/finalize-privileges.sh
 ./scripts/test-locking.sh --output /protected/evidence/locking.json
 ./scripts/backup.sh --output /protected/evidence/backup.json
