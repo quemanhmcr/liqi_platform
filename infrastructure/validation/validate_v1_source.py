@@ -214,7 +214,10 @@ def validate_static_policy() -> None:
         "WITH SET TRUE, INHERIT FALSE", "REVOKE %I FROM %I", "protect_file",
         "state runtime role must never be superuser or replication-capable",
         "ALTER ROLE %I LOGIN NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD",
-        "count(*)=1", "pg_get_userbyid(nspowner)=:'r'", "unexpected Windows principal",
+        "count(*)=1", "pg_get_userbyid(nspowner)=:'r'",
+        "ALTER SCHEMA %I OWNER TO %I", "ALTER TABLE %I.states OWNER TO %I",
+        "ALTER SEQUENCE public.global_states_id_seq OWNER TO %I",
+        "unexpected Windows principal",
     ):
         if token not in management_text:
             raise AssertionError(f"self-hosted state provider is missing {token}")
