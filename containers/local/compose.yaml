@@ -157,6 +157,8 @@ services:
       - endpoint_secret
       - probe_token
       - drain_token
+    group_add:
+      - ${LIQI_LOCAL_SECRET_GID:?LIQI_LOCAL_SECRET_GID is required}
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777

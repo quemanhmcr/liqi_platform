@@ -15,6 +15,7 @@ NAMES = {
     "probe_token": 64,
     "drain_token": 64,
 }
+SECRET_MODE = 0o640
 
 
 def digest(path: Path) -> str:
@@ -34,7 +35,7 @@ def write_secret(path: Path, length: int) -> None:
         stream.write(secrets.token_hex(length // 2) + "\n")
         stream.flush()
         os.fsync(stream.fileno())
-    os.chmod(temporary, 0o600)
+    os.chmod(temporary, SECRET_MODE)
     os.replace(temporary, path)
 
 
@@ -56,6 +57,7 @@ def main() -> int:
     for name, length in NAMES.items():
         path = secrets_dir / name
         if valid(path, length) and not args.rotate:
+            os.chmod(path, SECRET_MODE)
             reused.append(name)
             continue
         if path.exists() and not args.rotate:
@@ -68,7 +70,12 @@ def main() -> int:
         "observed_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "rotation_requested": args.rotate,
         "files": {
-            name: {"sha256": digest(secrets_dir / name), "bytes": (secrets_dir / name).stat().st_size}
+            name: {
+                "sha256": digest(secrets_dir / name),
+                "bytes": (secrets_dir / name).stat().st_size,
+                "gid": (secrets_dir / name).stat().st_gid,
+                "mode": f"{(secrets_dir / name).stat().st_mode & 0o777:04o}",
+            }
             for name in sorted(NAMES)
         },
     }
