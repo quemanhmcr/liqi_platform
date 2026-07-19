@@ -56,7 +56,16 @@ def oci(profile: str, region: str, *args: str) -> Any:
     completed = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, timeout=120)
     if completed.returncode != 0:
         raise RuntimeError(completed.stderr.strip() or f"OCI command failed: {' '.join(command[:4])}")
-    return json.loads(completed.stdout).get("data")
+    payload = completed.stdout.strip()
+    if not payload:
+        if "list" in args:
+            return []
+        raise RuntimeError("OCI get command returned empty JSON")
+    try:
+        document = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("OCI command returned invalid JSON") from exc
+    return document.get("data")
 
 
 def one(items: list[dict[str, Any]], field: str, value: str) -> dict[str, Any] | None:

@@ -5,6 +5,7 @@ import importlib.util
 from importlib.machinery import SourceFileLoader
 import json
 import sys
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -20,6 +21,7 @@ from infrastructure.deployment import enable_backup_timers
 from infrastructure.deployment import release_control
 from infrastructure.deployment import prepare_mix_deployment
 from infrastructure.deployment import configure_live_edge
+from infrastructure.deployment import discover_v1_live_adoption
 from infrastructure.deployment import stage_mix_release
 from infrastructure.validation import validate_adoption_result
 from infrastructure.validation import validate_v1_plan
@@ -195,6 +197,13 @@ class AdoptionStateTests(unittest.TestCase):
         redacted = adopt_v1_live_state.redact("failure for ocid1.instance.oc1.ap-singapore-2.secret-value")
         self.assertNotIn("secret-value", redacted)
         self.assertIn("<oci-id-redacted>", redacted)
+
+    def test_oci_empty_list_is_empty_but_empty_get_fails(self) -> None:
+        completed = subprocess.CompletedProcess(["oci"], 0, stdout="", stderr="")
+        with patch("infrastructure.deployment.discover_v1_live_adoption.subprocess.run", return_value=completed):
+            self.assertEqual(discover_v1_live_adoption.oci("DEFAULT", "ap-singapore-2", "bv", "volume", "list"), [])
+            with self.assertRaises(RuntimeError):
+                discover_v1_live_adoption.oci("DEFAULT", "ap-singapore-2", "bv", "volume", "get")
 
     def test_exact_adoption_result_requires_executed_pass(self) -> None:
         document = json.loads((ROOT / "contracts/infrastructure/adoption-result-v1.example.json").read_text(encoding="utf-8"))
