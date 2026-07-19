@@ -34,6 +34,18 @@ def elf64(machine: int) -> bytes:
 
 
 class ArtifactArchitectureTests(unittest.TestCase):
+    def test_native_build_entrypoints_are_executable_in_git(self) -> None:
+        import subprocess
+
+        paths = (
+            "native/scripts/build-linux-artifact.sh",
+            "native/scripts/build-arm64-artifact.sh",
+            "native/scripts/build-x86_64-artifact.sh",
+        )
+        output = subprocess.check_output(["git", "ls-files", "-s", *paths], cwd=ROOT, text=True)
+        modes = {line.split()[3]: line.split()[0] for line in output.splitlines()}
+        self.assertEqual({path: "100755" for path in paths}, modes)
+
     def test_reviewed_target_pairings_are_exact(self) -> None:
         self.assertEqual(
             {
