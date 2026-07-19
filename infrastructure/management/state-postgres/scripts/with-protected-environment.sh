@@ -29,6 +29,29 @@ export PG_SCHEMA_NAME="$STATE_SCHEMA"
 export PG_SKIP_SCHEMA_CREATION=${PG_SKIP_SCHEMA_CREATION:-true}
 export PG_SKIP_TABLE_CREATION=${PG_SKIP_TABLE_CREATION:-true}
 export PG_SKIP_INDEX_CREATION=${PG_SKIP_INDEX_CREATION:-true}
-export TF_ENCRYPTION="key_provider \"pbkdf2\" \"liqi_state_v1\" { passphrase = \"$encryption_passphrase\" iterations = 600000 hash_function = \"sha512\" encrypted_metadata_alias = \"liqi-state-v1\" } method \"aes_gcm\" \"liqi_state_v1\" { keys = key_provider.pbkdf2.liqi_state_v1 } state { method = method.aes_gcm.liqi_state_v1 } plan { method = method.aes_gcm.liqi_state_v1 }"
+TF_ENCRYPTION=$(cat <<EOF_HCL
+key_provider "pbkdf2" "liqi_state_v1" {
+  passphrase               = "$encryption_passphrase"
+  key_length               = 32
+  iterations               = 600000
+  salt_length              = 32
+  hash_function            = "sha512"
+  encrypted_metadata_alias = "liqi-state-v1"
+}
+
+method "aes_gcm" "liqi_state_v1" {
+  keys = key_provider.pbkdf2.liqi_state_v1
+}
+
+state {
+  method = method.aes_gcm.liqi_state_v1
+}
+
+plan {
+  method = method.aes_gcm.liqi_state_v1
+}
+EOF_HCL
+)
+export TF_ENCRYPTION
 
 exec "$@"
