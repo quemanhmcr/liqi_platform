@@ -46,6 +46,20 @@ class ArtifactArchitectureTests(unittest.TestCase):
         modes = {line.split()[3]: line.split()[0] for line in output.splitlines()}
         self.assertEqual({path: "100755" for path in paths}, modes)
 
+    def test_native_build_output_is_atomic_and_non_overwriting(self) -> None:
+        builder = (ROOT / "native/scripts/build-linux-artifact.sh").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/v1-e5-artifact-release.yml").read_text(encoding="utf-8")
+        for token in (
+            "native output directory already exists",
+            "STAGING_DIR=$(mktemp -d",
+            'mv -- "$STAGING_DIR" "$OUTPUT_DIR"',
+            "trap - EXIT",
+            'FINAL_ARTIFACT="$OUTPUT_DIR/$ARTIFACT_NAME"',
+        ):
+            self.assertIn(token, builder)
+        self.assertIn('test ! -e "$native_dir"', workflow)
+        self.assertNotIn('install -d -m 0750 "$native_dir"', workflow)
+
     def test_reviewed_target_pairings_are_exact(self) -> None:
         self.assertEqual(
             {

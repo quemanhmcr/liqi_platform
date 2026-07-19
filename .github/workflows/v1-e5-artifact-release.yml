@@ -155,7 +155,7 @@ jobs:
         run: |
           set -euo pipefail
           native_dir="$RUNNER_TEMP/liqi-native-output"
-          install -d -m 0750 "$native_dir"
+          test ! -e "$native_dir"
           LIQI_RELEASE_ID="$RELEASE_ID" \
           LIQI_SOURCE_REVISION="$GITHUB_SHA" \
           LIQI_NATIVE_BUILD_JOBS=2 \

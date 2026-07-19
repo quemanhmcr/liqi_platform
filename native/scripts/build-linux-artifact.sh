@@ -44,11 +44,18 @@ DISK_AVAILABLE_KIB=$(df -Pk "$ROOT_DIR" | awk 'NR==2 {print $4}')
 (( DISK_AVAILABLE_KIB >= 4194304 )) || { printf 'at least 4 GiB available disk is required before native build\n' >&2; exit 69; }
 
 [[ -n "$OUTPUT_DIR" ]] || OUTPUT_DIR="$ROOT_DIR/.artifacts/native/$RELEASE_ID"
-mkdir -p "$OUTPUT_DIR"
-OUTPUT_DIR=$(cd "$OUTPUT_DIR" && pwd)
+OUTPUT_PARENT=$(dirname "$OUTPUT_DIR")
+OUTPUT_NAME=$(basename "$OUTPUT_DIR")
+[[ "$OUTPUT_NAME" != '.' && "$OUTPUT_NAME" != '..' ]] || { printf 'LIQI_NATIVE_OUTPUT_DIR must name a new directory\n' >&2; exit 64; }
+mkdir -p "$OUTPUT_PARENT"
+OUTPUT_PARENT=$(cd "$OUTPUT_PARENT" && pwd)
+OUTPUT_DIR="$OUTPUT_PARENT/$OUTPUT_NAME"
+[[ ! -e "$OUTPUT_DIR" && ! -L "$OUTPUT_DIR" ]] || { printf 'native output directory already exists: %s\n' "$OUTPUT_DIR" >&2; exit 65; }
+STAGING_DIR=$(mktemp -d "$OUTPUT_PARENT/.${OUTPUT_NAME}.tmp.XXXXXX")
+trap 'rm -rf "$STAGING_DIR"' EXIT
 ARTIFACT_NAME='libliqi_sequence_diff_nif.so'
 BUILT_ARTIFACT="$ROOT_DIR/target/$TARGET_TRIPLE/nif-release/$ARTIFACT_NAME"
-OUTPUT_ARTIFACT="$OUTPUT_DIR/$ARTIFACT_NAME"
+OUTPUT_ARTIFACT="$STAGING_DIR/$ARTIFACT_NAME"
 
 export CARGO_INCREMENTAL=0
 export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-$(git show -s --format=%ct "$SOURCE_REVISION")}
@@ -69,8 +76,11 @@ if machine!=expected:
 PY
 install -m 0755 "$BUILT_ARTIFACT" "$OUTPUT_ARTIFACT"
 sha256sum "$OUTPUT_ARTIFACT" > "$OUTPUT_ARTIFACT.sha256"
+mv -- "$STAGING_DIR" "$OUTPUT_DIR"
+trap - EXIT
+FINAL_ARTIFACT="$OUTPUT_DIR/$ARTIFACT_NAME"
 
-python - "$OUTPUT_ARTIFACT" "$SOURCE_REVISION" "$RELEASE_ID" "$TARGET_TRIPLE" <<'PY'
+python - "$FINAL_ARTIFACT" "$SOURCE_REVISION" "$RELEASE_ID" "$TARGET_TRIPLE" <<'PY'
 import hashlib,json,sys
 from pathlib import Path
 artifact=Path(sys.argv[1])
