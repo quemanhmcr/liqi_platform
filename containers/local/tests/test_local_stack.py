@@ -59,6 +59,12 @@ class LocalContainerSourceTests(unittest.TestCase):
             rotated = {path.name: path.read_text(encoding="ascii") for path in (state / "secrets").iterdir()}
             self.assertTrue(all(rotated[name] != values[name] for name in values))
 
+    def test_startup_does_not_rerun_completed_database_init(self) -> None:
+        startup = (LOCAL / "bin" / "up.sh").read_text(encoding="utf-8")
+        self.assertIn("compose up --no-deps db-init", startup)
+        self.assertIn("compose up --detach --no-deps pgbouncer", startup)
+        self.assertIn("compose up --detach --no-deps runtime", startup)
+
     def test_local_database_authentication_is_explicitly_scoped(self) -> None:
         compose = (LOCAL / "compose.yaml").read_text(encoding="utf-8")
         init = (LOCAL / "bin" / "database-init.sh").read_text(encoding="utf-8")

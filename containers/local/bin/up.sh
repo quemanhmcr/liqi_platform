@@ -24,9 +24,9 @@ compose build runtime
 compose up --detach postgres pod
 wait_healthy postgres 120
 compose up --no-deps db-init
-compose up --detach pgbouncer
+compose up --detach --no-deps pgbouncer
 wait_healthy pgbouncer 120
-compose up --detach runtime
+compose up --detach --no-deps runtime
 wait_healthy runtime 180
 wait_healthy pod 60
 

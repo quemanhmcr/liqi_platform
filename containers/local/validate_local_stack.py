@@ -86,6 +86,14 @@ def validate() -> list[str]:
         if token not in pgbouncer:
             failures.append(f"local pgBouncer invariant missing: {token}")
 
+    up_script = (LOCAL / "bin" / "up.sh").read_text(encoding="utf-8")
+    for service_name in ("pgbouncer", "runtime"):
+        command = f"compose up --detach --no-deps {service_name}"
+        if command not in up_script:
+            failures.append(
+                f"{service_name} startup must not rerun completed one-shot dependencies"
+            )
+
     runtime_dockerfile = (LOCAL / "Dockerfile.runtime").read_text(encoding="utf-8")
     config_copy = runtime_dockerfile.find("COPY beam/config beam/config")
     deps_get = runtime_dockerfile.find("mix deps.get --only prod --locked")
