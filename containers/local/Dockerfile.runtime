@@ -42,6 +42,7 @@ COPY mix.exs mix.lock .formatter.exs ./
 COPY beam/apps/liqi_persistence/mix.exs beam/apps/liqi_persistence/mix.exs
 COPY beam/apps/liqi_jobs/mix.exs beam/apps/liqi_jobs/mix.exs
 COPY native/elixir/mix.exs native/elixir/mix.exs
+COPY beam/config beam/config
 RUN mix local.hex --force \
     && mix local.rebar --force \
     && mix deps.get --only prod --locked

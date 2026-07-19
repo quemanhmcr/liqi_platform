@@ -86,6 +86,12 @@ def validate() -> list[str]:
         if token not in pgbouncer:
             failures.append(f"local pgBouncer invariant missing: {token}")
 
+    runtime_dockerfile = (LOCAL / "Dockerfile.runtime").read_text(encoding="utf-8")
+    config_copy = runtime_dockerfile.find("COPY beam/config beam/config")
+    deps_get = runtime_dockerfile.find("mix deps.get --only prod --locked")
+    if config_copy < 0 or deps_get < 0 or config_copy > deps_get:
+        failures.append("runtime Docker dependency layer must copy beam/config before deps.get")
+
     for dockerfile in (LOCAL / "Dockerfile.runtime", LOCAL / "Dockerfile.sidecars"):
         text = dockerfile.read_text(encoding="utf-8")
         if ":latest" in text or "FROM latest" in text:
