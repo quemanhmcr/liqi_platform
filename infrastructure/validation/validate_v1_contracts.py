@@ -16,13 +16,16 @@ PAIRS = [
     ("contracts/infrastructure/host-runtime-v1.schema.json", "contracts/infrastructure/host-runtime-v1.example.json"),
     ("contracts/infrastructure/secret-mapping-v1.schema.json", "contracts/infrastructure/secret-mapping-v1.example.json"),
     ("contracts/infrastructure/host-bundle-v1.schema.json", "contracts/infrastructure/host-bundle-v1.example.json"),
+    ("contracts/infrastructure/host-bundle-v1.schema.json", "contracts/infrastructure/host-bundle-v1.x86_64.example.json"),
     ("contracts/infrastructure/database-credentials-v1.schema.json", "contracts/infrastructure/database-credentials-v1.example.json"),
     ("contracts/deployment/mix-release-v1.schema.json", "contracts/deployment/mix-release-v1.example.json"),
+    ("contracts/deployment/mix-release-v1.schema.json", "contracts/deployment/mix-release-v1.e5-temporary.example.json"),
     ("contracts/deployment/mix-deployment-v1.schema.json", "contracts/deployment/mix-deployment-v1.example.json"),
     ("contracts/deployment/v0-rollback-compatibility-v1.schema.json", "contracts/deployment/v0-rollback-compatibility-v1.example.json"),
     ("contracts/deployment/release-target-v1.schema.json", "contracts/deployment/release-target-v1.example.json"),
     ("contracts/deployment/installed-release-v1.schema.json", "contracts/deployment/installed-release-v1.example.json"),
     ("contracts/deployment/native-artifact-v1.schema.json", "contracts/deployment/native-artifact-v1.example.json"),
+    ("contracts/deployment/native-artifact-v1.schema.json", "contracts/deployment/native-artifact-v1.x86_64.example.json"),
     ("contracts/deployment/native-authorization-result-v1.schema.json", "contracts/deployment/native-authorization-result-v1.example.json"),
     ("contracts/deployment/activation-v1.schema.json", "contracts/deployment/activation-v1.example.json"),
     ("contracts/deployment/rollback-v1.schema.json", "contracts/deployment/rollback-v1.example.json"),
@@ -67,6 +70,22 @@ def main() -> int:
     addresses = [item["address"] for item in adoption["imports"]]
     if len(addresses) != len(set(addresses)):
         failures.append("adoption manifest import addresses must be unique")
+
+    target_pairs = {
+        "aarch64-unknown-linux-gnu": "aarch64",
+        "x86_64-unknown-linux-gnu": "x86_64",
+    }
+    e5_release = examples["contracts/deployment/mix-release-v1.e5-temporary.example.json"]
+    if e5_release["target_triple"] != "x86_64-unknown-linux-gnu":
+        failures.append("temporary E5 release fixture must target x86_64 GNU/Linux")
+    for path in (
+        "contracts/infrastructure/host-bundle-v1.example.json",
+        "contracts/infrastructure/host-bundle-v1.x86_64.example.json",
+        "contracts/deployment/native-artifact-v1.example.json",
+        "contracts/deployment/native-artifact-v1.x86_64.example.json",
+    ):
+        if examples[path]["target_triple"] not in target_pairs:
+            failures.append(f"unsupported target triple in {path}")
 
     release = examples["contracts/deployment/mix-release-v1.example.json"]
     db = release["database_compatibility"]

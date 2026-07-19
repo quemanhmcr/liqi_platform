@@ -133,6 +133,42 @@ def main() -> int:
                     failures.append(f"{relative}: V1 source workflow is missing stage seam {required}")
             if "--allow-blocked" not in text:
                 failures.append(f"{relative}: source/integration/artifact CI must retain owner-attributed blocked evidence")
+        if path.name == "v1-e5-artifact-release.yml":
+            triggers = workflow.get("on")
+            if (
+                not isinstance(triggers, dict)
+                or set(triggers) != {"workflow_dispatch"}
+            ):
+                failures.append(f"{relative}: E5 artifact publication must be manual-only")
+            permissions = workflow.get("permissions")
+            if not isinstance(permissions, dict) or permissions.get("id-token") != "write":
+                failures.append(f"{relative}: E5 artifact publication requires OIDC id-token: write")
+            for required in (
+                "environment: v1-e5-artifact-production",
+                "runs-on: ubuntu-24.04",
+                "nightly-2026-07-01",
+                'CARGO_FUZZ_VERSION: "0.13.2"',
+                'COSIGN_VERSION: "3.1.2"',
+                "native/scripts/run_v1_safety_gates.py",
+                "native/scripts/build-x86_64-artifact.sh",
+                "--target-triple x86_64-unknown-linux-gnu",
+                "cosign sign-blob --yes",
+                "infrastructure/deployment/authorize_native_artifact.py",
+                "beam/scripts/build_linux_release.py",
+                "LIQI_NATIVE_DEPLOYMENT_ED25519_PRIVATE_KEY",
+                "LIQI_RELEASE_ARTIFACT_ED25519_PRIVATE_KEY",
+                "LIQI_RELEASE_MANIFEST_ED25519_PRIVATE_KEY",
+                "if: always()",
+                'rm -rf "$RUNNER_TEMP/liqi-signing-private"',
+                "actions/upload-artifact@",
+            ):
+                if required not in text:
+                    failures.append(f"{relative}: E5 artifact workflow is missing protected seam {required}")
+            if "--allow-blocked" in text or "--allow-not-ready" in text or "mock:" in text:
+                failures.append(f"{relative}: E5 artifact publication cannot tolerate blocked, not-ready, or mock evidence")
+            if "$GITHUB_WORKSPACE/liqi-signing-private" in text or ".artifacts/liqi-signing-private" in text:
+                failures.append(f"{relative}: private signing keys must remain under RUNNER_TEMP")
+
         if path.name == "v1-live-readiness.yml":
             triggers = workflow.get("on")
             if not isinstance(triggers, dict) or "workflow_dispatch" not in triggers or "push" in triggers or "pull_request" in triggers:

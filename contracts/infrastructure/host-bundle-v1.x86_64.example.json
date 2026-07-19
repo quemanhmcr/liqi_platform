@@ -1,17 +1,17 @@
 {
   "schema_version": "liqi.infrastructure.host-bundle/v1",
-  "bundle_id": "host-example-v1",
+  "bundle_id": "e5-source-example",
   "git_sha": "0000000000000000000000000000000000000000",
-  "target_triple": "aarch64-unknown-linux-gnu",
+  "target_triple": "x86_64-unknown-linux-gnu",
   "artifact": {
-    "filename": "liqi-host-bundle-host-example-v1.tar.gz",
+    "filename": "liqi-host-bundle-e5-source-example.tar.gz",
     "size_bytes": 1,
     "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
   },
   "signing": {
     "algorithm": "ed25519",
     "key_id": "source-validation-v1",
-    "signature_filename": "liqi-host-bundle-host-example-v1.json.sig",
+    "signature_filename": "liqi-host-bundle-e5-source-example.json.sig",
     "signed_payload": "exact-manifest-bytes"
   },
   "files": [
@@ -121,7 +121,7 @@
     "build_on_host": false,
     "activates_release": false,
     "delivery": "operator-staged-local",
-    "archive_relative_path": "host/host-example-v1/",
+    "archive_relative_path": "host/e5-source-example/",
     "staging_root": "/var/lib/liqi/incoming/host"
   },
   "created_at": "2026-07-18T00:00:00Z"

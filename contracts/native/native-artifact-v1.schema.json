@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.liqi.internal/native/native-artifact-v1.schema.json",
-  "title": "LIQI native ARM64 artifact V1",
+  "title": "LIQI native Linux GNU artifact V1",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -53,10 +53,16 @@
       "const": "liqi-sequence-diff-nif"
     },
     "target_triple": {
-      "const": "aarch64-unknown-linux-gnu"
+      "enum": [
+        "aarch64-unknown-linux-gnu",
+        "x86_64-unknown-linux-gnu"
+      ]
     },
     "architecture": {
-      "const": "aarch64"
+      "enum": [
+        "aarch64",
+        "x86_64"
+      ]
     },
     "libc": {
       "const": "gnu"
@@ -191,5 +197,39 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "target_triple": {
+            "const": "aarch64-unknown-linux-gnu"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "architecture": {
+            "const": "aarch64"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "target_triple": {
+            "const": "x86_64-unknown-linux-gnu"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "architecture": {
+            "const": "x86_64"
+          }
+        }
+      }
+    }
+  ]
 }

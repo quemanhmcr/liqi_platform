@@ -22,6 +22,7 @@ PAIRS = (
     ("native-kernel-v1.schema.json", "native-kernel-v1.example.json"),
     ("native-error-v1.schema.json", "native-error-v1.example.json"),
     ("native-artifact-v1.schema.json", "native-artifact-v1.example.json"),
+    ("native-artifact-v1.schema.json", "native-artifact-v1.x86_64.example.json"),
     ("native-benchmark-v1.schema.json", "native-benchmark-v1.example.json"),
     ("rust-port-protocol-v1.schema.json", "rust-port-protocol-v1.example.json"),
     ("native-safety-result-v1.schema.json", "native-safety-result-v1.example.json"),

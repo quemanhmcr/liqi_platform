@@ -132,10 +132,10 @@ def database_ready(contract: dict[str, Any], readiness: dict[str, Any], runtime:
     return required
 
 
-def load_native_provider(manifest: Path, provider_git_sha: str) -> dict[str, Any]:
+def load_native_provider(manifest: Path, provider_git_sha: str, release_target: str) -> dict[str, Any]:
     document = load(manifest)
     validate(ROOT / "contracts/native/native-artifact-v1.schema.json", document, f"native provider manifest {manifest}")
-    if document["source_revision"] != provider_git_sha or document["target_triple"] != "aarch64-unknown-linux-gnu":
+    if document["source_revision"] != provider_git_sha or document["target_triple"] != release_target:
         raise RuntimeError("native source revision or target does not match release")
     return document
 
@@ -269,7 +269,7 @@ def main() -> int:
     native_roots = [provider_base]
     for manifest_path in args.native_manifest:
         resolved = manifest_path.resolve()
-        native = load_native_provider(resolved, git_sha)
+        native = load_native_provider(resolved, git_sha, provider["target_triple"])
         artifact_sha = native["artifact_sha256"]
         if artifact_sha in supplied_native:
             raise RuntimeError(f"duplicate native provider artifact SHA: {artifact_sha}")
@@ -284,8 +284,12 @@ def main() -> int:
             deployment_path = resolve_reference_file(reference["manifest_filename"], reference["manifest_sha256"], native_roots)
             deployment = load(deployment_path)
             validate(ROOT / "contracts/deployment/native-artifact-v1.schema.json", deployment, f"native deployment manifest {deployment_path}")
-            if deployment["artifact_id"] != reference["artifact_id"] or deployment["git_sha"] != git_sha:
-                raise RuntimeError("Mix/native deployment identity mismatch")
+            if (
+                deployment["artifact_id"] != reference["artifact_id"]
+                or deployment["git_sha"] != git_sha
+                or deployment["target_triple"] != provider["target_triple"]
+            ):
+                raise RuntimeError("Mix/native deployment identity or target mismatch")
             signature_contract = deployment["artifact"]["signature"]
             if signature_contract["key_id"] != args.deployment_key_id:
                 raise RuntimeError("native deployment artifact uses a different deployment authorization key")

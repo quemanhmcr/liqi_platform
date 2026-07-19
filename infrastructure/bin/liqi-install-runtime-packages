@@ -2,25 +2,31 @@
 set -euo pipefail
 umask 027
 
-if [[ "$(uname -m)" != "aarch64" ]]; then
-  echo "LIQI V1 runtime packages require aarch64" >&2
-  exit 1
-fi
 if ! grep -q '^PLATFORM_ID="platform:el9"' /etc/os-release; then
   echo "LIQI V1 runtime packages require an Enterprise Linux 9 compatible image" >&2
   exit 1
 fi
 
-readonly PGDG_REPO_URL='https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-aarch64/pgdg-redhat-repo-42.0-64.rhel9PGDG.noarch.rpm'
-readonly CADDY_VERSION='2.11.3'
-readonly CADDY_URL="https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_arm64.tar.gz"
-readonly CADDY_SHA512='bd06996e1612cf5e9770dc7134313067ef3fdfde43b1a2196004906006de779372dcf7a0e7c7fb0890c23791179f12be4625f1b6e666a2abf37e8aff4c3a1826'
-readonly OTEL_VERSION='0.156.0'
-readonly OTEL_URL="https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${OTEL_VERSION}/otelcol_${OTEL_VERSION}_linux_arm64.rpm"
-readonly OTEL_SHA256='c32b61c2ab0819312483425bf4a937c18bd1849704c89da909bc9bcd2cdf4c63'
-readonly COSIGN_VERSION='3.1.2'
-readonly COSIGN_URL='https://github.com/sigstore/cosign/releases/download/v3.1.2/cosign-linux-arm64'
-readonly COSIGN_SHA256='90e7ae0b5dfd60f20816b52c012addf7fc055ebcc7bea4ce81c428ca8518c302'
+readonly PACKAGE_MANIFEST='/usr/local/share/liqi/host-packages-v1.json'
+[[ -f "$PACKAGE_MANIFEST" && ! -L "$PACKAGE_MANIFEST" ]] || { echo "signed host package manifest is missing" >&2; exit 1; }
+readonly PACKAGE_SETTINGS_PROVIDER='/usr/local/libexec/liqi-host-package-settings'
+[[ -x "$PACKAGE_SETTINGS_PROVIDER" ]] || { echo "signed host package settings provider is missing" >&2; exit 1; }
+mapfile -t SETTINGS < <("$PACKAGE_SETTINGS_PROVIDER" --manifest "$PACKAGE_MANIFEST" --machine "$(uname -m)")
+(( ${#SETTINGS[@]} >= 13 )) || { echo "host package manifest produced incomplete settings" >&2; exit 1; }
+readonly HOST_ARCHITECTURE=${SETTINGS[0]}
+readonly HOST_TARGET_TRIPLE=${SETTINGS[1]}
+readonly PGDG_REPO_URL=${SETTINGS[2]}
+readonly CADDY_VERSION=${SETTINGS[3]}
+readonly CADDY_URL=${SETTINGS[4]}
+readonly CADDY_SHA512=${SETTINGS[5]}
+readonly OTEL_VERSION=${SETTINGS[6]}
+readonly OTEL_URL=${SETTINGS[7]}
+readonly OTEL_SHA256=${SETTINGS[8]}
+readonly COSIGN_VERSION=${SETTINGS[9]}
+readonly COSIGN_URL=${SETTINGS[10]}
+readonly COSIGN_SHA256=${SETTINGS[11]}
+PACKAGE_INSTALL_NAMES=("${SETTINGS[@]:12}")
+
 readonly WORKDIR='/var/tmp/liqi-runtime-install'
 readonly EVIDENCE='/var/lib/liqi/recovery/host-package-evidence-v1.json'
 
@@ -35,7 +41,7 @@ dnf -y install python39-oci-cli
 
 dnf -y install "$PGDG_REPO_URL"
 dnf -qy module disable postgresql || true
-dnf -y install   postgresql17-17.10   postgresql17-server-17.10   postgresql17-contrib-17.10   pgbouncer-1.25.2   pgbackrest-2.58.0
+dnf -y install "${PACKAGE_INSTALL_NAMES[@]}"
 
 if getent group liqi >/dev/null; then
   [[ "$(getent group liqi | cut -d: -f3)" == "2200" ]]
@@ -91,7 +97,8 @@ systemctl disable --now postgresql-17.service pgbouncer.service >/dev/null 2>&1 
 /usr/bin/caddy validate --config /etc/caddy/Caddyfile
 /usr/bin/otelcol validate --config /etc/otelcol/config.yaml
 
-python3 - "$EVIDENCE" <<'PY'
+python3 - "$EVIDENCE" "$PACKAGE_MANIFEST" "$HOST_TARGET_TRIPLE" <<'PY'
+import hashlib
 import json
 import platform
 import subprocess
@@ -121,6 +128,9 @@ doc = {
     },
 }
 path = Path(sys.argv[1])
+manifest_path = Path(sys.argv[2])
+doc["target_triple"] = sys.argv[3]
+doc["package_manifest_sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
 tmp = path.with_suffix(".tmp")
 tmp.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 tmp.chmod(0o640)

@@ -64,7 +64,7 @@ run_check compile --env MIX_ENV=test -- mix compile --warnings-as-errors
 run_check tests --env MIX_ENV=test -- mix test --seed 0
 run_check persistence_provider_tests --env MIX_ENV=test -- mix test beam/apps/liqi_persistence/test/config_test.exs --seed 0
 run_check jobs_provider_tests --env MIX_ENV=test -- mix test beam/apps/liqi_jobs/test/queue_policy_test.exs --seed 0
-run_check python_provider_compile -- python -m py_compile beam/bin/platform-probe beam/scripts/platform_probe.py beam/scripts/run_v1_integration.py beam/tests/test_platform_probe.py beam/tests/test_runtime_integration.py
+run_check python_provider_compile -- python -m py_compile beam/bin/platform-probe beam/scripts/platform_probe.py beam/scripts/run_v1_integration.py beam/scripts/build_linux_release.py beam/scripts/validate_release_manifest.py beam/tests/test_platform_probe.py beam/tests/test_runtime_integration.py beam/tests/test_release_architecture.py beam/tests/test_linux_release_builder.py
 run_check python_provider_tests -- python -m unittest discover -s beam/tests -p 'test_*.py' -v
 run_check dependency_audit -- mix hex.audit
 run_check shared_contracts -- python scripts/operations/validate_contracts.py

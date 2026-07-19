@@ -15,7 +15,7 @@ fi
 cd "$ROOT_DIR"
 export PYTHONDONTWRITEBYTECODE=1
 python native/tests/validate_native_source.py
-python -m unittest native.tests.test_deployment_manifest native.tests.test_safety_gate -v
+python -m unittest native.tests.test_artifact_architecture native.tests.test_deployment_manifest native.tests.test_safety_gate -v
 cargo +1.97.1 fmt --all -- --check
 cargo +1.97.1 metadata --no-deps --format-version 1 --locked >/dev/null
 cargo +1.97.1 test --locked -p liqi-sequence-diff-core -p liqi-sequence-diff-nif

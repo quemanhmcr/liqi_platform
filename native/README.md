@@ -70,8 +70,14 @@ export LIQI_RELEASE_ID='<release-id>'
 export LIQI_SOURCE_REVISION='<40-character-git-sha>'
 export LIQI_NATIVE_BUILD_JOBS=2
 export LIQI_NATIVE_OUTPUT_DIR="$PWD/.artifacts/native/$LIQI_RELEASE_ID"
+# A1 target:
 bash native/scripts/build-arm64-artifact.sh
+
+# Temporary E5 target (run only on Linux x86_64):
+# bash native/scripts/build-x86_64-artifact.sh
 ```
+
+Both wrappers delegate to the same bounded builder and select a fixed reviewed target. The builder refuses cross-architecture hosts and arbitrary target triples.
 
 Sign the generated blob in an approved OIDC-enabled CI/operator context:
 
@@ -91,7 +97,8 @@ python native/scripts/package_artifact.py \
   --source-revision "$LIQI_SOURCE_REVISION" \
   --builder-id 'https://github.com/liqi-platform/liqi_platform/.github/workflows/native-artifact.yml' \
   --signature-identity '<exact-certificate-identity>' \
-  --signature-issuer 'https://token.actions.githubusercontent.com'
+  --signature-issuer 'https://token.actions.githubusercontent.com' \
+  --target-triple '<aarch64-unknown-linux-gnu|x86_64-unknown-linux-gnu>'
 
 python native/scripts/verify_artifact.py \
   --manifest "$LIQI_NATIVE_OUTPUT_DIR/native-artifact-$LIQI_RELEASE_ID.json"
@@ -133,8 +140,8 @@ Required before production enablement:
 
 - full source gate with Elixir available;
 - bounded fuzz run result;
-- signed ARM64 manifest verified by `verify_artifact.py`;
-- direct BEAM/Rustler benchmark on OCI A1 bound to exact Git SHA and artifact checksum;
+- signed target-matched Linux GNU manifest verified by `verify_artifact.py`;
+- direct BEAM/Rustler benchmark on the active E5 host, followed by a separate A1 benchmark when capacity becomes available, each bound to exact Git SHA and artifact checksum;
 - scheduler probe with no starvation;
 - feature-off and missing-artifact fallback evidence;
 - corrupt/version-mismatched artifact fail-closed evidence;

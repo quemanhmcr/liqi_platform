@@ -7,6 +7,7 @@ import grp
 import hashlib
 import json
 import os
+import platform
 import pwd
 import re
 import shutil
@@ -18,6 +19,10 @@ from pathlib import Path, PurePosixPath
 
 IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{2,95}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
+TARGETS = {
+    "aarch64-unknown-linux-gnu": "aarch64",
+    "x86_64-unknown-linux-gnu": "x86_64",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -69,13 +74,16 @@ def validate_staged_source(bundle_dir: Path, incoming_root: Path) -> Path:
         raise RuntimeError("bundle source directory must not be group/world writable")
     return source
 
-def validate_manifest(document: object, bundle_id: str, key_id: str) -> dict[str, object]:
+def validate_manifest(document: object, bundle_id: str, key_id: str, host_architecture: str | None = None) -> dict[str, object]:
     if not isinstance(document, dict) or document.get("schema_version") != "liqi.infrastructure.host-bundle/v1":
         raise RuntimeError("unsupported host bundle manifest")
     if document.get("bundle_id") != bundle_id or not IDENTIFIER.fullmatch(bundle_id):
         raise RuntimeError("bundle identity mismatch")
-    if document.get("target_triple") != "aarch64-unknown-linux-gnu":
-        raise RuntimeError("host bundle target triple mismatch")
+    target_triple = str(document.get("target_triple", ""))
+    expected_architecture = TARGETS.get(target_triple)
+    actual_architecture = host_architecture or platform.machine()
+    if expected_architecture is None or actual_architecture != expected_architecture:
+        raise RuntimeError("host bundle target triple does not match host architecture")
     signing = document.get("signing")
     if not isinstance(signing, dict) or signing.get("algorithm") != "ed25519" or signing.get("key_id") != key_id:
         raise RuntimeError("host bundle signing key identity mismatch")
@@ -106,6 +114,8 @@ def validate_manifest(document: object, bundle_id: str, key_id: str) -> dict[str
             raise RuntimeError("invalid host bundle mode")
         if not SHA256.fullmatch(str(item.get("sha256", ""))) or int(item.get("size_bytes", 0)) <= 0:
             raise RuntimeError("invalid host bundle file identity")
+    if "/usr/local/share/liqi/host-packages-v1.json" not in targets:
+        raise RuntimeError("signed host package manifest is missing from bundle inventory")
     return document
 
 

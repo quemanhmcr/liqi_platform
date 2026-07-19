@@ -16,11 +16,16 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[2]
 GIT_SHA = re.compile(r"^[0-9a-f]{40}$")
 IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{2,95}$")
+TARGET_PACKAGE_MANIFESTS = {
+    "aarch64-unknown-linux-gnu": "infrastructure/packages/oracle-linux-9-aarch64-v1.json",
+    "x86_64-unknown-linux-gnu": "infrastructure/packages/oracle-linux-9-x86_64-v1.json",
+}
 
 # Provider-owned source file -> immutable host target, mode, owner, group.
 BASE_FILES: tuple[tuple[str, str, int, str, str], ...] = (
     ("infrastructure/bin/liqi-install-host-bundle", "/usr/local/libexec/liqi-install-host-bundle", 0o755, "root", "root"),
     ("infrastructure/bin/liqi-install-runtime-packages", "/usr/local/libexec/liqi-install-runtime-packages", 0o755, "root", "root"),
+    ("infrastructure/deployment/host_package_manifest.py", "/usr/local/libexec/liqi-host-package-settings", 0o755, "root", "root"),
     ("infrastructure/bin/liqi-prepare-data-volume", "/usr/local/libexec/liqi-prepare-data-volume", 0o755, "root", "root"),
     ("infrastructure/bin/liqi-materialize-secrets", "/usr/local/libexec/liqi-materialize-secrets", 0o755, "root", "root"),
     ("infrastructure/bin/liqi-configure-database-credentials", "/usr/local/libexec/liqi-configure-database-credentials", 0o755, "root", "root"),
@@ -64,7 +69,6 @@ BASE_FILES: tuple[tuple[str, str, int, str, str], ...] = (
     ("infrastructure/caddy/Caddyfile.fail-closed", "/etc/caddy/Caddyfile", 0o640, "root", "caddy"),
     ("infrastructure/caddy/Caddyfile.v1-live.tftpl", "/usr/local/share/liqi/Caddyfile.v1-live.tftpl", 0o640, "root", "liqi"),
     ("infrastructure/otel/otelcol-v1.yaml", "/etc/otelcol/config.yaml", 0o644, "root", "root"),
-    ("infrastructure/packages/oracle-linux-9-aarch64-v1.json", "/usr/local/share/liqi/host-packages-v1.json", 0o640, "root", "liqi"),
     ("contracts/infrastructure/host-runtime-v1.schema.json", "/usr/local/share/liqi/contracts/infrastructure/host-runtime-v1.schema.json", 0o644, "root", "root"),
     ("contracts/infrastructure/secret-mapping-v1.schema.json", "/usr/local/share/liqi/contracts/infrastructure/secret-mapping-v1.schema.json", 0o644, "root", "root"),
     ("contracts/infrastructure/database-credentials-v1.schema.json", "/usr/local/share/liqi/contracts/infrastructure/database-credentials-v1.schema.json", 0o644, "root", "root"),
@@ -148,7 +152,18 @@ def provider_files() -> tuple[tuple[str, str, int, str, str], ...]:
     return tuple(records)
 
 
-FILES = BASE_FILES + database_files() + provider_files()
+def files_for_target(target_triple: str) -> tuple[tuple[str, str, int, str, str], ...]:
+    package = (
+        TARGET_PACKAGE_MANIFESTS[target_triple],
+        "/usr/local/share/liqi/host-packages-v1.json",
+        0o640,
+        "root",
+        "liqi",
+    )
+    return BASE_FILES + (package,) + database_files() + provider_files()
+
+
+FILES = files_for_target("aarch64-unknown-linux-gnu")
 
 
 def parse_args() -> argparse.Namespace:
@@ -159,6 +174,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--signing-key", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--allow-dirty-source-test-only", action="store_true")
+    parser.add_argument("--target-triple", choices=tuple(TARGET_PACKAGE_MANIFESTS), default="aarch64-unknown-linux-gnu")
     return parser.parse_args()
 
 
@@ -176,9 +192,9 @@ def run(*argv: str, input_bytes: bytes | None = None) -> bytes:
     return result.stdout
 
 
-def ensure_exact_source(git_sha: str, allow_dirty: bool) -> None:
+def ensure_exact_source(git_sha: str, allow_dirty: bool, files: tuple[tuple[str, str, int, str, str], ...]) -> None:
     run("git", "cat-file", "-e", f"{git_sha}^{{commit}}")
-    paths = [item[0] for item in FILES]
+    paths = [item[0] for item in files]
     tracked = set(run("git", "ls-tree", "-r", "--name-only", git_sha, "--", *paths).decode().splitlines())
     missing = sorted(set(paths) - tracked)
     if missing and not allow_dirty:
@@ -228,11 +244,12 @@ def main() -> int:
             raise SystemExit(f"invalid {label}")
     if not args.signing_key.is_file():
         raise SystemExit("signing key file does not exist")
-    ensure_exact_source(args.git_sha, args.allow_dirty_source_test_only)
+    selected_files = files_for_target(args.target_triple)
+    ensure_exact_source(args.git_sha, args.allow_dirty_source_test_only, selected_files)
 
     records: list[dict[str, object]] = []
     targets: set[str] = set()
-    for repository_path, target, mode, owner, group in FILES:
+    for repository_path, target, mode, owner, group in selected_files:
         source = ROOT / repository_path
         if not source.is_file():
             raise SystemExit(f"missing bundle source: {repository_path}")
@@ -263,7 +280,7 @@ def main() -> int:
         "schema_version": "liqi.infrastructure.host-bundle/v1",
         "bundle_id": args.bundle_id,
         "git_sha": args.git_sha,
-        "target_triple": "aarch64-unknown-linux-gnu",
+        "target_triple": args.target_triple,
         "artifact": {"filename": archive_name, "size_bytes": len(archive), "sha256": digest(archive)},
         "signing": {"algorithm": "ed25519", "key_id": args.key_id, "signature_filename": signature_name, "signed_payload": "exact-manifest-bytes"},
         "files": public_records,
@@ -299,6 +316,7 @@ def main() -> int:
         "schema_version": "liqi.infrastructure.host-bundle-build-result/v1",
         "bundle_id": args.bundle_id,
         "git_sha": args.git_sha,
+        "target_triple": args.target_triple,
         "manifest": {"path": str(manifest_path), "sha256": digest(manifest_bytes)},
         "signature": {"path": str(signature_path), "sha256": digest(signature_path.read_bytes())},
         "artifact": {"path": str(archive_path), "sha256": digest(archive), "size_bytes": len(archive)},

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create and verify the provenance-bound ARM64 NIF artifact manifest."""
+"""Create and verify a provenance-bound Linux GNU NIF artifact manifest."""
 
 from __future__ import annotations
 
@@ -22,6 +22,10 @@ SCHEMA = ROOT / "contracts" / "native" / "native-artifact-v1.schema.json"
 ARTIFACT_NAME = "libliqi_sequence_diff_nif.so"
 RELEASE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+TARGETS = {
+    "aarch64-unknown-linux-gnu": {"architecture": "aarch64", "elf_machine": 183, "elf_name": "AArch64"},
+    "x86_64-unknown-linux-gnu": {"architecture": "x86_64", "elf_machine": 62, "elf_name": "x86-64"},
+}
 
 
 def digest(path: Path) -> str:
@@ -36,13 +40,17 @@ def write_json(path: Path, document: Any) -> None:
     path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
 
 
-def require_arm64_elf(path: Path) -> None:
+def require_elf(path: Path, target_triple: str) -> None:
+    expected = TARGETS[target_triple]
     header = path.read_bytes()[:20]
     if len(header) < 20 or header[:4] != b"\x7fELF" or header[4] != 2 or header[5] != 1:
         raise ValueError("artifact must be a little-endian ELF64 binary")
     machine = struct.unpack("<H", header[18:20])[0]
-    if machine != 183:
-        raise ValueError(f"artifact ELF machine must be AArch64 (183), got {machine}")
+    if machine != expected["elf_machine"]:
+        raise ValueError(
+            f"artifact ELF machine must be {expected['elf_name']} ({expected['elf_machine']}) "
+            f"for {target_triple}, got {machine}"
+        )
 
 
 def cargo_packages() -> list[dict[str, Any]]:
@@ -108,6 +116,7 @@ def main() -> int:
     parser.add_argument("--builder-id", required=True)
     parser.add_argument("--signature-identity", required=True)
     parser.add_argument("--signature-issuer", required=True)
+    parser.add_argument("--target-triple", choices=tuple(TARGETS), default="aarch64-unknown-linux-gnu")
     args = parser.parse_args()
 
     if not RELEASE_PATTERN.fullmatch(args.release_id):
@@ -124,7 +133,7 @@ def main() -> int:
     bundle = artifact_dir / f"{ARTIFACT_NAME}.sigstore.json"
     if not artifact.is_file() or not bundle.is_file():
         parser.error(f"{ARTIFACT_NAME} and its .sigstore.json bundle must exist in --artifact-dir")
-    require_arm64_elf(artifact)
+    require_elf(artifact, args.target_triple)
     verify_bundle(artifact, bundle, args.signature_identity, args.signature_issuer)
 
     artifact_sha = digest(artifact)
@@ -166,7 +175,7 @@ def main() -> int:
             "buildDefinition": {
                 "buildType": "https://contracts.liqi.internal/native/build-types/rustler-nif-v1",
                 "externalParameters": {
-                    "target": "aarch64-unknown-linux-gnu",
+                    "target": args.target_triple,
                     "profile": "nif-release",
                     "release_id": args.release_id,
                 },
@@ -193,8 +202,8 @@ def main() -> int:
         "release_id": args.release_id,
         "source_revision": args.source_revision,
         "crate": "liqi-sequence-diff-nif",
-        "target_triple": "aarch64-unknown-linux-gnu",
-        "architecture": "aarch64",
+        "target_triple": args.target_triple,
+        "architecture": TARGETS[args.target_triple]["architecture"],
         "libc": "gnu",
         "rust_toolchain": "1.97.1",
         "cargo_version": "1.97.1",

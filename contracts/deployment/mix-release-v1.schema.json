@@ -42,7 +42,10 @@
       "pattern": "^[0-9a-f]{40}$"
     },
     "target_triple": {
-      "const": "aarch64-unknown-linux-gnu"
+      "enum": [
+        "aarch64-unknown-linux-gnu",
+        "x86_64-unknown-linux-gnu"
+      ]
     },
     "artifact": {
       "type": "object",

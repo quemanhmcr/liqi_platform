@@ -18,6 +18,21 @@ ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = ROOT / "contracts/deployment/mix-release-v1.schema.json"
 RESULT_SCHEMA = ROOT / "contracts/runtime/runtime-artifact-result-v1.schema.json"
 REQUIRED = {"bin/liqi_platform", "bin/liqi-health", "bin/liqi-drain", "releases/start_erl.data"}
+TARGETS = {
+    "aarch64-unknown-linux-gnu": {"elf_machine": 183, "elf_name": "AArch64"},
+    "x86_64-unknown-linux-gnu": {"elf_machine": 62, "elf_name": "x86-64"},
+}
+
+
+def elf_matches_target(header: bytes, target_triple: str) -> bool:
+    expected = TARGETS[target_triple]
+    return (
+        len(header) >= 20
+        and header[:4] == b"\x7fELF"
+        and header[4] == 2
+        and header[5] == 1
+        and int.from_bytes(header[18:20], "little") == expected["elf_machine"]
+    )
 
 
 def digest(path: Path) -> str:
@@ -169,14 +184,15 @@ def archive_checks(
                 ),
                 None,
             )
-            arm64 = False
+            target_triple = manifest["target_triple"]
+            target = TARGETS[target_triple]
+            target_elf = False
             beam_shape_ok = False
             if beam_member is not None and beam_member.isfile():
                 beam_shape_ok = beam_member.size >= 1_048_576 and bool(beam_member.mode & 0o111)
                 stream = archive.extractfile(beam_member)
                 header = stream.read(20) if stream else b""
-                if len(header) >= 20 and header[:4] == b"\x7fELF" and header[4] == 2 and header[5] == 1:
-                    arm64 = int.from_bytes(header[18:20], "little") == 183
+                target_elf = elf_matches_target(header, target_triple)
             add_check(
                 checks,
                 blockers,
@@ -184,7 +200,13 @@ def archive_checks(
                 "passed" if beam_shape_ok else "failed",
                 "ERTS beam.smp must be a regular executable file of at least 1 MiB",
             )
-            add_check(checks, blockers, "aarch64-elf", "passed" if arm64 else "failed", "ERTS beam.smp is not an ELF64 little-endian AArch64 binary")
+            add_check(
+                checks,
+                blockers,
+                "target-elf",
+                "passed" if target_elf else "failed",
+                f"ERTS beam.smp is not an ELF64 little-endian {target['elf_name']} binary for {target_triple}",
+            )
             elixir_ok = any("/lib/elixir-1.20.2/" in "/" + name for name in names)
             add_check(checks, blockers, "elixir-runtime", "passed" if elixir_ok else "failed", "release does not contain Elixir 1.20.2")
             app_ok = any("/lib/liqi_platform-1.0.0-dev/" in "/" + name for name in names)

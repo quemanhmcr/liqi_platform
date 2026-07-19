@@ -191,6 +191,46 @@
       "output": "native-authorization-result-v1"
     },
     {
+      "id": "build-signed-linux-release",
+      "command": [
+        "python",
+        "beam/scripts/build_linux_release.py",
+        "--release-id",
+        "<release-id>",
+        "--target-triple",
+        "x86_64-unknown-linux-gnu",
+        "--native-provider-manifest",
+        "<native-artifact-v1.json>",
+        "--native-deployment-manifest",
+        "<native-deployment-v1.json>",
+        "--native-trust-dir",
+        "<native-public-key-dir>",
+        "--artifact-key-id",
+        "<release-artifact-key-id>",
+        "--artifact-signing-key",
+        "<release-artifact-private-key>",
+        "--manifest-key-id",
+        "<release-manifest-key-id>",
+        "--manifest-signing-key",
+        "<release-manifest-private-key>",
+        "--rollback-target-release-id",
+        "<retained-v0-release-id>",
+        "--output-dir",
+        "<new-release-output-dir>"
+      ],
+      "working_directory": "repository-root-clean-linux-x86_64",
+      "required_environment": [
+        "OTP 28",
+        "Elixir 1.20.2",
+        "cosign",
+        "OpenSSL",
+        "network access for locked Hex dependencies"
+      ],
+      "mutation": "build-and-sign-artifacts-only-no-host-or-oci-mutation",
+      "output": "mix-release-v1 plus runtime-artifact-result-v1 and complete native handoff",
+      "failure_policy": "reject dirty source, architecture mismatch, invalid native provenance/signature, shared signing key identity, non-deterministic archive shape or failed self-verification"
+    },
+    {
       "id": "prepare-mix-deployment",
       "command": [
         "python",

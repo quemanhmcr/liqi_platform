@@ -1,0 +1,66 @@
+{
+  "schema_version": "liqi.infrastructure.host-packages/v1",
+  "architecture": "x86_64",
+  "os": "Oracle Linux 9",
+  "policy": "install only declared primary-source artifacts, verify upstream checksums, record exact RPM NEVRA and binary versions, and never build source on the live host",
+  "packages": [
+    {
+      "name": "PostgreSQL",
+      "major_version": "17",
+      "source": "https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-42.0-64.rhel9PGDG.noarch.rpm",
+      "install_names": [
+        "postgresql17-17.10",
+        "postgresql17-server-17.10",
+        "postgresql17-contrib-17.10"
+      ],
+      "verification": "PGDG RPM signature, exact reviewed minor version, and installed NEVRA evidence",
+      "version": "17.10"
+    },
+    {
+      "name": "PgBouncer",
+      "version": "1.25.2",
+      "source": "PGDG common repository for Enterprise Linux 9 x86_64",
+      "install_names": [
+        "pgbouncer-1.25.2"
+      ],
+      "verification": "PGDG RPM signature and installed NEVRA evidence"
+    },
+    {
+      "name": "pgBackRest",
+      "version": "2.58.0",
+      "source": "PGDG common repository for Enterprise Linux 9 x86_64",
+      "install_names": [
+        "pgbackrest-2.58.0"
+      ],
+      "verification": "PGDG RPM signature and installed NEVRA evidence"
+    },
+    {
+      "name": "Caddy",
+      "version": "2.11.3",
+      "source": "https://github.com/caddyserver/caddy/releases/download/v2.11.3/caddy_2.11.3_linux_amd64.tar.gz",
+      "sha512": "ee886eceda0ff9f30610d3be9b5b594026591e19add6b3961a341c72abe468e5eac9d7c2c2450bbb8420db1f827b954521f9336be4872f81090b8618adf8815a"
+    },
+    {
+      "name": "OpenTelemetry Collector",
+      "version": "0.156.0",
+      "source": "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.156.0/otelcol_0.156.0_linux_amd64.rpm",
+      "sha256": "544e5a31d3171f74d698cb5696a6a3546eb9e86063bda9bfacd5325dbabda7ca"
+    },
+    {
+      "name": "OCI CLI",
+      "source": "Oracle Linux 9 developer repository",
+      "install_names": [
+        "oraclelinux-developer-release-el9",
+        "python39-oci-cli"
+      ],
+      "verification": "Oracle RPM signature plus exact installed NEVRA evidence"
+    },
+    {
+      "name": "cosign",
+      "version": "3.1.2",
+      "source": "https://github.com/sigstore/cosign/releases/download/v3.1.2/cosign-linux-amd64",
+      "sha256": "f7622ed3cf22e55e1ae6377c080979ff77a22da9981c11df222a2e444991e7cf",
+      "verification": "Exact official Sigstore GitHub release checksum and installed version evidence"
+    }
+  ]
+}

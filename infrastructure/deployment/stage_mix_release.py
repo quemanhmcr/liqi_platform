@@ -202,6 +202,7 @@ def verify_native(
     base: Path,
     entry: dict[str, Any],
     release_git_sha: str,
+    release_target: str,
     staged: Path,
     final_release: Path,
     verifier: Path,
@@ -217,6 +218,8 @@ def verify_native(
         deployment["artifact_id"] == entry["artifact_id"]
         and deployment["git_sha"] == release_git_sha
         and provider["source_revision"] == release_git_sha
+        and provider["target_triple"] == release_target
+        and deployment["target_triple"] == release_target
         and provider["artifact_sha256"] == deployment["artifact"]["sha256"]
         and deployment["artifact"]["install_relative_path"] == entry["install_relative_path"]
     ):
@@ -343,7 +346,7 @@ def main() -> int:
         extract_release(archive, staged); verify_commands(staged, provider)
         verifier = native_handoff_verifier(args.native_handoff_verifier) if wrapper["native_artifacts"] else None
         native_results = [
-            verify_native(args.artifact_dir, entry, git_sha, staged, release_path, verifier, args.native_trust_dir)
+            verify_native(args.artifact_dir, entry, git_sha, provider["target_triple"], staged, release_path, verifier, args.native_trust_dir)
             for entry in wrapper["native_artifacts"]
         ]
         shutil.copyfile(provider_path, staged / "deployment-manifest.json")

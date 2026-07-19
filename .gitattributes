@@ -8,6 +8,7 @@
 *.ex text eol=lf
 *.exs text eol=lf
 beam/bin/* text eol=lf
+infrastructure/bin/* text eol=lf
 rel/overlays/bin/* text eol=lf
 *.json text eol=lf
 *.jsonl text eol=lf

@@ -1,0 +1,72 @@
+{
+  "schema_version": "liqi.deployment.mix-release/v1",
+  "release_id": "liqi-v1-e5-example",
+  "release_name": "liqi_platform",
+  "version": "1.0.0",
+  "git_sha": "1111111111111111111111111111111111111111",
+  "target_triple": "x86_64-unknown-linux-gnu",
+  "artifact": {
+    "filename": "liqi-v1-e5-example.tar.gz",
+    "size_bytes": 1,
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "signature": {
+      "algorithm": "ed25519",
+      "key_id": "release-signing-v1",
+      "signature_filename": "liqi-v1-e5-example.tar.gz.sig",
+      "signature_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "signed_payload": "artifact-bytes"
+    }
+  },
+  "runtime": {
+    "otp_release": "29.0",
+    "elixir_version": "1.19.0",
+    "erts_included": true,
+    "commands": {
+      "start": [
+        "bin/liqi_platform",
+        "start"
+      ],
+      "stop": [
+        "bin/liqi_platform",
+        "stop"
+      ],
+      "drain": [
+        "bin/liqi_platform",
+        "rpc",
+        "Liqi.Release.drain()"
+      ],
+      "health": [
+        "bin/liqi_platform",
+        "rpc",
+        "Liqi.Release.health()"
+      ]
+    },
+    "health_timeout_seconds": 60,
+    "drain_timeout_seconds": 60
+  },
+  "configuration": {
+    "runtime_directory": "/etc/liqi/runtime",
+    "secret_reference_directory": "/etc/liqi/secrets",
+    "plaintext_secrets_forbidden": true
+  },
+  "database_compatibility": {
+    "minimum_migration": 8,
+    "maximum_migration": 8,
+    "rollback_safe_through": 4
+  },
+  "native_artifacts": [],
+  "installation": {
+    "release_directory": "/opt/liqi/releases/liqi-v1-e5-example",
+    "current_symlink": "/opt/liqi/current",
+    "immutable_after_install": true,
+    "build_on_host": false
+  },
+  "created_at": "2026-07-18T00:00:00Z",
+  "manifest_signature": {
+    "algorithm": "ed25519",
+    "key_id": "release-manifest-v1",
+    "signature_filename": "liqi-v1-e5-example.json.sig",
+    "signed_payload": "exact-manifest-bytes"
+  },
+  "rollback_target_release_id": "liqi-v0-example"
+}

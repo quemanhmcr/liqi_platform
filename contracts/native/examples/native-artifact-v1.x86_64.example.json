@@ -1,0 +1,45 @@
+{
+  "schema_version": "native-artifact-v1",
+  "artifact": "liqi_sequence_diff_nif",
+  "artifact_version": "1.0.0",
+  "release_id": "liqi-native-e5-example",
+  "source_revision": "0000000000000000000000000000000000000000",
+  "crate": "liqi-sequence-diff-nif",
+  "target_triple": "x86_64-unknown-linux-gnu",
+  "architecture": "x86_64",
+  "libc": "gnu",
+  "rust_toolchain": "1.97.1",
+  "cargo_version": "1.97.1",
+  "rustler_version": "0.38.0",
+  "nif_abi": "2.15",
+  "build_profile": "nif-release",
+  "panic_strategy": "unwind",
+  "artifact_path": "native/artifacts/libliqi_sequence_diff_nif.so",
+  "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "artifact_size_bytes": 1,
+  "kernels": [
+    {
+      "name": "compact_sequence_diff",
+      "version": "1",
+      "scheduler_class": "regular"
+    }
+  ],
+  "sbom": {
+    "path": "native/artifacts/liqi_sequence_diff_nif.spdx.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "media_type": "application/spdx+json"
+  },
+  "provenance": {
+    "path": "native/artifacts/liqi_sequence_diff_nif.intoto.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "media_type": "application/vnd.in-toto+json"
+  },
+  "signature": {
+    "algorithm": "cosign-keyless",
+    "bundle_path": "native/artifacts/libliqi_sequence_diff_nif.so.sigstore.json",
+    "bundle_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "identity": "https://github.com/liqi-platform/liqi_platform/.github/workflows/native-artifact.yml@refs/heads/main",
+    "issuer": "https://token.actions.githubusercontent.com"
+  },
+  "built_at": "2026-07-18T00:00:00Z"
+}

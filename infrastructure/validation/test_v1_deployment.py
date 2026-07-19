@@ -7,6 +7,7 @@ import json
 import sys
 import subprocess
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -18,6 +19,7 @@ if str(ROOT) not in sys.path:
 from infrastructure.deployment import adopt_v1_live_state
 from infrastructure.deployment import build_host_bundle
 from infrastructure.deployment import enable_backup_timers
+from infrastructure.deployment import host_package_manifest
 from infrastructure.deployment import release_control
 from infrastructure.deployment import prepare_mix_deployment
 from infrastructure.deployment import configure_live_edge
@@ -26,6 +28,19 @@ from infrastructure.deployment import stage_mix_release
 from infrastructure.validation import validate_adoption_result
 from infrastructure.validation import validate_v1_plan
 
+
+
+
+def load_host_bundle_installer():
+    path = ROOT / "infrastructure/bin/liqi-install-host-bundle"
+    loader = SourceFileLoader("liqi_host_bundle_installer", str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    if spec is None:
+        raise RuntimeError("cannot load host bundle installer")
+    module = importlib.util.module_from_spec(spec)
+    with patch.dict(sys.modules, {"grp": types.ModuleType("grp"), "pwd": types.ModuleType("pwd")}):
+        loader.exec_module(module)
+    return module
 
 def load_database_credential_provider():
     path = ROOT / "infrastructure/bin/liqi-configure-database-credentials"
@@ -108,6 +123,17 @@ class ReleaseBoundaryTests(unittest.TestCase):
         names = prepare_mix_deployment.runtime_credentials(runtime_config)
         self.assertEqual(set(names), {"phoenix-secret-key-base", "database-role-urls", "drain-token", "platform-probe-token"})
 
+    def test_native_provider_target_must_match_mix_release_target(self) -> None:
+        document = json.loads((ROOT / "contracts/native/examples/native-artifact-v1.x86_64.example.json").read_text(encoding="utf-8"))
+        document["source_revision"] = "a" * 40
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "native.json"
+            path.write_text(json.dumps(document), encoding="utf-8")
+            accepted = prepare_mix_deployment.load_native_provider(path, "a" * 40, "x86_64-unknown-linux-gnu")
+            self.assertEqual(accepted["architecture"], "x86_64")
+            with self.assertRaisesRegex(RuntimeError, "target"):
+                prepare_mix_deployment.load_native_provider(path, "a" * 40, "aarch64-unknown-linux-gnu")
+
     def test_rollback_compatibility_is_bounded(self) -> None:
         target = {"database_compatibility": {
             "minimum_migration": 4,
@@ -163,6 +189,45 @@ class HostBundleTests(unittest.TestCase):
         self.assertIn("/etc/systemd/system/liqi-database-credentials.service", targets)
         self.assertIn("/usr/local/libexec/liqi-configure-database-credentials", targets)
         self.assertIn("/usr/local/lib/liqi-database/database/bin/backup.sh", targets)
+
+    def test_target_inventories_select_exactly_one_package_manifest(self) -> None:
+        expected = {
+            "aarch64-unknown-linux-gnu": "infrastructure/packages/oracle-linux-9-aarch64-v1.json",
+            "x86_64-unknown-linux-gnu": "infrastructure/packages/oracle-linux-9-x86_64-v1.json",
+        }
+        for target, source in expected.items():
+            records = build_host_bundle.files_for_target(target)
+            package_records = [item for item in records if item[1] == "/usr/local/share/liqi/host-packages-v1.json"]
+            self.assertEqual([(source, "/usr/local/share/liqi/host-packages-v1.json", 0o640, "root", "liqi")], package_records)
+            self.assertEqual(len({item[1] for item in records}), len(records))
+
+    def test_host_package_manifests_bind_architecture_and_urls(self) -> None:
+        cases = [
+            ("aarch64", "infrastructure/packages/oracle-linux-9-aarch64-v1.json", "aarch64-unknown-linux-gnu", "linux_arm64"),
+            ("x86_64", "infrastructure/packages/oracle-linux-9-x86_64-v1.json", "x86_64-unknown-linux-gnu", "linux_amd64"),
+        ]
+        for architecture, relative, target, url_token in cases:
+            document = json.loads((ROOT / relative).read_text(encoding="utf-8"))
+            values = host_package_manifest.settings(document, architecture)
+            self.assertEqual([architecture, target], values[:2])
+            self.assertTrue(any(url_token in value for value in values))
+            other = "x86_64" if architecture == "aarch64" else "aarch64"
+            with self.assertRaisesRegex(ValueError, "architecture"):
+                host_package_manifest.settings(document, other)
+
+    def test_host_bundle_target_must_match_host_architecture(self) -> None:
+        installer = load_host_bundle_installer()
+        cases = [
+            ("contracts/infrastructure/host-bundle-v1.example.json", "aarch64"),
+            ("contracts/infrastructure/host-bundle-v1.x86_64.example.json", "x86_64"),
+        ]
+        for relative, architecture in cases:
+            document = json.loads((ROOT / relative).read_text(encoding="utf-8"))
+            accepted = installer.validate_manifest(document, document["bundle_id"], document["signing"]["key_id"], architecture)
+            self.assertEqual(document["target_triple"], accepted["target_triple"])
+            other = "x86_64" if architecture == "aarch64" else "aarch64"
+            with self.assertRaisesRegex(RuntimeError, "architecture"):
+                installer.validate_manifest(document, document["bundle_id"], document["signing"]["key_id"], other)
 
 
 

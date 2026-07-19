@@ -16,6 +16,10 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = ROOT / "contracts" / "native" / "native-artifact-v1.schema.json"
+TARGETS = {
+    "aarch64-unknown-linux-gnu": {"architecture": "aarch64", "elf_machine": 183, "elf_name": "AArch64"},
+    "x86_64-unknown-linux-gnu": {"architecture": "x86_64", "elf_machine": 62, "elf_name": "x86-64"},
+}
 
 
 def load_json(path: Path) -> Any:
@@ -35,12 +39,17 @@ def resolve_child(base: Path, relative: str) -> Path:
     return candidate
 
 
-def verify_elf(path: Path) -> None:
+def verify_elf(path: Path, target_triple: str) -> None:
+    expected = TARGETS[target_triple]
     header = path.read_bytes()[:20]
     if len(header) < 20 or header[:4] != b"\x7fELF" or header[4] != 2 or header[5] != 1:
         raise ValueError("artifact is not little-endian ELF64")
-    if struct.unpack("<H", header[18:20])[0] != 183:
-        raise ValueError("artifact ELF machine is not AArch64")
+    machine = struct.unpack("<H", header[18:20])[0]
+    if machine != expected["elf_machine"]:
+        raise ValueError(
+            f"artifact ELF machine is not {expected['elf_name']} ({expected['elf_machine']}) "
+            f"for {target_triple}"
+        )
 
 
 def main() -> int:
@@ -68,7 +77,7 @@ def main() -> int:
         if not path.is_file():
             raise FileNotFoundError(path)
 
-    verify_elf(artifact)
+    verify_elf(artifact, manifest["target_triple"])
     expected = {
         artifact: manifest["artifact_sha256"],
         sbom_path: manifest["sbom"]["sha256"],
@@ -103,6 +112,9 @@ def main() -> int:
         raise ValueError("provenance subject does not bind the artifact SHA256")
     if manifest["source_revision"] not in source_revisions:
         raise ValueError("provenance does not bind the source revision")
+    provenance_target = provenance.get("predicate", {}).get("buildDefinition", {}).get("externalParameters", {}).get("target")
+    if provenance_target != manifest["target_triple"]:
+        raise ValueError("provenance target does not match the artifact manifest")
 
     subprocess.run(
         [

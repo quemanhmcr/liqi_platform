@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-export LIQI_NATIVE_TARGET_TRIPLE='aarch64-unknown-linux-gnu'
+export LIQI_NATIVE_TARGET_TRIPLE='x86_64-unknown-linux-gnu'
 exec "$ROOT_DIR/native/scripts/build-linux-artifact.sh" "$@"

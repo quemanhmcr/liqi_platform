@@ -298,12 +298,41 @@ def validate_static_policy() -> None:
     ):
         if target not in bundle_targets:
             raise AssertionError(f"signed host bundle is missing direct provider dependency: {target}")
-    package_manifest = json.loads((INFRA / "packages/oracle-linux-9-aarch64-v1.json").read_text(encoding="utf-8"))
-    packages = {item["name"]: item for item in package_manifest["packages"]}
-    if packages.get("PostgreSQL", {}).get("version") != "17.10":
-        raise AssertionError("PostgreSQL reviewed minor pin changed")
-    if "cosign" not in packages or not re.fullmatch(r"[0-9a-f]{64}", packages["cosign"].get("sha256", "")):
-        raise AssertionError("cosign ARM64 verifier is not checksum pinned")
+    package_expectations = {
+        "aarch64": {
+            "path": "oracle-linux-9-aarch64-v1.json",
+            "caddy_sha512": "bd06996e1612cf5e9770dc7134313067ef3fdfde43b1a2196004906006de779372dcf7a0e7c7fb0890c23791179f12be4625f1b6e666a2abf37e8aff4c3a1826",
+            "otel_sha256": "c32b61c2ab0819312483425bf4a937c18bd1849704c89da909bc9bcd2cdf4c63",
+            "cosign_sha256": "90e7ae0b5dfd60f20816b52c012addf7fc055ebcc7bea4ce81c428ca8518c302",
+        },
+        "x86_64": {
+            "path": "oracle-linux-9-x86_64-v1.json",
+            "caddy_sha512": "ee886eceda0ff9f30610d3be9b5b594026591e19add6b3961a341c72abe468e5eac9d7c2c2450bbb8420db1f827b954521f9336be4872f81090b8618adf8815a",
+            "otel_sha256": "544e5a31d3171f74d698cb5696a6a3546eb9e86063bda9bfacd5325dbabda7ca",
+            "cosign_sha256": "f7622ed3cf22e55e1ae6377c080979ff77a22da9981c11df222a2e444991e7cf",
+        },
+    }
+    for architecture, expected in package_expectations.items():
+        package_manifest = json.loads((INFRA / "packages" / expected["path"]).read_text(encoding="utf-8"))
+        if package_manifest.get("architecture") != architecture:
+            raise AssertionError(f"host package manifest architecture mismatch: {architecture}")
+        packages = {item["name"]: item for item in package_manifest["packages"]}
+        if packages.get("PostgreSQL", {}).get("version") != "17.10" or packages.get("PgBouncer", {}).get("version") != "1.25.2" or packages.get("pgBackRest", {}).get("version") != "2.58.0":
+            raise AssertionError(f"database package pin changed for {architecture}")
+        if packages.get("Caddy", {}).get("sha512") != expected["caddy_sha512"]:
+            raise AssertionError(f"Caddy checksum pin changed for {architecture}")
+        if packages.get("OpenTelemetry Collector", {}).get("sha256") != expected["otel_sha256"]:
+            raise AssertionError(f"OpenTelemetry checksum pin changed for {architecture}")
+        if packages.get("cosign", {}).get("sha256") != expected["cosign_sha256"]:
+            raise AssertionError(f"cosign checksum pin changed for {architecture}")
+    package_parser = (INFRA / "deployment/host_package_manifest.py").read_text(encoding="utf-8")
+    installer = (INFRA / "bin/liqi-install-runtime-packages").read_text(encoding="utf-8")
+    for token in ("host package manifest architecture mismatch", "x86_64-unknown-linux-gnu", "EL-9-x86_64", "linux_amd64"):
+        if token not in package_parser:
+            raise AssertionError(f"architecture-aware package manifest parser is missing {token}")
+    for token in ("liqi-host-package-settings", "PACKAGE_INSTALL_NAMES", "package_manifest_sha256", "HOST_TARGET_TRIPLE"):
+        if token not in installer:
+            raise AssertionError(f"architecture-aware package installer is missing {token}")
     beam_unit = (systemd / "liqi-beam.service").read_text(encoding="utf-8")
     for token in (
         "LIQI_RUNTIME_CONFIG_PATH=/etc/liqi/runtime/current.json",
@@ -326,9 +355,14 @@ def validate_static_policy() -> None:
 
     commands = json.loads((INFRA / "deployment/commands-v1.json").read_text(encoding="utf-8"))
     command_ids = {item["id"] for item in commands["commands"]}
-    for command_id in ("discover-e5-adoption", "validate-e5-state-adoption", "execute-e5-state-adoption", "read-only-live-plan", "approved-oci-apply"):
+    for command_id in ("discover-e5-adoption", "validate-e5-state-adoption", "execute-e5-state-adoption", "read-only-live-plan", "approved-oci-apply", "build-signed-linux-release"):
         if command_id not in command_ids:
             raise AssertionError(f"provider command registry is missing {command_id}")
+    release_builder = (ROOT / "beam/scripts/build_linux_release.py").read_text(encoding="utf-8")
+    for token in ("release build requires a clean exact-SHA worktree", "verify_deployment_manifest.py", "artifact and manifest signing key IDs must be distinct", "self-verification did not pass", "os.replace(staged_output, final_output)"):
+        if token not in release_builder:
+            raise AssertionError(f"canonical Linux release builder is missing {token}")
+
     runbook = (ROOT / "operations/runbooks/e5-temporary-adoption-v1.md").read_text(encoding="utf-8")
     for token in ("state adoption", "does not create, update or delete OCI resources", "adopt-existing", "A1 remains the target profile"):
         if token not in runbook:
@@ -341,6 +375,12 @@ def validate_static_policy() -> None:
 
 
 def validate_bundle_build() -> None:
+    import tarfile
+
+    targets = {
+        "aarch64-unknown-linux-gnu": "aarch64",
+        "x86_64-unknown-linux-gnu": "x86_64",
+    }
     with tempfile.TemporaryDirectory(prefix="liqi-host-bundle-test-") as directory:
         root = Path(directory)
         key = root / "key.pem"
@@ -348,26 +388,38 @@ def validate_bundle_build() -> None:
         run(["openssl", "genpkey", "-algorithm", "ED25519", "-out", str(key)])
         run(["openssl", "pkey", "-in", str(key), "-pubout", "-out", str(public)])
         sha = run(["git", "rev-parse", "HEAD"], capture=True)
-        outputs = []
-        for index in (1, 2):
-            output = root / f"build-{index}"
-            run([
-                sys.executable, str(INFRA / "deployment/build_host_bundle.py"),
-                "--git-sha", sha, "--bundle-id", "source-validation-v1", "--key-id", "source-validation-v1",
-                "--signing-key", str(key), "--output-dir", str(output), "--allow-dirty-source-test-only",
-            ])
-            outputs.append(output)
-        names = ["liqi-host-bundle-source-validation-v1.tar.gz", "liqi-host-bundle-source-validation-v1.json", "liqi-host-bundle-source-validation-v1.json.sig"]
-        for name in names:
-            first, second = outputs[0] / name, outputs[1] / name
-            if hashlib.sha256(first.read_bytes()).digest() != hashlib.sha256(second.read_bytes()).digest():
-                raise AssertionError(f"host bundle output is not deterministic: {name}")
-        manifest = outputs[0] / names[1]
-        document = json.loads(manifest.read_text(encoding="utf-8"))
-        errors = list(Draft202012Validator(json.loads(SCHEMA.read_text(encoding="utf-8")), format_checker=FormatChecker()).iter_errors(document))
-        if errors:
-            raise AssertionError(f"built host manifest does not satisfy contract: {errors[0].message}")
-        run(["openssl", "pkeyutl", "-verify", "-rawin", "-pubin", "-inkey", str(public), "-in", str(manifest), "-sigfile", str(outputs[0] / names[2])])
+        schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+        for target_triple, architecture in targets.items():
+            bundle_id = f"source-validation-v1-{architecture.replace('_', '-')}"
+            outputs = []
+            for index in (1, 2):
+                output = root / f"{architecture}-build-{index}"
+                run([
+                    sys.executable, str(INFRA / "deployment/build_host_bundle.py"),
+                    "--git-sha", sha, "--bundle-id", bundle_id, "--key-id", "source-validation-v1",
+                    "--target-triple", target_triple,
+                    "--signing-key", str(key), "--output-dir", str(output), "--allow-dirty-source-test-only",
+                ])
+                outputs.append(output)
+            names = [f"liqi-host-bundle-{bundle_id}.tar.gz", f"liqi-host-bundle-{bundle_id}.json", f"liqi-host-bundle-{bundle_id}.json.sig"]
+            for name in names:
+                first, second = outputs[0] / name, outputs[1] / name
+                if hashlib.sha256(first.read_bytes()).digest() != hashlib.sha256(second.read_bytes()).digest():
+                    raise AssertionError(f"host bundle output is not deterministic for {target_triple}: {name}")
+            manifest = outputs[0] / names[1]
+            document = json.loads(manifest.read_text(encoding="utf-8"))
+            errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(document))
+            if errors:
+                raise AssertionError(f"built host manifest does not satisfy contract: {errors[0].message}")
+            if document["target_triple"] != target_triple:
+                raise AssertionError(f"host bundle target mismatch: {document['target_triple']}")
+            with tarfile.open(outputs[0] / names[0], "r:gz") as archive:
+                member = archive.getmember("payload/usr/local/share/liqi/host-packages-v1.json")
+                stream = archive.extractfile(member)
+                package_manifest = json.loads(stream.read().decode("utf-8") if stream else "{}")
+            if package_manifest.get("architecture") != architecture:
+                raise AssertionError(f"host bundle package manifest mismatch for {target_triple}")
+            run(["openssl", "pkeyutl", "-verify", "-rawin", "-pubin", "-inkey", str(public), "-in", str(manifest), "-sigfile", str(outputs[0] / names[2])])
 
 
 def main() -> int:

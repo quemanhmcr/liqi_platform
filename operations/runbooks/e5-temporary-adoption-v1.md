@@ -18,6 +18,18 @@ The existing transition SSH NSG and stopped fallback instance remain outside the
 
 Never commit live OCIDs, private keys, database URLs, token values or approval secrets.
 
+## Release artifact preparation
+
+Build native and Mix artifacts on an independent clean Linux x86_64 builder, never on the OCI application host. The canonical order is:
+
+1. `native/scripts/build-x86_64-artifact.sh` on exact SHA.
+2. Sigstore sign/package/verify the NIF with `--target-triple x86_64-unknown-linux-gnu`.
+3. Produce and verify the offline Ed25519 native deployment handoff.
+4. Run `beam/scripts/build_linux_release.py` with distinct protected archive and manifest signing key identities.
+5. Retain the complete output directory, including native SBOM/provenance/signatures and `runtime-artifact-result-v1`.
+
+The builder uses a temporary `git archive`, injects only the verified NIF, creates a deterministic no-symlink release archive, self-verifies the signatures and ERTS architecture, and atomically publishes output only after every check passes.
+
 ## Sequence
 
 1. Run `discover-e5-adoption`. It performs OCI list/get calls only and writes an `adoption-manifest-v1` file with compatible imports, missing source-managed resources, unmanaged transition resources and blockers.

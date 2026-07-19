@@ -206,7 +206,31 @@ def validate_semantics() -> list[str]:
             {"distribution RPC": r'"rpc"'},
         )
     )
+    failures.extend(
+        require_text(
+            ROOT / "native" / "scripts" / "build-linux-artifact.sh",
+            {
+                "reviewed ARM64 target": r'aarch64-unknown-linux-gnu.*ELF_MACHINE=183',
+                "reviewed x86 target": r'x86_64-unknown-linux-gnu.*ELF_MACHINE=62',
+                "exact clean source": r'git status --porcelain --untracked-files=all',
+                "bounded build jobs": r'BUILD_JOBS < 1 \|\| BUILD_JOBS > 2',
+            },
+        )
+    )
+    failures.extend(
+        require_text(
+            ROOT / "native" / "fuzz" / "run-fuzz.sh",
+            {
+                "bounded exact nightly selection": r'LIQI_FUZZ_TOOLCHAIN.*nightly-YYYY-MM-DD',
+                "selected cargo fuzz toolchain": r'cargo \+"\$FUZZ_TOOLCHAIN" fuzz run',
+            },
+        )
+    )
     for required_path in (
+        ROOT / "native" / "scripts" / "build-linux-artifact.sh",
+        ROOT / "native" / "scripts" / "build-arm64-artifact.sh",
+        ROOT / "native" / "scripts" / "build-x86_64-artifact.sh",
+        ROOT / "native" / "tests" / "test_artifact_architecture.py",
         ROOT / "native" / "fuzz" / "fuzz_targets" / "sequence_diff_parity.rs",
         ROOT / "native" / "sequence-diff-core" / "tests" / "differential.rs",
         ROOT / "native" / "elixir" / "test" / "run-reference-tests.exs",
