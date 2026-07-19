@@ -233,22 +233,18 @@ class HostBundleTests(unittest.TestCase):
 
 
 class StateBackendBootstrapTests(unittest.TestCase):
-    def test_lock_test_uses_isolated_admin_owned_schema(self) -> None:
+    def test_lock_test_uses_isolated_admin_owned_database(self) -> None:
         source = (ROOT / "infrastructure/management/state-postgres/scripts/test-locking.sh").read_text(encoding="utf-8")
         for token in (
-            "STATE_ADMIN_SERVICE", "lock test schema must never be the live state schema",
-            "CREATE SCHEMA %I AUTHORIZATION %I", "GRANT USAGE,CREATE ON SCHEMA",
-            "PG_SKIP_SCHEMA_CREATION=true", "DROP SCHEMA IF EXISTS %I CASCADE",
-            "unset PGSERVICEFILE PGPASSFILE", '"isolated_schema":True',
+            "STATE_ADMIN_SERVICE", "lock test database must never be the live state database",
+            "createdb", "dropdb", "--owner=", "GRANT CREATE ON SCHEMA public",
+            "lock test requires a PostgreSQL connection URI",
+            "unset PGSERVICEFILE PGPASSFILE", '"isolated_database":True',
         ):
             self.assertIn(token, source)
-        self.assertNotIn("PG_SKIP_SCHEMA_CREATION=false", source)
+        self.assertNotIn("GRANT CREATE ON SCHEMA public", source.split("dbname=$lock_database", 1)[0])
 
-    def test_locking_provider_sanitizes_nested_tofu_environment(self) -> None:
-        source = (ROOT / "infrastructure/management/state-postgres/scripts/test-locking.sh").read_text(encoding="utf-8")
-        self.assertIn("unset PGSERVICEFILE PGPASSFILE", source)
-        self.assertIn("PG_SCHEMA_NAME", source)
-        self.assertIn("postgresql-advisory-locks", source)
+
 
     def test_protected_environment_enforces_tls_and_encryption_without_logging_material(self) -> None:
         source = (ROOT / "infrastructure/management/state-postgres/scripts/with-protected-environment.sh").read_text(encoding="utf-8")
