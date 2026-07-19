@@ -1,0 +1,114 @@
+#!/usr/bin/env python3
+"""Fail-closed source validation for the bounded local container topology."""
+from __future__ import annotations
+
+import json
+import os
+import re
+import stat
+from pathlib import Path
+from typing import Any
+
+import yaml
+from jsonschema import Draft202012Validator, FormatChecker
+
+ROOT = Path(__file__).resolve().parents[2]
+LOCAL = ROOT / "containers" / "local"
+DIGEST_IMAGE = re.compile(r"^[a-z0-9./_-]+:[A-Za-z0-9._-]+@sha256:[0-9a-f]{64}$")
+
+
+def load_yaml(path: Path) -> Any:
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def validate() -> list[str]:
+    failures: list[str] = []
+    compose = load_yaml(LOCAL / "compose.yaml")
+    services = compose.get("services", {})
+    expected = {"postgres", "db-init", "pod", "pgbouncer", "runtime"}
+    if set(services) != expected:
+        failures.append(f"local compose service set differs: {sorted(services)}")
+
+    for service_name in expected:
+        service = services.get(service_name, {})
+        if service.get("restart") != "no":
+            failures.append(f"{service_name} must keep restart policy disabled")
+        if not service.get("mem_limit") or not service.get("cpus") or not service.get("pids_limit"):
+            failures.append(f"{service_name} is missing a memory, CPU, or PID limit")
+
+    for service_name in ("postgres", "db-init"):
+        image = services.get(service_name, {}).get("image", "")
+        if not DIGEST_IMAGE.fullmatch(image):
+            failures.append(f"{service_name} image is not version-and-digest pinned: {image}")
+    if services.get("postgres", {}).get("ports"):
+        failures.append("PostgreSQL must not publish a host port")
+    if compose.get("networks", {}).get("backend", {}).get("internal") is not True:
+        failures.append("backend network must remain internal")
+    if services.get("runtime", {}).get("network_mode") != "service:pod":
+        failures.append("runtime must share the pod loopback namespace")
+    if services.get("pgbouncer", {}).get("network_mode") != "service:pod":
+        failures.append("pgBouncer must share the pod loopback namespace")
+    ports = services.get("pod", {}).get("ports", [])
+    if len(ports) != 1 or not str(ports[0]).startswith("127.0.0.1:"):
+        failures.append("gateway must publish exactly one host-loopback port")
+
+    for service_name in ("pod", "pgbouncer", "runtime", "db-init"):
+        service = services.get(service_name, {})
+        if service.get("read_only") is not True:
+            failures.append(f"{service_name} root filesystem must be read-only")
+        if "ALL" not in (service.get("cap_drop") or []):
+            failures.append(f"{service_name} must drop all Linux capabilities")
+        if "no-new-privileges:true" not in (service.get("security_opt") or []):
+            failures.append(f"{service_name} must enable no-new-privileges")
+
+    runtime = json.loads((LOCAL / "config" / "runtime-v1.json").read_text(encoding="utf-8"))
+    schema = json.loads((ROOT / "contracts" / "runtime" / "runtime-config-v1.schema.json").read_text(encoding="utf-8"))
+    errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(runtime))
+    failures.extend(f"runtime config schema: {error.message}" for error in errors)
+    if runtime.get("environment") != "production":
+        failures.append("local runtime config must exercise production validation")
+    if runtime.get("native", {}).get("mode") != "required":
+        failures.append("local runtime must require the real NIF")
+    if runtime.get("oban", {}).get("enabled") is not True:
+        failures.append("local runtime must exercise Oban")
+    if not all(runtime.get("features", {}).get(name) is True for name in ("persistence", "realtimeDispatcher", "outboxWorker")):
+        failures.append("local runtime must exercise all durable/realtime features")
+
+    bundle = json.loads((LOCAL / "config" / "database-role-urls.local.json").read_text(encoding="utf-8"))
+    if set(bundle) != {"command", "realtime", "worker"}:
+        failures.append("local database role bundle has an invalid key set")
+    for role, url in bundle.items():
+        if not url.startswith("postgresql://liqi_") or "@127.0.0.1:6432/liqi" not in url:
+            failures.append(f"local role URL is not loopback pgBouncer: {role}")
+
+    pgbouncer = (LOCAL / "config" / "pgbouncer.ini").read_text(encoding="utf-8")
+    for token in ("listen_addr = 127.0.0.1", "pool_mode = transaction", "auth_type = trust"):
+        if token not in pgbouncer:
+            failures.append(f"local pgBouncer invariant missing: {token}")
+
+    for dockerfile in (LOCAL / "Dockerfile.runtime", LOCAL / "Dockerfile.sidecars"):
+        text = dockerfile.read_text(encoding="utf-8")
+        if ":latest" in text or "FROM latest" in text:
+            failures.append(f"floating latest tag is forbidden: {dockerfile}")
+        for line in text.splitlines():
+            if line.startswith("ARG ") and "_IMAGE=" in line and "@sha256:" not in line:
+                failures.append(f"base image argument lacks a digest: {line}")
+
+    for script in (LOCAL / "bin").iterdir():
+        if os.name == "posix" and script.suffix in {".sh", ".py"} and not script.stat().st_mode & stat.S_IXUSR:
+            failures.append(f"local container script is not executable: {script.name}")
+    return failures
+
+
+def main() -> int:
+    failures = validate()
+    if failures:
+        for failure in failures:
+            print(failure)
+        return 1
+    print(json.dumps({"validation": "local-container-source-v1", "services": 5, "status": "passed"}, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

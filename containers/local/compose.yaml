@@ -1,0 +1,192 @@
+name: liqi-v1-local
+
+services:
+  postgres:
+    image: postgres:17.10-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_INITDB_ARGS: --auth-host=trust --auth-local=trust --data-checksums
+    command:
+      - postgres
+      - -c
+      - max_connections=80
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - wal_level=replica
+      - -c
+      - synchronous_commit=on
+      - -c
+      - fsync=on
+      - -c
+      - log_min_duration_statement=500
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      - /var/run/postgresql:size=16m,mode=3775
+    networks:
+      - backend
+    healthcheck:
+      test: [CMD-SHELL, pg_isready --quiet --username=postgres --dbname=postgres]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    restart: "no"
+    stop_grace_period: 30s
+    shm_size: 128m
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 160
+    security_opt:
+      - no-new-privileges:true
+
+  db-init:
+    image: postgres:17.10-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: postgres
+      LIQI_SOURCE_ROOT: /workspace
+      LIQI_GENERATED_DIR: /run/liqi/generated
+      LIQI_SOURCE_REVISION: ${LIQI_SOURCE_REVISION:?LIQI_SOURCE_REVISION is required}
+    entrypoint: [bash, /workspace/containers/local/bin/database-init.sh]
+    volumes:
+      - ../..:/workspace:ro
+      - generated-state:/run/liqi/generated
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    networks:
+      - backend
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+
+  pod:
+    image: liqi/local-gateway:${LIQI_SOURCE_REVISION:?LIQI_SOURCE_REVISION is required}
+    build:
+      context: ../..
+      dockerfile: containers/local/Dockerfile.sidecars
+      target: gateway
+    ports:
+      - 127.0.0.1:${LIQI_LOCAL_HTTP_PORT:-4100}:8080
+    networks:
+      - backend
+    read_only: true
+    tmpfs:
+      - /tmp:size=8m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --show-error, http://127.0.0.1:8080/health/live]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+      start_period: 10s
+    restart: "no"
+    stop_grace_period: 10s
+    mem_limit: 32m
+    cpus: 0.15
+    pids_limit: 32
+
+  pgbouncer:
+    image: liqi/local-pgbouncer:${LIQI_SOURCE_REVISION:?LIQI_SOURCE_REVISION is required}
+    build:
+      context: ../..
+      dockerfile: containers/local/Dockerfile.sidecars
+      target: pgbouncer
+    network_mode: service:pod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: [CMD-SHELL, psql --no-psqlrc --quiet --host=127.0.0.1 --port=6432 --username=liqi_monitor --dbname=pgbouncer --command='SHOW VERSION' >/dev/null]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    restart: "no"
+    stop_grace_period: 10s
+    mem_limit: 64m
+    cpus: 0.2
+    pids_limit: 48
+
+  runtime:
+    image: liqi/local-runtime:${LIQI_SOURCE_REVISION:?LIQI_SOURCE_REVISION is required}
+    build:
+      context: ../..
+      dockerfile: containers/local/Dockerfile.runtime
+      args:
+        SOURCE_REVISION: ${LIQI_SOURCE_REVISION:?LIQI_SOURCE_REVISION is required}
+        BUILT_AT: ${LIQI_BUILT_AT:?LIQI_BUILT_AT is required}
+    network_mode: service:pod
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+    environment:
+      RELEASE_DISTRIBUTION: none
+      LIQI_RUNTIME_CONFIG_PATH: /etc/liqi/runtime-v1.json
+      LIQI_SOURCE_REVISION: ${LIQI_SOURCE_REVISION:?LIQI_SOURCE_REVISION is required}
+      LIQI_BUILT_AT: ${LIQI_BUILT_AT:?LIQI_BUILT_AT is required}
+      ERL_FLAGS: +S 2:2 +SDcpu 1 +SDio 1 +A 1
+    secrets:
+      - endpoint_secret
+      - probe_token
+      - drain_token
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --show-error, http://127.0.0.1:4100/health/ready]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+      start_period: 15s
+    restart: "no"
+    stop_grace_period: 25s
+    mem_limit: 768m
+    cpus: 1.25
+    pids_limit: 128
+
+secrets:
+  endpoint_secret:
+    file: ${LIQI_LOCAL_STATE_DIR:?LIQI_LOCAL_STATE_DIR is required}/secrets/endpoint_secret
+  probe_token:
+    file: ${LIQI_LOCAL_STATE_DIR:?LIQI_LOCAL_STATE_DIR is required}/secrets/probe_token
+  drain_token:
+    file: ${LIQI_LOCAL_STATE_DIR:?LIQI_LOCAL_STATE_DIR is required}/secrets/drain_token
+
+volumes:
+  postgres-data:
+  generated-state:
+
+networks:
+  backend:
+    internal: true

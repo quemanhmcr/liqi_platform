@@ -65,6 +65,11 @@ jobs:
       - name: Validate V1 readiness source
         run: python operations/bin/validate_readiness_v1.py
 
+      - name: Validate bounded local container preflight source
+        run: |
+          python containers/local/validate_local_stack.py
+          python -m unittest containers.local.tests.test_local_stack -v
+
       - name: Validate load harness JavaScript
         run: |
           node --check tests/load/v1-floor.js

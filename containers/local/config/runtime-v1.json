@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1",
+  "environment": "production",
+  "releaseId": "local-container-v1",
+  "serviceIdentity": "liqi-platform",
+  "http": {
+    "port": 4100,
+    "websocketPath": "/platform/v1/socket",
+    "secretRef": "file:///run/secrets/endpoint_secret"
+  },
+  "database": {
+    "secretRef": "file:///etc/liqi/database-role-urls.local.json",
+    "credentialFormat": "role-url-bundle-v1",
+    "requiredMigrationVersion": 8,
+    "admissionConcurrency": 22
+  },
+  "actors": {
+    "partitions": 2,
+    "idleTtlMs": 60000,
+    "mailboxWarning": 64,
+    "mailboxReject": 128
+  },
+  "sessions": {
+    "queueCapacity": 128,
+    "queueMaxBytes": 1048576,
+    "queueMaxAgeMs": 30000,
+    "resumeWindowMs": 300000,
+    "reconnectConcurrency": 32
+  },
+  "requests": {
+    "bodyBytes": 1048576,
+    "timeoutMs": 5000,
+    "endpointConcurrency": 128,
+    "boundedTasks": 16
+  },
+  "realtime": {
+    "maxMessageBytes": 65536,
+    "handoffPollIntervalMs": 50,
+    "handoffBatchSize": 32
+  },
+  "native": {
+    "mode": "required",
+    "concurrency": 2
+  },
+  "telemetry": {
+    "endpoint": null
+  },
+  "security": {
+    "probeTokenRef": "file:///run/secrets/probe_token"
+  },
+  "shutdown": {
+    "deadlineMs": 20000,
+    "drainTokenRef": "file:///run/secrets/drain_token"
+  },
+  "oban": {
+    "enabled": true,
+    "concurrency": 6
+  },
+  "features": {
+    "persistence": true,
+    "realtimeDispatcher": true,
+    "outboxWorker": true
+  }
+}
