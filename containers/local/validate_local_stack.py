@@ -24,6 +24,7 @@ def load_yaml(path: Path) -> Any:
 def validate() -> list[str]:
     failures: list[str] = []
     compose = load_yaml(LOCAL / "compose.yaml")
+    compose_text = (LOCAL / "compose.yaml").read_text(encoding="utf-8")
     services = compose.get("services", {})
     expected = {"postgres", "db-init", "pod", "pgbouncer", "runtime"}
     if set(services) != expected:
@@ -47,10 +48,8 @@ def validate() -> list[str]:
     runtime_service = services.get("runtime", {})
     if runtime_service.get("network_mode") != "service:pod":
         failures.append("runtime must share the pod loopback namespace")
-    if runtime_service.get("group_add") != [
-        "${LIQI_LOCAL_SECRET_GID:?LIQI_LOCAL_SECRET_GID is required}"
-    ]:
-        failures.append("runtime must receive only the derived local secret group")
+    if runtime_service.get("group_add"):
+        failures.append("runtime must not receive supplemental host groups")
     if services.get("pgbouncer", {}).get("network_mode") != "service:pod":
         failures.append("pgBouncer must share the pod loopback namespace")
     ports = services.get("pod", {}).get("ports", [])
@@ -93,25 +92,21 @@ def validate() -> list[str]:
 
     up_script = (LOCAL / "bin" / "up.sh").read_text(encoding="utf-8")
     secret_materializer = (LOCAL / "bin" / "materialize-secrets.py").read_text(encoding="utf-8")
-    common_script = (LOCAL / "bin" / "common.sh").read_text(encoding="utf-8")
-    down_script = (LOCAL / "bin" / "down.sh").read_text(encoding="utf-8")
-    for token in ("SECRET_MODE = 0o640", "mode=0o700", '"gid"', '"mode"'):
+    runtime_dockerfile = (LOCAL / "Dockerfile.runtime").read_text(encoding="utf-8")
+    for token in (
+        "SECRET_MODE = 0o640",
+        "RUNTIME_GID = 10001",
+        "os.chown(path, -1, RUNTIME_GID)",
+        "mode=0o700",
+        '"gid"',
+        '"mode"',
+    ):
         if token not in secret_materializer:
             failures.append(f"local secret materializer invariant missing: {token}")
-    for token in ("load_secret_group()", "stat --format='%g'", "local secret files must share one numeric group"):
-        if token not in common_script:
-            failures.append(f"local secret group derivation invariant missing: {token}")
-    for token in ("LIQI_LOCAL_SECRET_GID", "stat --format='%g'"):
-        if token not in down_script:
-            failures.append(f"local teardown secret-group invariant missing: {token}")
-    try:
-        materialize_index = up_script.index("materialize-secrets.py")
-        group_index = up_script.index("load_secret_group")
-        config_index = up_script.index("compose config --quiet")
-        if not materialize_index < group_index < config_index:
-            failures.append("local secret group must be derived after materialization and before Compose")
-    except ValueError:
-        failures.append("local startup secret group sequence is incomplete")
+    if "USER 10001:10001" not in runtime_dockerfile:
+        failures.append("local runtime user/group must remain 10001:10001")
+    if "LIQI_LOCAL_SECRET_GID" in compose_text:
+        failures.append("local Compose must not derive or add a host supplemental group")
     for service_name in ("pgbouncer", "runtime"):
         command = f"compose up --detach --no-deps {service_name}"
         if command not in up_script:

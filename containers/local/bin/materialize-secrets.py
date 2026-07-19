@@ -16,6 +16,7 @@ NAMES = {
     "drain_token": 64,
 }
 SECRET_MODE = 0o640
+RUNTIME_GID = 10001
 
 
 def digest(path: Path) -> str:
@@ -29,13 +30,24 @@ def valid(path: Path, length: int) -> bool:
     return len(value) == length and all(character in "0123456789abcdef" for character in value)
 
 
+def secure_secret(path: Path) -> None:
+    if os.name == "posix":
+        try:
+            os.chown(path, -1, RUNTIME_GID)
+        except PermissionError as error:
+            raise SystemExit(
+                f"local secret materialization requires permission to assign runtime GID {RUNTIME_GID}"
+            ) from error
+    os.chmod(path, SECRET_MODE)
+
+
 def write_secret(path: Path, length: int) -> None:
     temporary = path.with_name(f".{path.name}.new.{os.getpid()}")
     with temporary.open("x", encoding="ascii", newline="\n") as stream:
         stream.write(secrets.token_hex(length // 2) + "\n")
         stream.flush()
         os.fsync(stream.fileno())
-    os.chmod(temporary, SECRET_MODE)
+    secure_secret(temporary)
     os.replace(temporary, path)
 
 
@@ -57,7 +69,7 @@ def main() -> int:
     for name, length in NAMES.items():
         path = secrets_dir / name
         if valid(path, length) and not args.rotate:
-            os.chmod(path, SECRET_MODE)
+            secure_secret(path)
             reused.append(name)
             continue
         if path.exists() and not args.rotate:

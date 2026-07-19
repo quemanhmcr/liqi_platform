@@ -15,7 +15,6 @@ on_error() {
 trap on_error ERR
 
 python "$ROOT_DIR/containers/local/bin/materialize-secrets.py" --state-dir "$LIQI_LOCAL_STATE_DIR"
-load_secret_group
 compose config --quiet
 
 compose build pod

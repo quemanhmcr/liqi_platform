@@ -46,7 +46,7 @@ class LocalContainerSourceTests(unittest.TestCase):
             if os.name == "posix":
                 self.assertEqual(stat.S_IMODE((state / "secrets").stat().st_mode), 0o700)
                 self.assertEqual({stat.S_IMODE(path.stat().st_mode) for path in secret_paths}, {0o640})
-                self.assertEqual(len({path.stat().st_gid for path in secret_paths}), 1)
+                self.assertEqual({path.stat().st_gid for path in secret_paths}, {10001})
 
             second = subprocess.run(
                 [sys.executable, str(script), "--state-dir", str(state)],
@@ -73,18 +73,16 @@ class LocalContainerSourceTests(unittest.TestCase):
         self.assertIn("compose up --detach --no-deps pgbouncer", startup)
         self.assertIn("compose up --detach --no-deps runtime", startup)
 
-    def test_non_root_runtime_reads_only_group_scoped_local_secrets(self) -> None:
+    def test_non_root_runtime_reads_only_fixed_group_local_secrets(self) -> None:
         compose = (LOCAL / "compose.yaml").read_text(encoding="utf-8")
-        common = (LOCAL / "bin" / "common.sh").read_text(encoding="utf-8")
-        startup = (LOCAL / "bin" / "up.sh").read_text(encoding="utf-8")
         materializer = (LOCAL / "bin" / "materialize-secrets.py").read_text(encoding="utf-8")
-        self.assertIn("USER 10001:10001", (LOCAL / "Dockerfile.runtime").read_text(encoding="utf-8"))
-        self.assertIn("${LIQI_LOCAL_SECRET_GID:?LIQI_LOCAL_SECRET_GID is required}", compose)
-        self.assertIn("load_secret_group()", common)
-        self.assertIn("stat --format='%g'", common)
-        self.assertLess(startup.index("materialize-secrets.py"), startup.index("load_secret_group"))
-        self.assertLess(startup.index("load_secret_group"), startup.index("compose config --quiet"))
+        runtime_dockerfile = (LOCAL / "Dockerfile.runtime").read_text(encoding="utf-8")
+        self.assertIn("USER 10001:10001", runtime_dockerfile)
+        self.assertNotIn("group_add:", compose)
+        self.assertNotIn("LIQI_LOCAL_SECRET_GID", compose)
         self.assertIn("SECRET_MODE = 0o640", materializer)
+        self.assertIn("RUNTIME_GID = 10001", materializer)
+        self.assertIn("os.chown(path, -1, RUNTIME_GID)", materializer)
         self.assertIn("mode=0o700", materializer)
 
     def test_pgbouncer_version_matches_production_timeout_contract(self) -> None:

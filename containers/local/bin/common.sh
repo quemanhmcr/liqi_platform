@@ -25,31 +25,6 @@ fi
 command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 69; }
 docker info >/dev/null 2>&1 || { echo "Docker daemon is unavailable" >&2; exit 69; }
 
-load_secret_group() {
-  local secrets_dir="$LIQI_LOCAL_STATE_DIR/secrets"
-  local expected_gid=""
-  local name path gid
-  for name in endpoint_secret probe_token drain_token; do
-    path="$secrets_dir/$name"
-    [[ -f "$path" && ! -L "$path" ]] || {
-      echo "local secret is missing or symbolic: $path" >&2
-      return 66
-    }
-    gid=$(stat --format='%g' "$path")
-    if [[ -z "$expected_gid" ]]; then
-      expected_gid=$gid
-    elif [[ "$gid" != "$expected_gid" ]]; then
-      echo "local secret files must share one numeric group" >&2
-      return 65
-    fi
-  done
-  [[ "$expected_gid" =~ ^[0-9]+$ ]] || {
-    echo "local secret group must be numeric" >&2
-    return 65
-  }
-  export LIQI_LOCAL_SECRET_GID=$expected_gid
-}
-
 compose() {
   docker compose --file "$COMPOSE_FILE" "$@"
 }
