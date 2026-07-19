@@ -140,6 +140,27 @@ defmodule Liqi.Runtime.ContractSourceTest do
     assert config =~ "command: Liqi.Persistence.ApiRepo"
     assert config =~ "realtime: Liqi.Persistence.RealtimeRepo"
     assert config =~ "worker: Liqi.Persistence.WorkerRepo"
+    root_config = config |> String.split("config :liqi_persistence", parts: 2) |> hd()
+
+    for override <- [
+          "start_persistence",
+          "start_oban",
+          "start_dispatcher",
+          "start_outbox_worker"
+        ] do
+      refute root_config =~ override
+    end
+
+    assert supervisor =~
+             "Application.get_env(:liqi_platform, :start_persistence, config.persistence_enabled)"
+
+    assert supervisor =~
+             "Application.get_env(:liqi_platform, :start_outbox_worker, config.outbox_worker_enabled)"
+
+    assert supervisor =~
+             "Application.get_env(:liqi_platform, :start_dispatcher, config.dispatcher_enabled)"
+
+    assert supervisor =~ "Application.get_env(:liqi_platform, :start_oban, config.oban_enabled)"
     assert supervisor =~ "LiqiJobs.Config.oban_options()"
     refute supervisor =~ "name: Liqi.Oban"
     runtime_example = File.read!("contracts/runtime/examples/runtime-config-v1.json")
