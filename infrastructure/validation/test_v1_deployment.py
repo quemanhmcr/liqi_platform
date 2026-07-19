@@ -233,6 +233,17 @@ class HostBundleTests(unittest.TestCase):
 
 
 class StateBackendBootstrapTests(unittest.TestCase):
+    def test_lock_test_uses_isolated_admin_owned_schema(self) -> None:
+        source = (ROOT / "infrastructure/management/state-postgres/scripts/test-locking.sh").read_text(encoding="utf-8")
+        for token in (
+            "STATE_ADMIN_SERVICE", "lock test schema must never be the live state schema",
+            "CREATE SCHEMA %I AUTHORIZATION %I", "GRANT USAGE,CREATE ON SCHEMA",
+            "PG_SKIP_SCHEMA_CREATION=true", "DROP SCHEMA IF EXISTS %I CASCADE",
+            "unset PGSERVICEFILE PGPASSFILE", '"isolated_schema":True',
+        ):
+            self.assertIn(token, source)
+        self.assertNotIn("PG_SKIP_SCHEMA_CREATION=false", source)
+
     def test_locking_provider_sanitizes_nested_tofu_environment(self) -> None:
         source = (ROOT / "infrastructure/management/state-postgres/scripts/test-locking.sh").read_text(encoding="utf-8")
         self.assertIn("unset PGSERVICEFILE PGPASSFILE", source)
