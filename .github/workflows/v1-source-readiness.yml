@@ -17,7 +17,10 @@ permissions:
 env:
   PYTHONDONTWRITEBYTECODE: "1"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
-  LIQI_RELEASE_ID: liqi-v1-ci-${{ github.sha }}
+  LIQI_EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  LIQI_RELEASE_ID: liqi-v1-ci-${{ github.event.pull_request.head.sha || github.sha }}
+  LIQI_FUZZ_TOOLCHAIN: nightly-2026-07-01
+  CARGO_FUZZ_VERSION: "0.13.2"
 
 jobs:
   source:
@@ -28,8 +31,17 @@ jobs:
       - name: Checkout exact source
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
+          ref: ${{ env.LIQI_EXPECTED_SOURCE_SHA }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Verify exact source provenance
+        run: >-
+          python scripts/operations/verify_ci_provenance.py
+          --job source
+          --expected-sha "$LIQI_EXPECTED_SOURCE_SHA"
+          --release-id "$LIQI_RELEASE_ID"
+          --output .artifacts/v1/provenance/source.json
 
       - name: Configure BEAM toolchain when provider is integrated
         if: hashFiles('.tool-versions') != ''
@@ -68,7 +80,10 @@ jobs:
       - name: Validate bounded local container preflight source
         run: |
           python containers/local/validate_local_stack.py
-          python -m unittest containers.local.tests.test_local_stack -v
+          sudo --non-interactive "$(command -v python)" -B -m unittest containers.local.tests.test_local_stack -v
+
+      - name: Validate exact source provenance contracts
+        run: python -m unittest scripts.operations.tests.test_verify_ci_provenance -v
 
       - name: Validate load harness JavaScript
         run: |
@@ -88,6 +103,7 @@ jobs:
         run: python scripts/operations/scan_repository_secrets.py
 
       - name: Collect owner-attributed source checkpoint
+        if: always()
         run: >-
           python operations/bin/run_provider_gates_v1.py
           --stage source
@@ -99,10 +115,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: v1-source-checkpoint-${{ github.sha }}
+          name: v1-source-checkpoint-${{ env.LIQI_EXPECTED_SOURCE_SHA }}
           path: |
             .artifacts/v1/checkpoints/source.json
             .artifacts/v1/provider-gates/**
+            .artifacts/v1/provenance/source.json
           if-no-files-found: error
           retention-days: 14
 
@@ -137,8 +154,17 @@ jobs:
       - name: Checkout exact source
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
+          ref: ${{ env.LIQI_EXPECTED_SOURCE_SHA }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Verify exact source provenance
+        run: >-
+          python scripts/operations/verify_ci_provenance.py
+          --job integration
+          --expected-sha "$LIQI_EXPECTED_SOURCE_SHA"
+          --release-id "$LIQI_RELEASE_ID"
+          --output .artifacts/v1/provenance/integration.json
 
       - name: Install pinned pgTAP in disposable PostgreSQL service
         run: |
@@ -153,6 +179,11 @@ jobs:
             test -f /usr/share/postgresql/17/extension/pgtap.control
             rm -rf /var/lib/apt/lists/*
           '
+          docker exec --user root "$container_id" install -d -m 0755 /tmp/liqi-pgtap
+          docker cp "$GITHUB_WORKSPACE/database/tests/pgtap/." "$container_id:/tmp/liqi-pgtap/"
+          chmod 0755 "$GITHUB_WORKSPACE/database/tests/integration/bin/pg_prove"
+          echo "LIQI_PGTAP_CONTAINER_ID=$container_id" >> "$GITHUB_ENV"
+          echo "$GITHUB_WORKSPACE/database/tests/integration/bin" >> "$GITHUB_PATH"
 
       - name: Configure BEAM toolchain when provider is integrated
         if: hashFiles('.tool-versions') != ''
@@ -173,7 +204,10 @@ jobs:
         run: |
           rustup toolchain install 1.97.1 --profile minimal --component rustfmt,clippy --target aarch64-unknown-linux-gnu
           rustup default 1.97.1
+          rustup toolchain install "$LIQI_FUZZ_TOOLCHAIN" --profile minimal
+          cargo +1.97.1 install cargo-fuzz --version "$CARGO_FUZZ_VERSION" --locked
           rustc -vV
+          cargo +"$LIQI_FUZZ_TOOLCHAIN" fuzz --help >/dev/null
 
       - name: Configure Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -200,10 +234,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: v1-integration-checkpoint-${{ github.sha }}
+          name: v1-integration-checkpoint-${{ env.LIQI_EXPECTED_SOURCE_SHA }}
           path: |
             .artifacts/v1/checkpoints/integration.json
             .artifacts/v1/provider-gates/**
+            .artifacts/v1/provenance/integration.json
           if-no-files-found: error
           retention-days: 14
 
@@ -215,8 +250,17 @@ jobs:
       - name: Checkout exact source
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
+          ref: ${{ env.LIQI_EXPECTED_SOURCE_SHA }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Verify exact source provenance
+        run: >-
+          python scripts/operations/verify_ci_provenance.py
+          --job artifact
+          --expected-sha "$LIQI_EXPECTED_SOURCE_SHA"
+          --release-id "$LIQI_RELEASE_ID"
+          --output .artifacts/v1/provenance/artifact.json
 
       - name: Configure BEAM toolchain when provider is integrated
         if: hashFiles('.tool-versions') != ''
@@ -263,9 +307,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: v1-artifact-checkpoint-${{ github.sha }}
+          name: v1-artifact-checkpoint-${{ env.LIQI_EXPECTED_SOURCE_SHA }}
           path: |
             .artifacts/v1/checkpoints/artifact.json
             .artifacts/v1/provider-gates/**
+            .artifacts/v1/provenance/artifact.json
           if-no-files-found: error
           retention-days: 30

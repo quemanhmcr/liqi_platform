@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${LIQI_PGTAP_CONTAINER_ID:?LIQI_PGTAP_CONTAINER_ID is required}"
+: "${GITHUB_WORKSPACE:?GITHUB_WORKSPACE is required}"
+[[ "$LIQI_PGTAP_CONTAINER_ID" =~ ^[0-9a-f]{12,64}$ ]] || {
+  echo "invalid disposable pgTAP container ID" >&2
+  exit 64
+}
+
+host_root="$GITHUB_WORKSPACE/database/tests/pgtap/"
+container_root="/tmp/liqi-pgtap/"
+mapped=()
+for argument in "$@"; do
+  case "$argument" in
+    "$host_root"*.sql)
+      relative=${argument#"$host_root"}
+      [[ "$relative" != */* ]] || { echo "nested pgTAP path is forbidden" >&2; exit 64; }
+      mapped+=("$container_root$relative")
+      ;;
+    *.sql)
+      echo "pgTAP SQL path is outside the checked-out suite" >&2
+      exit 64
+      ;;
+    *) mapped+=("$argument") ;;
+  esac
+done
+
+exec docker exec \
+  --env "PGHOST=127.0.0.1" \
+  --env "PGPORT=5432" \
+  --env "PGUSER=${PGUSER:-postgres}" \
+  --env "PGDATABASE=${PGDATABASE:-postgres}" \
+  "$LIQI_PGTAP_CONTAINER_ID" \
+  pg_prove "${mapped[@]}"

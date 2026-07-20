@@ -14,7 +14,16 @@ on_error() {
 }
 trap on_error ERR
 
-python "$ROOT_DIR/containers/local/bin/materialize-secrets.py" --state-dir "$LIQI_LOCAL_STATE_DIR"
+materializer=(python "$ROOT_DIR/containers/local/bin/materialize-secrets.py" --state-dir "$LIQI_LOCAL_STATE_DIR")
+if [[ "$(id -u)" == "0" ]] || [[ " $(id -G) " == *" 10001 "* ]]; then
+  "${materializer[@]}"
+elif command -v sudo >/dev/null 2>&1; then
+  python_bin=$(command -v python)
+  sudo --non-interactive "$python_bin" "${materializer[@]:1}"
+else
+  echo "local secret materialization requires root or membership in runtime GID 10001" >&2
+  exit 77
+fi
 compose config --quiet
 
 compose build pod

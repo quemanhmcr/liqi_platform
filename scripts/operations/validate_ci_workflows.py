@@ -121,6 +121,10 @@ def main() -> int:
 
         if path.name == "v1-source-readiness.yml":
             for required in (
+                "scripts/operations/verify_ci_provenance.py",
+                "LIQI_EXPECTED_SOURCE_SHA",
+                "github.event.pull_request.head.sha || github.sha",
+                "ref: ${{ env.LIQI_EXPECTED_SOURCE_SHA }}",
                 "operations/bin/validate_readiness_v1.py",
                 "--stage source",
                 "--stage integration",
@@ -132,11 +136,21 @@ def main() -> int:
                 "Install pinned pgTAP in disposable PostgreSQL service",
                 "postgresql-17-pgtap=1.3.4-1.pgdg12+1",
                 "/usr/share/postgresql/17/extension/pgtap.control",
+                "database/tests/integration/bin",
+                "LIQI_PGTAP_CONTAINER_ID",
+                "nightly-2026-07-01",
+                'CARGO_FUZZ_VERSION: "0.13.2"',
             ):
                 if required not in text:
                     failures.append(f"{relative}: V1 source workflow is missing stage seam {required}")
             if "--allow-blocked" not in text:
                 failures.append(f"{relative}: source/integration/artifact CI must retain owner-attributed blocked evidence")
+            if text.count("ref: ${{ env.LIQI_EXPECTED_SOURCE_SHA }}") != 3:
+                failures.append(f"{relative}: all three jobs must checkout the exact expected source SHA")
+            if text.count("python scripts/operations/verify_ci_provenance.py") != 3:
+                failures.append(f"{relative}: all three jobs must emit early source provenance evidence")
+            if "LIQI_RELEASE_ID: liqi-v1-ci-${{ github.sha }}" in text:
+                failures.append(f"{relative}: release IDs must not bind pull requests to synthetic merge SHAs")
         if path.name == "v1-e5-artifact-release.yml":
             triggers = workflow.get("on")
             if (

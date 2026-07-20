@@ -41,6 +41,8 @@ export LIQI_LOCAL_STATE_DIR=/opt/liqi-local-state/$(git rev-parse --short=12 HEA
 containers/local/bin/smoke.sh
 ```
 
+The launcher uses non-interactive `sudo` only for local secret materialization when the caller cannot assign the fixed runtime GID `10001`. It fails before generating secret bytes if that bounded ownership change is unavailable. Existing state and secrets directories must be non-symlink directories with mode `0700`.
+
 The smoke command builds sequentially, starts each dependency layer, verifies the full walking skeleton, writes `local-container-result.json`, and then removes containers, networks, volumes, and plaintext operator token files. Set `LIQI_LOCAL_KEEP_RUNNING=1` only for active debugging.
 
 To keep the stack running:

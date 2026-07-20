@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import secrets
+import stat
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -30,6 +31,36 @@ def valid(path: Path, length: int) -> bool:
     return len(value) == length and all(character in "0123456789abcdef" for character in value)
 
 
+def reject_symlink_components(path: Path) -> None:
+    current = Path(path.anchor)
+    for part in path.parts[1:]:
+        current /= part
+        if current.is_symlink():
+            raise SystemExit(f"state directory path contains a symbolic link: {current}")
+
+
+def secure_directory(path: Path, *, create: bool) -> None:
+    if path.is_symlink():
+        raise SystemExit(f"state directory must not be a symbolic link: {path}")
+    if create:
+        path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if not path.is_dir():
+        raise SystemExit(f"state directory is not a directory: {path}")
+    mode = stat.S_IMODE(path.stat().st_mode)
+    if os.name == "posix" and mode & 0o077:
+        raise SystemExit(f"state directory must not grant group or other access: {path}")
+    os.chmod(path, 0o700)
+
+
+def require_runtime_group_assignment() -> None:
+    if os.name != "posix" or os.geteuid() == 0:
+        return
+    if RUNTIME_GID not in {os.getegid(), *os.getgroups()}:
+        raise SystemExit(
+            f"local secret materialization requires permission to assign runtime GID {RUNTIME_GID}"
+        )
+
+
 def secure_secret(path: Path) -> None:
     if os.name == "posix":
         try:
@@ -43,12 +74,44 @@ def secure_secret(path: Path) -> None:
 
 def write_secret(path: Path, length: int) -> None:
     temporary = path.with_name(f".{path.name}.new.{os.getpid()}")
-    with temporary.open("x", encoding="ascii", newline="\n") as stream:
-        stream.write(secrets.token_hex(length // 2) + "\n")
-        stream.flush()
-        os.fsync(stream.fileno())
-    secure_secret(temporary)
-    os.replace(temporary, path)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(temporary, flags, 0o600)
+    try:
+        with os.fdopen(descriptor, "w", encoding="ascii", newline="\n") as stream:
+            descriptor = -1
+            stream.write(secrets.token_hex(length // 2) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        secure_secret(temporary)
+        os.replace(temporary, path)
+    except BaseException:
+        if descriptor >= 0:
+            os.close(descriptor)
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def write_manifest(path: Path, document: dict[str, object]) -> None:
+    temporary = path.with_name(f".{path.name}.new.{os.getpid()}")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(temporary, flags, 0o600)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
+            descriptor = -1
+            stream.write(json.dumps(document, indent=2, sort_keys=True) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, path)
+    except BaseException:
+        if descriptor >= 0:
+            os.close(descriptor)
+        temporary.unlink(missing_ok=True)
+        raise
 
 
 def main() -> int:
@@ -57,12 +120,12 @@ def main() -> int:
     parser.add_argument("--rotate", action="store_true")
     args = parser.parse_args()
 
-    state_dir = args.state_dir.resolve()
+    state_dir = Path(os.path.abspath(args.state_dir))
+    reject_symlink_components(state_dir)
+    secure_directory(state_dir, create=True)
     secrets_dir = state_dir / "secrets"
-    if state_dir.is_symlink() or secrets_dir.is_symlink():
-        raise SystemExit("state directories must not be symbolic links")
-    secrets_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-    os.chmod(secrets_dir, 0o700)
+    secure_directory(secrets_dir, create=True)
+    require_runtime_group_assignment()
 
     created: list[str] = []
     reused: list[str] = []
@@ -92,10 +155,7 @@ def main() -> int:
         },
     }
     manifest = state_dir / "secrets-manifest.json"
-    temporary = manifest.with_name(f".{manifest.name}.new.{os.getpid()}")
-    temporary.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
-    os.chmod(temporary, 0o600)
-    os.replace(temporary, manifest)
+    write_manifest(manifest, document)
     print(json.dumps({"status": "passed", "created": created, "reused": reused, "manifest": str(manifest)}, sort_keys=True))
     return 0
 

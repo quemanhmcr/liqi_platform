@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -16,6 +17,14 @@ LOCAL = ROOT / "containers" / "local"
 
 def load_validator():
     spec = importlib.util.spec_from_file_location("liqi_local_validator", LOCAL / "validate_local_stack.py")
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_materializer():
+    spec = importlib.util.spec_from_file_location("liqi_local_materializer", LOCAL / "bin" / "materialize-secrets.py")
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
@@ -40,6 +49,8 @@ class LocalContainerSourceTests(unittest.TestCase):
             self.assertEqual(sorted(first_result["created"]), ["drain_token", "endpoint_secret", "probe_token"])
             secret_paths = sorted((state / "secrets").iterdir())
             values = {path.name: path.read_text(encoding="ascii") for path in secret_paths}
+            self.assertTrue(all(value.strip() not in first.stdout for value in values.values()))
+            self.assertTrue(all(value.strip() not in first.stderr for value in values.values()))
             manifest = json.loads((state / "secrets-manifest.json").read_text(encoding="utf-8"))
             self.assertNotIn(next(iter(values.values())).strip(), json.dumps(manifest))
             self.assertTrue(all({"sha256", "bytes", "gid", "mode"} == set(item) for item in manifest["files"].values()))
@@ -66,6 +77,58 @@ class LocalContainerSourceTests(unittest.TestCase):
             )
             rotated = {path.name: path.read_text(encoding="ascii") for path in (state / "secrets").iterdir()}
             self.assertTrue(all(rotated[name] != values[name] for name in values))
+
+    def test_secret_materializer_cleans_secure_temporary_on_ownership_failure(self) -> None:
+        materializer = load_materializer()
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "endpoint_secret"
+
+            def fail_after_mode_check(path: Path) -> None:
+                if os.name == "posix":
+                    self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+                raise PermissionError("simulated ownership failure")
+
+            with mock.patch.object(materializer, "secure_secret", side_effect=fail_after_mode_check):
+                with self.assertRaises(PermissionError):
+                    materializer.write_secret(target, 128)
+            self.assertEqual(list(Path(directory).iterdir()), [])
+
+    @unittest.skipUnless(os.name == "posix", "POSIX directory modes are required")
+    def test_secret_materializer_rejects_insecure_state_directory_without_materializing(self) -> None:
+        script = LOCAL / "bin" / "materialize-secrets.py"
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            state.chmod(0o755)
+            result = subprocess.run(
+                [sys.executable, str(script), "--state-dir", str(state)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("must not grant group or other access", result.stderr)
+            self.assertFalse((state / "secrets").exists())
+
+    @unittest.skipUnless(os.name == "posix", "POSIX symbolic-link semantics are required")
+    def test_secret_materializer_rejects_symlink_state_directory(self) -> None:
+        script = LOCAL / "bin" / "materialize-secrets.py"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "target"
+            target.mkdir(mode=0o700)
+            link = root / "state-link"
+            link.symlink_to(target, target_is_directory=True)
+            result = subprocess.run(
+                [sys.executable, str(script), "--state-dir", str(link)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("symbolic link", result.stderr)
+            self.assertFalse((target / "secrets").exists())
 
     def test_startup_does_not_rerun_completed_database_init(self) -> None:
         startup = (LOCAL / "bin" / "up.sh").read_text(encoding="utf-8")
@@ -96,6 +159,7 @@ class LocalContainerSourceTests(unittest.TestCase):
         self.assertIn("RUNTIME_GID = 10001", materializer)
         self.assertIn("os.chown(path, -1, RUNTIME_GID)", materializer)
         self.assertIn("mode=0o700", materializer)
+        self.assertIn('sudo --non-interactive "$python_bin"', (LOCAL / "bin" / "up.sh").read_text(encoding="utf-8"))
 
     def test_pgbouncer_version_matches_production_timeout_contract(self) -> None:
         sidecars = (LOCAL / "Dockerfile.sidecars").read_text(encoding="utf-8")
