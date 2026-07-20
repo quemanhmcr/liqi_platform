@@ -81,19 +81,24 @@ def one_active(items: list[dict[str, Any]], field: str, value: str, label: str) 
     return matches[0]
 
 
-def private_instance(profile: str, region: str, compartment_id: str, instance: dict[str, Any]) -> bool:
+def instance_network_posture(profile: str, region: str, compartment_id: str, instance: dict[str, Any]) -> tuple[bool, bool]:
     attachments = oci(
         profile, region, "compute", "vnic-attachment", "list",
         "--compartment-id", compartment_id, "--instance-id", instance["id"], "--all",
     )
     active = [item for item in attachments if item.get("lifecycle-state") != "DETACHED"]
     if not active:
-        raise RuntimeError("fallback instance has no active VNIC attachment")
+        raise RuntimeError("instance has no active VNIC attachment")
+    no_public_ip = True
+    public_ip_prohibited = True
     for attachment in active:
         vnic = oci(profile, region, "network", "vnic", "get", "--vnic-id", attachment["vnic-id"])
         if vnic.get("public-ip"):
-            return False
-    return True
+            no_public_ip = False
+        subnet = oci(profile, region, "network", "subnet", "get", "--subnet-id", vnic["subnet-id"])
+        if subnet.get("prohibit-public-ip-on-vnic") is not True:
+            public_ip_prohibited = False
+    return no_public_ip, public_ip_prohibited
 
 
 def fallback_capacity(instance: dict[str, Any]) -> tuple[str | None, float | None, float | None]:
@@ -344,6 +349,7 @@ def main() -> int:
         "primary": {
             "instance_id_sha256": None,
             "public_ip_present": None,
+            "subnet_public_ip_prohibited": None,
             "boot_volume_backup_id_sha256": None,
             "backup_state": "MISSING",
             "backup_type": None,
@@ -354,6 +360,7 @@ def main() -> int:
             "instance_id_sha256": None,
             "lifecycle_state": "UNKNOWN",
             "public_ip_present": None,
+            "subnet_public_ip_prohibited": None,
             "start_stop_test_status": "not-run",
             "restored_original_state": False,
             "shape": None,
@@ -392,12 +399,14 @@ def main() -> int:
         if not reviewed_fallback_capacity(fallback):
             raise RuntimeError("fallback instance must retain the reviewed E5 4 OCPU/24 GiB capacity")
 
-        primary_private = private_instance(args.profile, region, compartment["id"], primary)
+        primary_private, primary_subnet_private = instance_network_posture(args.profile, region, compartment["id"], primary)
         document["primary"]["public_ip_present"] = not primary_private
+        document["primary"]["subnet_public_ip_prohibited"] = primary_subnet_private
         if not primary_private:
             raise RuntimeError("primary instance has a public IP before cutover")
-        fallback_private = private_instance(args.profile, region, compartment["id"], fallback)
+        fallback_private, fallback_subnet_private = instance_network_posture(args.profile, region, compartment["id"], fallback)
         document["fallback"]["public_ip_present"] = not fallback_private
+        document["fallback"]["subnet_public_ip_prohibited"] = fallback_subnet_private
         if not fallback_private:
             raise RuntimeError("fallback instance has a public IP")
         if not traffic_is_off(args.profile, region, compartment["id"], args.network_load_balancer_name):

@@ -315,7 +315,7 @@
       "type": "object"
     },
     "infrastructure_output_version": {
-      "const": "1.3.0"
+      "const": "1.4.0"
     },
     "mutation": {
       "additionalProperties": false,
@@ -362,6 +362,9 @@
         },
         "host_public_ip_enabled": {
           "const": false
+        },
+        "public_backend_enabled": {
+          "type": "boolean"
         },
         "host_subnet_id": {
           "pattern": "^ocid1\\.subnet\\.",
@@ -505,12 +508,74 @@
         "public_edge_ipv4",
         "public_ingress",
         "host_public_ip_enabled",
+        "public_backend_enabled",
         "outbound_internet_path",
         "oracle_services_path",
         "ssh_default_enabled",
         "ssh_source_cidrs",
         "loopback_services",
         "management_access"
+      ],
+      "type": "object"
+    },
+    "recovery": {
+      "additionalProperties": false,
+      "properties": {
+        "fallback_instance_id": {
+          "pattern": "^ocid1\\.instance\\.",
+          "type": "string"
+        },
+        "fallback_private_ipv4": {
+          "format": "ipv4",
+          "type": "string"
+        },
+        "fallback_state": {
+          "enum": ["RUNNING", "STOPPED"]
+        },
+        "public_ip_mode": {
+          "const": "none"
+        },
+        "host_subnet_id": {
+          "pattern": "^ocid1\\.subnet\\.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fallback_instance_id",
+        "fallback_private_ipv4",
+        "fallback_state",
+        "public_ip_mode",
+        "host_subnet_id"
+      ],
+      "type": "object"
+    },
+    "legacy_retained": {
+      "additionalProperties": false,
+      "properties": {
+        "instance_id": {
+          "pattern": "^ocid1\\.instance\\.",
+          "type": "string"
+        },
+        "host_subnet_id": {
+          "pattern": "^ocid1\\.subnet\\.",
+          "type": "string"
+        },
+        "traffic_eligible": {
+          "const": false
+        },
+        "deletion_allowed": {
+          "const": false
+        },
+        "retention_reason": {
+          "const": "blue-green-private-subnet-recovery"
+        }
+      },
+      "required": [
+        "instance_id",
+        "host_subnet_id",
+        "traffic_eligible",
+        "deletion_allowed",
+        "retention_reason"
       ],
       "type": "object"
     },
@@ -617,6 +682,8 @@
     "capacity",
     "network",
     "host",
+    "recovery",
+    "legacy_retained",
     "storage",
     "identity",
     "state_backend",

@@ -24,8 +24,21 @@
       "apply_allowed_under_current_approval": true,
       "approval_required": true,
       "classification": "paid-approved",
-      "rationale": "Temporary x86_64 bridge while A1 capacity is unavailable. Apply requires an explicit approval reference, a future expiry no more than 90 days away, and a reviewed source/plan bound to the E5 profile.",
+      "rationale": "Temporary x86_64 bridge while A1 capacity is unavailable. The additive private-subnet correction temporarily runs the retained legacy primary plus a new private primary and bootstrap fallback; no legacy instance is terminated during rollout. Apply requires an explicit approval reference, a future expiry no more than 90 days away, and a reviewed source/plan bound to the E5 profile.",
       "resource": "VM.Standard.E5.Flex 4 OCPU / 24 GiB temporary bridge"
+    },
+    {
+      "apply_allowed_under_current_approval": true,
+      "approval_required": true,
+      "classification": "paid-approved-temporary-peak",
+      "rationale": "Peak blue-green state is three RUNNING and one STOPPED E5 4/24 instances. After private bootstrap and recovery validation, the new fallback and retained legacy primary are stopped; all legacy resources remain protected from deletion.",
+      "resource": "additive private-subnet blue-green compute peak"
+    },
+    {
+      "approval_required": true,
+      "classification": "paid-approved-temporary-peak",
+      "rationale": "Four retained 200 GiB boot volumes plus one 130 GiB data volume can reach 930 GiB before any later cleanup. Stopped instances continue to retain boot-volume storage.",
+      "resource": "blue-green retained boot and data volumes up to 930 GiB"
     },
     {
       "approval_required": true,

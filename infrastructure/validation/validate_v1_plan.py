@@ -14,15 +14,15 @@ from pathlib import Path
 from typing import Any
 
 EXPECTED_COUNTS = {
-    "oci_core_instance": 1,
+    "oci_core_instance": 3,
     "oci_core_internet_gateway": 1,
     "oci_core_nat_gateway": 1,
     "oci_core_service_gateway": 1,
     "oci_core_network_security_group": 2,
     "oci_core_network_security_group_security_rule": 16,
-    "oci_core_route_table": 2,
+    "oci_core_route_table": 3,
     "oci_core_security_list": 1,
-    "oci_core_subnet": 2,
+    "oci_core_subnet": 3,
     "oci_core_vcn": 1,
     "oci_core_volume": 1,
     "oci_core_volume_attachment": 1,
@@ -35,7 +35,7 @@ EXPECTED_COUNTS = {
     "oci_network_load_balancer_backend_set": 2,
     "oci_network_load_balancer_backend": 2,
     "oci_network_load_balancer_listener": 2,
-    "terraform_data": 6,
+    "terraform_data": 7,
 }
 EXPECTED_OUTPUTS = {"oci_live_v1", "host_bootstrap_sha256", "replacement_impact"}
 FORBIDDEN_TYPES = {"oci_vault_secret", "oci_database_db_system", "oci_containerengine_cluster", "oci_objectstorage_bucket"}
@@ -130,18 +130,24 @@ def validate_planned_resource_counts(resources: list[dict[str, Any]], allow_rese
 def validate_instance(resources: list[dict[str, Any]], capacity_profile: str, plan_mode: str = "initial-create") -> str:
     profiles = {"a1-target": {"shape": "VM.Standard.A1.Flex", "boot": 50}, "e5-temporary": {"shape": "VM.Standard.E5.Flex", "boot": 200}}
     expected = profiles[capacity_profile]
-    values = one(resources, "oci_core_instance")["values"]
-    if values.get("shape") != expected["shape"]:
-        fail(f"compute shape must be {expected['shape']} for {capacity_profile}")
-    shape = values.get("shape_config") or []
-    if len(shape) != 1 or shape[0].get("ocpus") != 4 or shape[0].get("memory_in_gbs") != 24:
-        fail(f"compute capacity must be 4 OCPU/24 GiB, got {shape}")
-    source = values.get("source_details") or []
-    if source and int(source[0].get("boot_volume_size_in_gbs", 0)) != expected["boot"]:
-        fail(f"boot volume must be {expected['boot']} GiB for {capacity_profile}")
+    instances = {
+        "legacy": by_address(resources, "oci_core_instance.host")["values"],
+        "primary": by_address(resources, "oci_core_instance.private_host")["values"],
+        "fallback": by_address(resources, "oci_core_instance.private_fallback")["values"],
+    }
+    for role, values in instances.items():
+        if values.get("shape") != expected["shape"]:
+            fail(f"{role} compute shape must be {expected['shape']} for {capacity_profile}")
+        shape = values.get("shape_config") or []
+        if len(shape) != 1 or shape[0].get("ocpus") != 4 or shape[0].get("memory_in_gbs") != 24:
+            fail(f"{role} compute capacity must be 4 OCPU/24 GiB, got {shape}")
+        source = values.get("source_details") or []
+        if source and int(source[0].get("boot_volume_size_in_gbs", 0)) != expected["boot"]:
+            fail(f"{role} boot volume must be {expected['boot']} GiB for {capacity_profile}")
+    values = instances["primary"]
     rendered = ""
     metadata = values.get("metadata") or {}
-    if plan_mode == "initial-create":
+    if plan_mode in {"initial-create", "adopt-existing"}:
         if set(metadata) != {"user_data"}:
             fail(f"new instance metadata must contain only compressed user_data, got {sorted(metadata)}")
         encoded = metadata.get("user_data")
@@ -157,10 +163,17 @@ def validate_instance(resources: list[dict[str, Any]], capacity_profile: str, pl
         vnic = values.get("create_vnic_details") or []
         if len(vnic) != 1 or str(vnic[0].get("assign_public_ip")).lower() not in {"false", "0"}:
             fail("primary host must be created without a public IP")
-    agent = values.get("agent_config") or []
-    plugins = [item for block in agent for item in (block.get("plugins_config") or [])]
-    if not any(item.get("name") == "Compute Instance Run Command" and item.get("desired_state") == "ENABLED" for item in plugins):
-        fail("Compute Instance Run Command must remain enabled")
+    for role in ("primary", "fallback"):
+        values = instances[role]
+        vnic = values.get("create_vnic_details") or []
+        if len(vnic) != 1 or str(vnic[0].get("assign_public_ip")).lower() not in {"false", "0"}:
+            fail(f"{role} must be created without a public IP")
+        agent = values.get("agent_config") or []
+        plugins = [item for block in agent for item in (block.get("plugins_config") or [])]
+        if not any(item.get("name") == "Compute Instance Run Command" and item.get("desired_state") == "ENABLED" for item in plugins):
+            fail(f"Compute Instance Run Command must remain enabled on {role}")
+    if instances["fallback"].get("state") not in {"RUNNING", "STOPPED"}:
+        fail("private fallback state must be RUNNING for bootstrap or STOPPED for recovery")
     return rendered
 
 
@@ -206,17 +219,24 @@ def validate_network(resources: list[dict[str, Any]]) -> None:
         fail("private-host NAT Gateway must not block traffic")
     if len(service.get("services") or []) != 1:
         fail("Service Gateway must target exactly one regional all-services entry")
-    host_route = by_address(resources, "oci_core_route_table.edge")["values"].get("route_rules") or []
+    legacy_route = by_address(resources, "oci_core_route_table.edge")["values"].get("route_rules") or []
+    host_route = by_address(resources, "oci_core_route_table.private_host")["values"].get("route_rules") or []
     edge_route = by_address(resources, "oci_core_route_table.public_edge")["values"].get("route_rules") or []
     host_destinations = {(r.get("destination"), r.get("destination_type")) for r in host_route}
     if ("0.0.0.0/0", "CIDR_BLOCK") not in host_destinations or not any(t == "SERVICE_CIDR_BLOCK" for _d, t in host_destinations):
         fail("host route table must contain NAT default and Service Gateway route")
+    legacy_destinations = {(r.get("destination"), r.get("destination_type")) for r in legacy_route}
+    if ("0.0.0.0/0", "CIDR_BLOCK") not in legacy_destinations or not any(t == "SERVICE_CIDR_BLOCK" for _d, t in legacy_destinations):
+        fail("retained legacy route table must remain NAT-only plus Service Gateway")
     if {(r.get("destination"), r.get("destination_type")) for r in edge_route} != {("0.0.0.0/0", "CIDR_BLOCK")}:
         fail("public NLB edge route table must contain only an Internet Gateway default route")
-    host_subnet = by_address(resources, "oci_core_subnet.edge")["values"]
+    legacy_subnet = by_address(resources, "oci_core_subnet.edge")["values"]
+    host_subnet = by_address(resources, "oci_core_subnet.private_host")["values"]
     edge_subnet = by_address(resources, "oci_core_subnet.public_edge")["values"]
     if host_subnet.get("prohibit_public_ip_on_vnic") is not True:
         fail("host subnet must prohibit public IP assignment")
+    if legacy_subnet.get("prohibit_public_ip_on_vnic") is not False:
+        fail("retained legacy subnet identity must match its immutable public-IP-capable setting")
     if edge_subnet.get("prohibit_public_ip_on_vnic") is not False:
         fail("public NLB edge subnet must permit a public edge address")
     nlb = one(resources, "oci_network_load_balancer_network_load_balancer")["values"]
@@ -262,7 +282,7 @@ def validate_ingress(resources: list[dict[str, Any]]) -> None:
         fail(f"host must accept exactly NLB backend ports 80/443, got {sorted(backend_ports)}")
 
 
-def validate_nlb(resources: list[dict[str, Any]]) -> None:
+def validate_nlb(resources: list[dict[str, Any]]) -> bool:
     backend_ports = set()
     for item in resources_of(resources, "oci_network_load_balancer_backend_set"):
         values = item["values"]
@@ -271,11 +291,13 @@ def validate_nlb(resources: list[dict[str, Any]]) -> None:
         health = values.get("health_checker") or []
         if len(health) != 1 or health[0].get("protocol") != "TCP" or int(health[0].get("port", 0)) not in {80, 443}:
             fail("NLB backend health checks must be TCP on the matching 80/443 port")
+    offline_states: set[bool] = set()
     for item in resources_of(resources, "oci_network_load_balancer_backend"):
         values = item["values"]
         port = int(values.get("port", 0))
-        if port not in {80, 443} or values.get("is_backup") is not False or values.get("is_drain") is not False or values.get("is_offline") is not False:
-            fail("NLB backends must be active primary host ports 80/443")
+        if port not in {80, 443} or values.get("is_backup") is not False or values.get("is_drain") is not False or not isinstance(values.get("is_offline"), bool):
+            fail("NLB backends must be explicit fail-closed primary host ports 80/443")
+        offline_states.add(values["is_offline"])
         backend_ports.add(port)
     listeners = set()
     for item in resources_of(resources, "oci_network_load_balancer_listener"):
@@ -286,6 +308,28 @@ def validate_nlb(resources: list[dict[str, Any]]) -> None:
         listeners.add(port)
     if backend_ports != {80, 443} or listeners != {80, 443}:
         fail("NLB must contain exactly backend and listener ports 80/443")
+    if len(offline_states) != 1:
+        fail("NLB HTTP and HTTPS backends must transition online/offline together")
+    return not next(iter(offline_states))
+
+
+def validate_private_host_references(plan: dict[str, Any]) -> None:
+    module = plan.get("configuration", {}).get("root_module", {}).get("module_calls", {}).get("v1_live", {}).get("module", {})
+    configured = {item.get("address"): item for item in module.get("resources", [])}
+
+    def references(address: str, expression: str) -> set[str]:
+        resource = configured.get(address) or {}
+        return set((resource.get("expressions", {}).get(expression) or {}).get("references") or [])
+
+    primary = "oci_core_instance.private_host"
+    fallback = "oci_core_instance.private_fallback"
+    if references("oci_core_volume_attachment.data", "instance_id") != {f"{primary}.id"}:
+        fail("preserved data volume must attach only to the new private primary")
+    if references("oci_network_load_balancer_backend.host", "target_id") != {f"{primary}.id"}:
+        fail("NLB backend must target the new private primary")
+    identity_refs = references("oci_identity_dynamic_group.host", "matching_rule")
+    if identity_refs != {f"{primary}.id", f"{fallback}.id"}:
+        fail("instance-principal dynamic group must bind exactly the private primary and recovery fallback")
 
 
 def validate_management(resources: list[dict[str, Any]]) -> None:
@@ -295,14 +339,14 @@ def validate_management(resources: list[dict[str, Any]]) -> None:
             fail("superseded external WireGuard UDP egress remains in the plan")
 
 
-def validate_outputs(plan: dict[str, Any], mode: str, capacity_profile: str) -> None:
+def validate_outputs(plan: dict[str, Any], mode: str, capacity_profile: str, public_backend_enabled: bool) -> None:
     outputs = plan.get("planned_values", {}).get("outputs", {})
     if set(outputs) != EXPECTED_OUTPUTS:
         fail(f"planned outputs changed: {sorted(outputs)}")
     contract = outputs["oci_live_v1"].get("value")
     if not isinstance(contract, dict):
         return
-    if contract.get("schema_version") != "liqi.infrastructure.oci-live/v1" or contract.get("classification") != "production" or contract.get("infrastructure_output_version") != "1.3.0":
+    if contract.get("schema_version") != "liqi.infrastructure.oci-live/v1" or contract.get("classification") != "production" or contract.get("infrastructure_output_version") != "1.4.0":
         fail("unexpected OCI output schema/classification/version")
     capacity = contract.get("capacity", {})
     expected = {
@@ -329,6 +373,8 @@ def validate_outputs(plan: dict[str, Any], mode: str, capacity_profile: str) -> 
     for name, expected_value in required_network.items():
         if network.get(name) != expected_value:
             fail(f"network output {name} does not match private-host topology")
+    if network.get("public_backend_enabled") is not public_backend_enabled:
+        fail("network output public cutover marker does not match NLB backend state")
     if set(network.get("ssh_source_cidrs") or []) != BASTION_SOURCES:
         fail("network output does not bind the two accepted OCI Bastion sources")
     management = network.get("management_access", {})
@@ -337,6 +383,14 @@ def validate_outputs(plan: dict[str, Any], mode: str, capacity_profile: str) -> 
     host = contract.get("host", {})
     if host.get("public_ipv4") is not None or host.get("public_ip_mode") != "none":
         fail("primary host output must not expose a public IP")
+    recovery = contract.get("recovery", {})
+    if recovery.get("public_ip_mode") != "none" or recovery.get("fallback_state") not in {"RUNNING", "STOPPED"}:
+        fail("private fallback output must be explicit, non-public and lifecycle-bounded")
+    if public_backend_enabled and recovery.get("fallback_state") != "STOPPED":
+        fail("public cutover requires the private recovery fallback to be STOPPED")
+    retained = contract.get("legacy_retained", {})
+    if retained.get("traffic_eligible") is not False or retained.get("deletion_allowed") is not False:
+        fail("legacy host and subnet must remain retained and ineligible for NLB traffic")
     if mode == "approved-apply" and capacity_profile != "e5-temporary":
         fail("approved apply is enabled only for the temporary E5 bridge in this source revision")
     mutation = contract.get("mutation", {})
@@ -371,9 +425,10 @@ def main() -> int:
         validate_security_list(resources)
         validate_network(resources)
         validate_ingress(resources)
-        validate_nlb(resources)
+        public_backend_enabled = validate_nlb(resources)
+        validate_private_host_references(plan)
         validate_management(resources)
-        validate_outputs(plan, args.mode, args.capacity_profile)
+        validate_outputs(plan, args.mode, args.capacity_profile, public_backend_enabled)
     except (AssertionError, ValueError, KeyError, TypeError, OSError, json.JSONDecodeError) as exc:
         print(f"ERROR v1-plan: {exc}", file=sys.stderr)
         return 1
@@ -385,6 +440,7 @@ def main() -> int:
         "capacity_profile": args.capacity_profile,
         "plan_sha256": hashlib.sha256(args.plan_json.read_bytes()).hexdigest(),
         "public_tcp_ports": [80, 443],
+        "public_backend_enabled": public_backend_enabled,
         "oci_mutation_performed": False,
     }
     encoded = json.dumps(result, indent=2, sort_keys=True) + "\n"

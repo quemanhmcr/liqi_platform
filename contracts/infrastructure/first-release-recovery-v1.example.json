@@ -12,12 +12,14 @@
     "backup_type": "FULL",
     "backup_purpose": "predeploy-restore-point",
     "backup_age_seconds": 3600,
-    "public_ip_present": false
+    "public_ip_present": false,
+    "subnet_public_ip_prohibited": true
   },
   "fallback": {
     "instance_id_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
     "lifecycle_state": "STOPPED",
     "public_ip_present": false,
+    "subnet_public_ip_prohibited": true,
     "start_stop_test_status": "passed",
     "restored_original_state": true,
     "shape": "VM.Standard.E5.Flex",

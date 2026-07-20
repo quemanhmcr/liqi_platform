@@ -90,6 +90,46 @@ capacity_profile = "e5-temporary"
 temporary_e5_expires_at = "{expiry}"
 acknowledge_capacity_availability_and_cost = true
 operation_mode = "plan"
+public_backend_enabled = false
+acknowledge_public_cutover = false
+fallback_desired_state = "RUNNING"
+legacy_host_subnet_cidr = "10.42.10.0/24"
+legacy_host_subnet_label = "live"
+host_subnet_cidr = "10.42.20.0/24"
+host_subnet_label = "livepriv"
+public_edge_subnet_cidr = "10.42.30.0/24"
+public_edge_subnet_label = "edge"
+vcn_cidr = "10.42.0.0/16"
+vcn_dns_label = "liqilive"
+compartment = "liqi-live"
+vcn = "liqi-live-vcn"
+internet_gateway = "liqi-live-igw"
+nat_gateway = "liqi-live-nat-gw"
+service_gateway = "liqi-live-service-gw"
+legacy_route_table = "liqi-live-public-rt"
+route_table = "liqi-live-private-rt"
+public_edge_route_table = "liqi-live-nlb-public-rt"
+security_list = "liqi-live-egress-only-sl"
+legacy_subnet = "liqi-live-public-subnet"
+subnet = "liqi-live-private-subnet"
+public_edge_subnet = "liqi-live-nlb-public-subnet"
+nsg = "liqi-live-workload-nsg"
+nlb_nsg = "liqi-live-edge-nlb-nsg"
+network_load_balancer = "liqi-live-edge-nlb"
+legacy_instance = "liqi-live-primary"
+legacy_vnic = "liqi-live-primary-v2"
+legacy_fallback_instance = "liqi-live-primary-fallback-stopped"
+instance = "liqi-live-v1-private-primary"
+vnic = "liqi-live-v1-private-primary-vnic"
+fallback_instance = "liqi-live-v1-private-fallback"
+fallback_vnic = "liqi-live-v1-private-fallback-vnic"
+data_volume = "liqi-live-data"
+data_attachment = "liqi-live-data-attachment"
+vault = "liqi-live-vault"
+key = "liqi-live-software-key"
+reserved_public_ip = "liqi-live-edge-ip"
+dynamic_group = "liqi_v1_live_host"
+policy = "liqi_v1_live_host_policy"
 bastion_ssh_source_cidrs = ["10.42.20.100/32", "10.42.20.109/32"]
 management_plane_evidence_id = "management-evidence-v1"
 state_backend_lock_evidence_id = "state-evidence-v1"
@@ -113,6 +153,22 @@ acknowledge_host_bundle_signing_key = true
             result, _ = module.tfvars_check(path, SHA, now)
             self.assertEqual("blocked", result["status"])
             self.assertIn("availability_domain", result["detail"])
+
+            online_without_recovery = valid.replace(
+                "public_backend_enabled = false", "public_backend_enabled = true"
+            )
+            path.write_text(online_without_recovery, encoding="utf-8", newline="\n")
+            result, _ = module.tfvars_check(path, SHA, now)
+            self.assertEqual("blocked", result["status"])
+            self.assertIn("cutover acknowledgement", result["detail"])
+
+            online_with_running_fallback = online_without_recovery.replace(
+                "acknowledge_public_cutover = false", "acknowledge_public_cutover = true"
+            )
+            path.write_text(online_with_running_fallback, encoding="utf-8", newline="\n")
+            result, _ = module.tfvars_check(path, SHA, now)
+            self.assertEqual("blocked", result["status"])
+            self.assertIn("fallback_desired_state=STOPPED", result["detail"])
 
     def test_passed_readiness_binds_exact_plan_inputs_and_rejects_tamper(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -187,6 +243,18 @@ acknowledge_host_bundle_signing_key = true
             recovery_path = self.write_json(root, "recovery.json", recovery)
             result = module.recovery_check(recovery_path, build_path, build, SHA)
             self.assertEqual("passed", result["status"])
+
+            cutover_vars = root / "cutover.tfvars"
+            cutover_vars.write_text("public_backend_enabled = true\n", encoding="utf-8", newline="\n")
+            result = module.recovery_check(recovery_path, build_path, build, SHA, cutover_vars)
+            self.assertEqual("passed", result["status"])
+
+            recovery["primary"]["subnet_public_ip_prohibited"] = False
+            self.write_json(root, "recovery.json", recovery)
+            result = module.recovery_check(recovery_path, build_path, build, SHA, cutover_vars)
+            self.assertEqual("failed", result["status"])
+
+            recovery["primary"]["subnet_public_ip_prohibited"] = True
             recovery["git_sha"] = "2" * 40
             self.write_json(root, "recovery.json", recovery)
             result = module.recovery_check(recovery_path, build_path, build, SHA)

@@ -165,6 +165,21 @@ def tfvars_check(path: Path | None, git_sha: str, now: datetime) -> tuple[dict[s
         blockers.append("host-bundle trust acknowledgement must be true")
     if assignment(text, "operation_mode") != "plan":
         blockers.append("operation_mode must remain plan before saved-plan approval")
+    public_backend_enabled = bool_assignment(text, "public_backend_enabled")
+    cutover_acknowledged = bool_assignment(text, "acknowledge_public_cutover")
+    fallback_state = assignment(text, "fallback_desired_state")
+    if public_backend_enabled is None:
+        blockers.append("public_backend_enabled must be explicit")
+    if cutover_acknowledged is None:
+        blockers.append("acknowledge_public_cutover must be explicit")
+    if public_backend_enabled is False and cutover_acknowledged is not False:
+        blockers.append("public cutover acknowledgement must remain false while NLB backends are offline")
+    if public_backend_enabled is True and cutover_acknowledged is not True:
+        blockers.append("public cutover acknowledgement must be true when NLB backends are enabled")
+    if public_backend_enabled is True and fallback_state != "STOPPED":
+        blockers.append("public cutover requires fallback_desired_state=STOPPED")
+    if fallback_state not in {"RUNNING", "STOPPED"}:
+        blockers.append("fallback_desired_state must be RUNNING or STOPPED")
     if assignment(text, "source_git_sha") != git_sha:
         blockers.append("source_git_sha must match the exact checkout")
     availability_domain = assignment(text, "availability_domain") or ""
@@ -191,6 +206,48 @@ def tfvars_check(path: Path | None, git_sha: str, now: datetime) -> tuple[dict[s
     bastion_assignment = re.search(r"(?ms)^\s*bastion_ssh_source_cidrs\s*=\s*\[(.*?)\]", text)
     if bastion_assignment is None or "0.0.0.0/0" in bastion_assignment.group(1):
         blockers.append("Bastion SSH sources must remain exact and non-world")
+    reviewed_topology = {
+        "vcn_cidr": "10.42.0.0/16",
+        "vcn_dns_label": "liqilive",
+        "legacy_host_subnet_cidr": "10.42.10.0/24",
+        "legacy_host_subnet_label": "live",
+        "host_subnet_cidr": "10.42.20.0/24",
+        "host_subnet_label": "livepriv",
+        "public_edge_subnet_cidr": "10.42.30.0/24",
+        "public_edge_subnet_label": "edge",
+        "compartment": "liqi-live",
+        "vcn": "liqi-live-vcn",
+        "internet_gateway": "liqi-live-igw",
+        "nat_gateway": "liqi-live-nat-gw",
+        "service_gateway": "liqi-live-service-gw",
+        "legacy_route_table": "liqi-live-public-rt",
+        "route_table": "liqi-live-private-rt",
+        "public_edge_route_table": "liqi-live-nlb-public-rt",
+        "security_list": "liqi-live-egress-only-sl",
+        "legacy_subnet": "liqi-live-public-subnet",
+        "subnet": "liqi-live-private-subnet",
+        "public_edge_subnet": "liqi-live-nlb-public-subnet",
+        "nsg": "liqi-live-workload-nsg",
+        "nlb_nsg": "liqi-live-edge-nlb-nsg",
+        "network_load_balancer": "liqi-live-edge-nlb",
+        "legacy_instance": "liqi-live-primary",
+        "legacy_vnic": "liqi-live-primary-v2",
+        "legacy_fallback_instance": "liqi-live-primary-fallback-stopped",
+        "instance": "liqi-live-v1-private-primary",
+        "vnic": "liqi-live-v1-private-primary-vnic",
+        "fallback_instance": "liqi-live-v1-private-fallback",
+        "fallback_vnic": "liqi-live-v1-private-fallback-vnic",
+        "data_volume": "liqi-live-data",
+        "data_attachment": "liqi-live-data-attachment",
+        "vault": "liqi-live-vault",
+        "key": "liqi-live-software-key",
+        "reserved_public_ip": "liqi-live-edge-ip",
+        "dynamic_group": "liqi_v1_live_host",
+        "policy": "liqi_v1_live_host_policy",
+    }
+    for name, expected in reviewed_topology.items():
+        if assignment(text, name) != expected:
+            blockers.append(f"reviewed blue-green topology input is missing or mismatched: {name}")
     if "management_wireguard_peer_cidr" in text:
         blockers.append("superseded WireGuard management input is forbidden")
     expires = assignment(text, "temporary_e5_expires_at") or ""
@@ -279,7 +336,7 @@ def publication_check(
     return check("signed-x86-release", "passed", "Exact-SHA x86_64 release and native artifacts passed cryptographic cross-binding verification."), document
 
 
-def recovery_check(path: Path | None, build_path: Path | None, build: dict[str, Any] | None, git_sha: str) -> dict[str, str]:
+def recovery_check(path: Path | None, build_path: Path | None, build: dict[str, Any] | None, git_sha: str, var_file: Path | None = None) -> dict[str, str]:
     if path is None:
         return check("recovery-target", "blocked", "First-release infrastructure recovery evidence is missing.")
     if build_path is None or build is None:
@@ -291,6 +348,9 @@ def recovery_check(path: Path | None, build_path: Path | None, build: dict[str, 
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as error:
         return check("recovery-target", "failed", f"Recovery evidence is unreadable or invalid: {error}")
     database = manifest.get("database_compatibility") or {}
+    public_backend_enabled = False
+    if var_file is not None and var_file.is_file():
+        public_backend_enabled = bool_assignment(var_file.read_text(encoding="utf-8"), "public_backend_enabled") is True
     if (
         recovery.get("git_sha") != git_sha
         or recovery.get("status") != "passed"
@@ -300,6 +360,12 @@ def recovery_check(path: Path | None, build_path: Path | None, build: dict[str, 
         or database != {"minimum_migration": 8, "maximum_migration": 8, "rollback_safe_through": 8}
     ):
         return check("recovery-target", "failed", "First-release recovery or forward-only release identity binding failed.")
+    if public_backend_enabled and (
+        recovery.get("primary", {}).get("subnet_public_ip_prohibited") is not True
+        or recovery.get("fallback", {}).get("subnet_public_ip_prohibited") is not True
+        or recovery.get("fallback", {}).get("lifecycle_state") != "STOPPED"
+    ):
+        return check("recovery-target", "failed", "Public cutover requires recovery evidence for the new private-subnet primary and stopped private-subnet fallback.")
     return check("recovery-target", "passed", "First-release recovery is bound to a stopped private fallback, a full predeploy boot-volume backup, traffic-off state and forward-only database recovery.")
 
 def environment_check() -> dict[str, str]:
@@ -361,7 +427,7 @@ def main() -> int:
         args.adoption_result, git_sha, adoption_sha, var_sha, expected_adopted_addresses
     )
     publication, build_document = publication_check(args.linux_release_build_result, args.release_trust_dir, args.native_trust_dir, git_sha)
-    recovery = recovery_check(args.recovery_target, args.linux_release_build_result, build_document, git_sha)
+    recovery = recovery_check(args.recovery_target, args.linux_release_build_result, build_document, git_sha, args.var_file)
     protected_environment = environment_check()
 
     by_name = {item["name"]: item for item in (adoption, state_backend, state_adoption, tfvars, publication, recovery, protected_environment)}

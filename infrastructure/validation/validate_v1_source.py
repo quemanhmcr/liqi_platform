@@ -152,6 +152,12 @@ def validate_static_policy() -> None:
         "oci_network_load_balancer_listener", "oci_network_load_balancer_backend_set",
         "10.42.20.100/32", "10.42.20.109/32", "Compute Instance Run Command",
         'assign_public_ip = "false"', 'prohibit_public_ip_on_vnic = true',
+        'resource "oci_core_subnet" "private_host"',
+        'resource "oci_core_instance" "private_host"',
+        'resource "oci_core_instance" "private_fallback"',
+        'target_id                = oci_core_instance.private_host.id',
+        'is_offline               = !var.public_backend_enabled',
+        'prevent_destroy = true',
         'outbound_internet_path = "nat-gateway"', 'oracle_services_path   = "service-gateway"',
     ):
         if token not in module_text:
@@ -187,6 +193,8 @@ def validate_static_policy() -> None:
         'var.operation_mode == "plan"',
         'var.capacity_profile == "e5-temporary"',
         'timeadd(timestamp(), "2160h")',
+        'var.fallback_desired_state == "STOPPED"',
+        'var.acknowledge_public_cutover',
     ):
         if token not in module_text:
             raise AssertionError(f"V1 A1/E5 profile or expiry guard is missing {token}")
@@ -197,6 +205,9 @@ def validate_static_policy() -> None:
     e5_cost = next(item for item in cost_manifest["resources"] if item["resource"] == "VM.Standard.E5.Flex 4 OCPU / 24 GiB temporary bridge")
     if e5_cost.get("classification") != "paid-approved" or e5_cost.get("apply_allowed_under_current_approval") is not True:
         raise AssertionError("temporary E5 cost classification or approval boundary is incorrect")
+    blue_green_cost = next(item for item in cost_manifest["resources"] if item["resource"] == "additive private-subnet blue-green compute peak")
+    if blue_green_cost.get("classification") != "paid-approved-temporary-peak" or blue_green_cost.get("apply_allowed_under_current_approval") is not True:
+        raise AssertionError("additive blue-green peak cost classification is not explicit")
     if cost_manifest.get("documented_always_free_a1") != {"ocpus_total": 2, "memory_gib_total": 12}:
         raise AssertionError("V1 cost manifest does not pin the current documented Always Free A1 limit")
 

@@ -34,9 +34,33 @@ resource "oci_core_service_gateway" "oracle_services" {
   freeform_tags = local.common_tags
 }
 
-# Existing host subnet route table. The primary remains private: internet egress
-# is NAT-only and Oracle Services use the Service Gateway.
+# Retained route table for the legacy non-publicly-addressed host. Its stable
+# state address avoids a risky state move during the blue-green correction.
 resource "oci_core_route_table" "edge" {
+  compartment_id = oci_identity_compartment.environment.id
+  vcn_id         = oci_core_vcn.main.id
+  display_name   = var.resource_names.legacy_route_table
+  route_rules {
+    destination       = "0.0.0.0/0"
+    destination_type  = "CIDR_BLOCK"
+    network_entity_id = oci_core_nat_gateway.outbound.id
+    description       = "Private workload internet egress through NAT."
+  }
+  route_rules {
+    destination       = local.regional_oracle_service.cidr_block
+    destination_type  = "SERVICE_CIDR_BLOCK"
+    network_entity_id = oci_core_service_gateway.oracle_services.id
+    description       = "Private Oracle Services path."
+  }
+  freeform_tags = local.common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Existing private route table adopted for the new primary and recovery host.
+resource "oci_core_route_table" "private_host" {
   compartment_id = oci_identity_compartment.environment.id
   vcn_id         = oci_core_vcn.main.id
   display_name   = var.resource_names.route_table
@@ -53,6 +77,10 @@ resource "oci_core_route_table" "edge" {
     description       = "Private Oracle Services path."
   }
   freeform_tags = local.common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # A separate route table is used only by the public NLB edge subnet. Enabling
@@ -89,18 +117,38 @@ resource "oci_core_security_list" "empty" {
   freeform_tags = local.common_tags
 }
 
-# This address intentionally adopts the existing 10.42.10.0/24 subnet. It is
-# the private workload subnet despite its historical display name.
+# Retain the original public-IP-capable subnet without replacement. No
+# production backend is attached to this subnet after the blue-green apply.
 resource "oci_core_subnet" "edge" {
+  compartment_id             = oci_identity_compartment.environment.id
+  vcn_id                     = oci_core_vcn.main.id
+  cidr_block                 = var.network_config.legacy_host_subnet_cidr
+  display_name               = var.resource_names.legacy_subnet
+  dns_label                  = var.network_config.legacy_host_subnet_label
+  route_table_id             = oci_core_route_table.edge.id
+  security_list_ids          = [oci_core_security_list.empty.id]
+  prohibit_public_ip_on_vnic = false
+  freeform_tags              = local.common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "oci_core_subnet" "private_host" {
   compartment_id             = oci_identity_compartment.environment.id
   vcn_id                     = oci_core_vcn.main.id
   cidr_block                 = var.network_config.host_subnet_cidr
   display_name               = var.resource_names.subnet
   dns_label                  = var.network_config.host_subnet_label
-  route_table_id             = oci_core_route_table.edge.id
+  route_table_id             = oci_core_route_table.private_host.id
   security_list_ids          = [oci_core_security_list.empty.id]
   prohibit_public_ip_on_vnic = true
   freeform_tags              = local.common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "oci_core_subnet" "public_edge" {
@@ -366,11 +414,11 @@ resource "oci_network_load_balancer_backend" "host" {
 
   network_load_balancer_id = oci_network_load_balancer_network_load_balancer.edge.id
   backend_set_name         = oci_network_load_balancer_backend_set.edge[each.key].name
-  target_id                = oci_core_instance.host.id
+  target_id                = oci_core_instance.private_host.id
   port                     = each.value
   is_backup                = false
   is_drain                 = false
-  is_offline               = false
+  is_offline               = !var.public_backend_enabled
   weight                   = 1
 }
 

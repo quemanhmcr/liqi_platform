@@ -186,6 +186,35 @@ class FirstReleaseRecoveryProducerTests(unittest.TestCase):
         ):
             self.assertFalse(establish_first_release_recovery.reviewed_fallback_capacity(changed))
 
+    def test_instance_network_posture_requires_no_public_ip_and_private_subnet(self) -> None:
+        def private_network(_profile: str, _region: str, *args: str, **_kwargs):
+            command = " ".join(args)
+            if "vnic-attachment list" in command:
+                return [{"vnic-id": "vnic", "lifecycle-state": "ATTACHED"}]
+            if "vnic get" in command:
+                return {"public-ip": None, "subnet-id": "subnet"}
+            if "subnet get" in command:
+                return {"prohibit-public-ip-on-vnic": True}
+            raise AssertionError(command)
+
+        with patch("infrastructure.deployment.establish_first_release_recovery.oci", side_effect=private_network):
+            posture = establish_first_release_recovery.instance_network_posture(
+                "DEFAULT", "ap-singapore-2", "compartment", {"id": "instance"}
+            )
+        self.assertEqual((True, True), posture)
+
+        def public_capable_subnet(_profile: str, _region: str, *args: str, **_kwargs):
+            result = private_network(_profile, _region, *args, **_kwargs)
+            if "subnet get" in " ".join(args):
+                return {"prohibit-public-ip-on-vnic": False}
+            return result
+
+        with patch("infrastructure.deployment.establish_first_release_recovery.oci", side_effect=public_capable_subnet):
+            posture = establish_first_release_recovery.instance_network_posture(
+                "DEFAULT", "ap-singapore-2", "compartment", {"id": "instance"}
+            )
+        self.assertEqual((True, False), posture)
+
     def test_traffic_off_accepts_missing_nlb_and_rejects_online_backend(self) -> None:
         with patch("infrastructure.deployment.establish_first_release_recovery.oci", return_value=[]):
             self.assertTrue(establish_first_release_recovery.traffic_is_off("DEFAULT", "ap-singapore-2", "compartment", "edge"))
@@ -592,19 +621,22 @@ class PlanValidationTests(unittest.TestCase):
 
         cloud_init = b"liqi-bootstrap-host liqi-install-host-bundle liqi-configure-bastion-ssh"
         encoded = base64.b64encode(gzip.compress(cloud_init, mtime=0)).decode("ascii")
-        resources = [{
-            "type": "oci_core_instance",
-            "values": {
+        values = {
                 "shape": "VM.Standard.E5.Flex",
                 "shape_config": [{"ocpus": 4, "memory_in_gbs": 24}],
                 "source_details": [{"boot_volume_size_in_gbs": 200}],
                 "metadata": {"user_data": encoded},
                 "create_vnic_details": [{"assign_public_ip": "false"}],
                 "agent_config": [{"plugins_config": [{"name": "Compute Instance Run Command", "desired_state": "ENABLED"}]}],
-            },
-        }]
+                "state": "RUNNING",
+        }
+        resources = [
+            {"address": "module.v1_live.oci_core_instance.host", "type": "oci_core_instance", "values": dict(values)},
+            {"address": "module.v1_live.oci_core_instance.private_host", "type": "oci_core_instance", "values": dict(values)},
+            {"address": "module.v1_live.oci_core_instance.private_fallback", "type": "oci_core_instance", "values": dict(values)},
+        ]
         validate_v1_plan.validate_instance(resources, "e5-temporary")
-        resources[0]["values"]["shape"] = "VM.Standard.A1.Flex"
+        resources[1]["values"]["shape"] = "VM.Standard.A1.Flex"
         with self.assertRaises(AssertionError):
             validate_v1_plan.validate_instance(resources, "e5-temporary")
 
@@ -641,17 +673,20 @@ class PlanValidationTests(unittest.TestCase):
 
         cloud_init = b"liqi-bootstrap-host liqi-install-host-bundle liqi-configure-bastion-ssh"
         encoded = base64.b64encode(gzip.compress(cloud_init, mtime=0)).decode("ascii")
-        resources = [{
-            "type": "oci_core_instance",
-            "values": {
+        values = {
                 "shape": "VM.Standard.A1.Flex",
                 "shape_config": [{"ocpus": 4, "memory_in_gbs": 24}],
                 "source_details": [{"boot_volume_size_in_gbs": 50}],
                 "metadata": {"user_data": encoded},
                 "create_vnic_details": [{"assign_public_ip": "false"}],
                 "agent_config": [{"plugins_config": [{"name": "Compute Instance Run Command", "desired_state": "ENABLED"}]}],
-            },
-        }]
+                "state": "RUNNING",
+        }
+        resources = [
+            {"address": "module.v1_live.oci_core_instance.host", "type": "oci_core_instance", "values": dict(values)},
+            {"address": "module.v1_live.oci_core_instance.private_host", "type": "oci_core_instance", "values": dict(values)},
+            {"address": "module.v1_live.oci_core_instance.private_fallback", "type": "oci_core_instance", "values": dict(values)},
+        ]
         rendered = validate_v1_plan.validate_instance(resources, "a1-target")
         self.assertIn("liqi-bootstrap-host", rendered)
 
@@ -682,10 +717,36 @@ class PlanValidationTests(unittest.TestCase):
                 {"address": f'module.v1_live.oci_network_load_balancer_backend.host["{key}"]', "type": "oci_network_load_balancer_backend", "values": {"port": port, "is_backup": False, "is_drain": False, "is_offline": False}},
                 {"address": f'module.v1_live.oci_network_load_balancer_listener.edge["{key}"]', "type": "oci_network_load_balancer_listener", "values": {"port": port, "protocol": "TCP", "tcp_idle_timeout": 3600}},
             ])
-        validate_v1_plan.validate_nlb(resources)
+        self.assertTrue(validate_v1_plan.validate_nlb(resources))
+        for item in resources:
+            if item["type"] == "oci_network_load_balancer_backend":
+                item["values"]["is_offline"] = True
+        self.assertFalse(validate_v1_plan.validate_nlb(resources))
+        next(item for item in resources if item["type"] == "oci_network_load_balancer_backend")["values"]["is_offline"] = False
+        with self.assertRaises(AssertionError):
+            validate_v1_plan.validate_nlb(resources)
+        for item in resources:
+            if item["type"] == "oci_network_load_balancer_backend":
+                item["values"]["is_offline"] = False
         resources[-1]["values"]["tcp_idle_timeout"] = 60
         with self.assertRaises(AssertionError):
             validate_v1_plan.validate_nlb(resources)
+
+    def test_stateful_and_public_consumers_reference_only_private_hosts(self) -> None:
+        resources = [
+            {"address": "oci_core_volume_attachment.data", "expressions": {"instance_id": {"references": ["oci_core_instance.private_host.id"]}}},
+            {"address": "oci_network_load_balancer_backend.host", "expressions": {"target_id": {"references": ["oci_core_instance.private_host.id"]}}},
+            {"address": "oci_identity_dynamic_group.host", "expressions": {"matching_rule": {"references": ["oci_core_instance.private_host.id", "oci_core_instance.private_fallback.id"]}}},
+        ]
+        plan = {"configuration": {"root_module": {"module_calls": {"v1_live": {"module": {"resources": resources}}}}}}
+        validate_v1_plan.validate_private_host_references(plan)
+        resources[1]["expressions"]["target_id"]["references"] = ["oci_core_instance.host.id"]
+        with self.assertRaises(AssertionError):
+            validate_v1_plan.validate_private_host_references(plan)
+        resources[1]["expressions"]["target_id"]["references"] = ["oci_core_instance.private_host.id"]
+        resources[2]["expressions"]["matching_rule"]["references"].append("oci_core_instance.host.id")
+        with self.assertRaises(AssertionError):
+            validate_v1_plan.validate_private_host_references(plan)
 
 
 

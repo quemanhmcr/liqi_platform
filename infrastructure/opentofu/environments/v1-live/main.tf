@@ -33,6 +33,9 @@ module "v1_live" {
   acknowledge_capacity_availability_and_cost = var.acknowledge_capacity_availability_and_cost
   enable_reserved_public_ip                  = var.enable_reserved_public_ip
   acknowledge_reserved_public_ip             = var.acknowledge_reserved_public_ip
+  public_backend_enabled                     = var.public_backend_enabled
+  acknowledge_public_cutover                 = var.acknowledge_public_cutover
+  fallback_desired_state                     = var.fallback_desired_state
   vault_secret_ocids                         = var.vault_secret_ocids
   bastion_ssh_source_cidrs                   = var.bastion_ssh_source_cidrs
   management_plane_evidence_id               = var.management_plane_evidence_id

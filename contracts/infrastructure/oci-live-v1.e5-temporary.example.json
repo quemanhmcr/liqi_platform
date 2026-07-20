@@ -30,7 +30,7 @@
     "image_id": "ocid1.image.oc1.examplee5",
     "instance_id": "ocid1.instance.oc1.example",
     "legacy_imds_disabled": true,
-    "private_ipv4": "10.40.10.10",
+    "private_ipv4": "10.40.20.10",
     "public_ip_mode": "none",
     "public_ipv4": null,
     "run_command_plugin_enabled": true
@@ -43,7 +43,14 @@
     "instance_principal": true,
     "user_api_keys_present": false
   },
-  "infrastructure_output_version": "1.3.0",
+  "infrastructure_output_version": "1.4.0",
+  "legacy_retained": {
+    "deletion_allowed": false,
+    "host_subnet_id": "ocid1.subnet.oc1.examplelegacy",
+    "instance_id": "ocid1.instance.oc1.examplelegacy",
+    "retention_reason": "blue-green-private-subnet-recovery",
+    "traffic_eligible": false
+  },
   "mutation": {
     "applied": false,
     "approval_reference": null,
@@ -53,6 +60,7 @@
   "network": {
     "host_nsg_id": "ocid1.networksecuritygroup.oc1.examplehost",
     "host_public_ip_enabled": false,
+    "public_backend_enabled": false,
     "host_subnet_id": "ocid1.subnet.oc1.examplehost",
     "loopback_services": [
       "phoenix-http",
@@ -96,6 +104,13 @@
       "10.42.20.109/32"
     ],
     "vcn_id": "ocid1.vcn.oc1.example"
+  },
+  "recovery": {
+    "fallback_instance_id": "ocid1.instance.oc1.examplefallback",
+    "fallback_private_ipv4": "10.40.20.11",
+    "fallback_state": "RUNNING",
+    "host_subnet_id": "ocid1.subnet.oc1.examplehost",
+    "public_ip_mode": "none"
   },
   "region": {
     "availability_domain": "example-AD-1",

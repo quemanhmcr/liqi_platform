@@ -139,3 +139,22 @@ resource "terraform_data" "host_bundle_trust_guard" {
     }
   }
 }
+
+resource "terraform_data" "cutover_guard" {
+  input = {
+    public_backend_enabled     = var.public_backend_enabled
+    acknowledge_public_cutover = var.acknowledge_public_cutover
+    fallback_desired_state     = var.fallback_desired_state
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !var.public_backend_enabled || var.acknowledge_public_cutover
+      error_message = "Public NLB backend enablement requires explicit cutover acknowledgement."
+    }
+    precondition {
+      condition     = !var.public_backend_enabled || var.fallback_desired_state == "STOPPED"
+      error_message = "Public NLB backends remain offline until the private recovery fallback is STOPPED and recovery-ready."
+    }
+  }
+}

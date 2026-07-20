@@ -24,10 +24,12 @@ ADDRESSES: dict[str, tuple[str, str]] = {
     "internet_gateway": ("module.v1_live.oci_core_internet_gateway.main", "oci_core_internet_gateway"),
     "nat_gateway": ("module.v1_live.oci_core_nat_gateway.outbound", "oci_core_nat_gateway"),
     "service_gateway": ("module.v1_live.oci_core_service_gateway.oracle_services", "oci_core_service_gateway"),
-    "route_table": ("module.v1_live.oci_core_route_table.edge", "oci_core_route_table"),
+    "legacy_route_table": ("module.v1_live.oci_core_route_table.edge", "oci_core_route_table"),
+    "route_table": ("module.v1_live.oci_core_route_table.private_host", "oci_core_route_table"),
     "public_edge_route_table": ("module.v1_live.oci_core_route_table.public_edge", "oci_core_route_table"),
     "security_list": ("module.v1_live.oci_core_security_list.empty", "oci_core_security_list"),
-    "subnet": ("module.v1_live.oci_core_subnet.edge", "oci_core_subnet"),
+    "legacy_subnet": ("module.v1_live.oci_core_subnet.edge", "oci_core_subnet"),
+    "subnet": ("module.v1_live.oci_core_subnet.private_host", "oci_core_subnet"),
     "public_edge_subnet": ("module.v1_live.oci_core_subnet.public_edge", "oci_core_subnet"),
     "nsg": ("module.v1_live.oci_core_network_security_group.host", "oci_core_network_security_group"),
     "nlb_nsg": ("module.v1_live.oci_core_network_security_group.public_edge", "oci_core_network_security_group"),
@@ -47,7 +49,9 @@ ADDRESSES: dict[str, tuple[str, str]] = {
     "edge_pmtu": ("module.v1_live.oci_core_network_security_group_security_rule.public_edge_path_mtu_ingress", "oci_core_network_security_group_security_rule"),
     "edge_egress_http": ('module.v1_live.oci_core_network_security_group_security_rule.public_edge_egress["http"]', "oci_core_network_security_group_security_rule"),
     "edge_egress_https": ('module.v1_live.oci_core_network_security_group_security_rule.public_edge_egress["https"]', "oci_core_network_security_group_security_rule"),
-    "instance": ("module.v1_live.oci_core_instance.host", "oci_core_instance"),
+    "legacy_instance": ("module.v1_live.oci_core_instance.host", "oci_core_instance"),
+    "instance": ("module.v1_live.oci_core_instance.private_host", "oci_core_instance"),
+    "fallback_instance": ("module.v1_live.oci_core_instance.private_fallback", "oci_core_instance"),
     "data_volume": ("module.v1_live.oci_core_volume.data", "oci_core_volume"),
     "data_attachment": ("module.v1_live.oci_core_volume_attachment.data", "oci_core_volume_attachment"),
     "vault": ("module.v1_live.oci_kms_vault.main", "oci_kms_vault"),
@@ -65,8 +69,9 @@ ADDRESSES: dict[str, tuple[str, str]] = {
 
 RESOURCE_NAME_KEYS = {
     "compartment", "vcn", "internet_gateway", "nat_gateway", "service_gateway",
-    "route_table", "public_edge_route_table", "security_list", "subnet",
-    "public_edge_subnet", "nsg", "nlb_nsg", "network_load_balancer", "instance",
+    "legacy_route_table", "route_table", "public_edge_route_table", "security_list", "legacy_subnet", "subnet",
+    "public_edge_subnet", "nsg", "nlb_nsg", "network_load_balancer", "legacy_instance", "legacy_vnic",
+    "legacy_fallback_instance", "instance", "vnic", "fallback_instance", "fallback_vnic",
     "data_volume", "data_attachment", "vault", "key", "reserved_public_ip",
     "dynamic_group", "policy",
 }
@@ -176,24 +181,27 @@ def main() -> int:
             blockers.append("adopted VCN must be exactly 10.42.0.0/16")
 
     host_nsg: dict[str, Any] | None = None
+    host_subnet: dict[str, Any] | None = None
     instance: dict[str, Any] | None = None
     if vcn_id:
         igw = one(oci(args.profile, region, "network", "internet-gateway", "list", "--compartment-id", compartment_id, "--all"), "display-name", names["internet_gateway"])
         nat = one(oci(args.profile, region, "network", "nat-gateway", "list", "--compartment-id", compartment_id, "--all"), "display-name", names["nat_gateway"])
         service = one(oci(args.profile, region, "network", "service-gateway", "list", "--compartment-id", compartment_id, "--all"), "display-name", names["service_gateway"])
         routes = oci(args.profile, region, "network", "route-table", "list", "--compartment-id", compartment_id, "--all")
+        legacy_route = one(routes, "display-name", names["legacy_route_table"])
         host_route = one(routes, "display-name", names["route_table"])
         public_edge_route = one(routes, "display-name", names["public_edge_route_table"])
         security_lists = oci(args.profile, region, "network", "security-list", "list", "--compartment-id", compartment_id, "--vcn-id", vcn_id, "--all")
         security_list = one(security_lists, "display-name", names["security_list"])
         subnets = oci(args.profile, region, "network", "subnet", "list", "--compartment-id", compartment_id, "--all")
+        legacy_subnet = one(subnets, "display-name", names["legacy_subnet"])
         host_subnet = one(subnets, "display-name", names["subnet"])
         public_edge_subnet = one(subnets, "display-name", names["public_edge_subnet"])
         nsgs = oci(args.profile, region, "network", "nsg", "list", "--compartment-id", compartment_id, "--all")
         host_nsg = one(nsgs, "display-name", names["nsg"])
         nlb_nsg = one(nsgs, "display-name", names["nlb_nsg"])
 
-        for key, item in (("internet_gateway", igw), ("nat_gateway", nat), ("service_gateway", service), ("route_table", host_route), ("public_edge_route_table", public_edge_route), ("security_list", security_list), ("subnet", host_subnet), ("public_edge_subnet", public_edge_subnet), ("nsg", host_nsg), ("nlb_nsg", nlb_nsg)):
+        for key, item in (("internet_gateway", igw), ("nat_gateway", nat), ("service_gateway", service), ("legacy_route_table", legacy_route), ("route_table", host_route), ("public_edge_route_table", public_edge_route), ("security_list", security_list), ("legacy_subnet", legacy_subnet), ("subnet", host_subnet), ("public_edge_subnet", public_edge_subnet), ("nsg", host_nsg), ("nlb_nsg", nlb_nsg)):
             if item and item.get("vcn-id") != vcn_id:
                 blockers.append(f"{key} does not belong to the adopted VCN")
             else:
@@ -213,8 +221,26 @@ def main() -> int:
             service_ok = any(r.get("destination-type") == "SERVICE_CIDR_BLOCK" and r.get("network-entity-id") == service["id"] for r in rules)
             if not default_ok or not service_ok:
                 blockers.append("host route table must retain NAT default and Service Gateway Oracle Services routes")
-        if host_subnet and host_subnet.get("cidr-block") != "10.42.10.0/24":
-            blockers.append("adopted host subnet must be exactly 10.42.10.0/24")
+        if legacy_route and nat and service:
+            rules = legacy_route.get("route-rules") or []
+            default_ok = any(r.get("destination") == "0.0.0.0/0" and r.get("network-entity-id") == nat["id"] for r in rules)
+            service_ok = any(r.get("destination-type") == "SERVICE_CIDR_BLOCK" and r.get("network-entity-id") == service["id"] for r in rules)
+            if not default_ok or not service_ok:
+                blockers.append("legacy route table must remain NAT-only plus Oracle Services while retained")
+        if legacy_subnet and (
+            legacy_subnet.get("cidr-block") != "10.42.10.0/24"
+            or legacy_subnet.get("prohibit-public-ip-on-vnic") is not False
+        ):
+            blockers.append("retained legacy subnet must remain the existing public-IP-capable 10.42.10.0/24 resource")
+        if not legacy_subnet or not legacy_route:
+            blockers.append("retained legacy subnet and route table must exist before additive migration")
+        if host_subnet and (
+            host_subnet.get("cidr-block") != "10.42.20.0/24"
+            or host_subnet.get("prohibit-public-ip-on-vnic") is not True
+        ):
+            blockers.append("adopted production host subnet must be private 10.42.20.0/24 and prohibit public IPs")
+        if not host_subnet or not host_route:
+            blockers.append("existing private host subnet and route table are required for additive migration")
         if public_edge_subnet and public_edge_subnet.get("cidr-block") != "10.42.30.0/24":
             blockers.append("public NLB edge subnet must be exactly 10.42.30.0/24")
         if security_list:
@@ -246,31 +272,57 @@ def main() -> int:
                 unmanaged.append({"kind": "network-security-group", "display_name": item.get("display-name") or "unnamed", "reason": "Additional NSG remains outside the reviewed V1 graph."})
 
     instances = oci(args.profile, region, "compute", "instance", "list", "--compartment-id", compartment_id, "--all")
+    legacy_instance = one(instances, "display-name", names["legacy_instance"])
     instance = one(instances, "display-name", names["instance"])
+    fallback_instance = one(instances, "display-name", names["fallback_instance"])
+    add_import(imports, "legacy_instance", legacy_instance, names["legacy_instance"])
     add_import(imports, "instance", instance, names["instance"])
-    if instance:
-        shape = instance.get("shape-config") or {}
-        if instance.get("shape") != "VM.Standard.E5.Flex" or shape.get("ocpus") != 4 or shape.get("memory-in-gbs") != 24:
-            blockers.append("temporary E5 instance must be VM.Standard.E5.Flex at exactly 4 OCPU/24 GiB")
-        attachments = oci(args.profile, region, "compute", "vnic-attachment", "list", "--compartment-id", compartment_id, "--instance-id", instance["id"], "--all")
-        if len(attachments) != 1:
-            blockers.append("temporary E5 instance must have exactly one primary VNIC")
+    add_import(imports, "fallback_instance", fallback_instance, names["fallback_instance"])
+    if not legacy_instance:
+        blockers.append("retained legacy primary must exist before additive migration")
+
+    for role, candidate, require_private_subnet in (
+        ("legacy primary", legacy_instance, False),
+        ("private primary", instance, True),
+        ("private fallback", fallback_instance, True),
+    ):
+        if not candidate:
+            continue
+        shape = candidate.get("shape-config") or {}
+        if candidate.get("shape") != "VM.Standard.E5.Flex" or shape.get("ocpus") != 4 or shape.get("memory-in-gbs") != 24:
+            blockers.append(f"{role} must be VM.Standard.E5.Flex at exactly 4 OCPU/24 GiB")
+        attachments = oci(args.profile, region, "compute", "vnic-attachment", "list", "--compartment-id", compartment_id, "--instance-id", candidate["id"], "--all")
+        active_attachments = [item for item in attachments if item.get("lifecycle-state") == "ATTACHED"]
+        if len(active_attachments) != 1:
+            blockers.append(f"{role} must have exactly one attached primary VNIC")
         else:
-            vnic = oci(args.profile, region, "network", "vnic", "get", "--vnic-id", attachments[0]["vnic-id"])
+            vnic = oci(args.profile, region, "network", "vnic", "get", "--vnic-id", active_attachments[0]["vnic-id"])
             if vnic.get("public-ip"):
-                blockers.append("temporary E5 primary must not have a public IP")
+                blockers.append(f"{role} must not have a public IP")
             if host_nsg and host_nsg["id"] not in (vnic.get("nsg-ids") or []):
-                blockers.append("temporary E5 primary VNIC is not attached to the adopted workload NSG")
-        boot_attachments = oci(args.profile, region, "compute", "boot-volume-attachment", "list", "--compartment-id", compartment_id, "--instance-id", instance["id"], "--availability-domain", instance["availability-domain"])
-        if len(boot_attachments) != 1:
-            blockers.append("temporary E5 instance must have exactly one boot volume attachment")
+                blockers.append(f"{role} VNIC is not attached to the adopted workload NSG")
+            if require_private_subnet and (not host_subnet or vnic.get("subnet-id") != host_subnet.get("id")):
+                blockers.append(f"{role} must use the adopted private 10.42.20.0/24 subnet")
+        boot_attachments = oci(args.profile, region, "compute", "boot-volume-attachment", "list", "--compartment-id", compartment_id, "--instance-id", candidate["id"], "--availability-domain", candidate["availability-domain"])
+        active_boots = [item for item in boot_attachments if item.get("lifecycle-state") == "ATTACHED"]
+        if len(active_boots) != 1:
+            blockers.append(f"{role} must have exactly one active boot volume attachment")
         else:
-            boot = oci(args.profile, region, "bv", "boot-volume", "get", "--boot-volume-id", boot_attachments[0]["boot-volume-id"])
+            boot = oci(args.profile, region, "bv", "boot-volume", "get", "--boot-volume-id", active_boots[0]["boot-volume-id"])
             if int(boot.get("size-in-gbs", 0)) != 200:
-                blockers.append("temporary E5 boot volume must be exactly 200 GiB for adoption")
+                blockers.append(f"{role} boot volume must be exactly 200 GiB")
+    if fallback_instance and fallback_instance.get("lifecycle-state") not in {"RUNNING", "STOPPED"}:
+        blockers.append("private fallback must be RUNNING for bootstrap or STOPPED for recovery readiness")
+
+    reviewed_names = {
+        names["legacy_instance"], names["legacy_fallback_instance"],
+        names["instance"], names["fallback_instance"],
+    }
     for item in instances:
-        if item.get("display-name") != names["instance"] and item.get("lifecycle-state") != "TERMINATED":
-            unmanaged.append({"kind": "compute-instance", "display_name": item.get("display-name") or "unnamed", "reason": "Additional instance remains outside the single-primary source graph and requires separate cost/rollback ownership."})
+        if item.get("display-name") not in reviewed_names and item.get("lifecycle-state") != "TERMINATED":
+            unmanaged.append({"kind": "compute-instance", "display_name": item.get("display-name") or "unnamed", "reason": "Additional instance remains outside the reviewed blue-green source graph."})
+        elif item.get("display-name") == names["legacy_fallback_instance"] and item.get("lifecycle-state") != "TERMINATED":
+            unmanaged.append({"kind": "compute-instance", "display_name": item.get("display-name") or "unnamed", "reason": "Retained stopped first-release fallback remains outside mutation scope until the private fallback passes recovery."})
 
     volumes = oci(args.profile, region, "bv", "volume", "list", "--compartment-id", compartment_id, "--all")
     volume = one(volumes, "display-name", names["data_volume"])

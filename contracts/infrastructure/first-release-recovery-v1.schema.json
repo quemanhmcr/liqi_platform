@@ -49,6 +49,7 @@
       "required": [
         "instance_id_sha256",
         "public_ip_present",
+        "subnet_public_ip_prohibited",
         "boot_volume_backup_id_sha256",
         "backup_state",
         "backup_type",
@@ -97,6 +98,12 @@
             "boolean",
             "null"
           ]
+        },
+        "subnet_public_ip_prohibited": {
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       }
     },
@@ -107,6 +114,7 @@
         "instance_id_sha256",
         "lifecycle_state",
         "public_ip_present",
+        "subnet_public_ip_prohibited",
         "start_stop_test_status",
         "restored_original_state",
         "shape",
@@ -127,6 +135,12 @@
           ]
         },
         "public_ip_present": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "subnet_public_ip_prohibited": {
           "type": [
             "boolean",
             "null"

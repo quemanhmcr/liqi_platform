@@ -9,7 +9,7 @@ locals {
     environment                   = local.environment
     classification                = "production"
     git_sha                       = var.source_git_sha
-    infrastructure_output_version = "1.3.0"
+    infrastructure_output_version = "1.4.0"
     region = {
       name                = var.region
       availability_domain = var.availability_domain
@@ -35,7 +35,7 @@ locals {
     }
     network = {
       vcn_id                   = oci_core_vcn.main.id
-      host_subnet_id           = oci_core_subnet.edge.id
+      host_subnet_id           = oci_core_subnet.private_host.id
       public_edge_subnet_id    = oci_core_subnet.public_edge.id
       host_nsg_id              = oci_core_network_security_group.host.id
       public_edge_nsg_id       = oci_core_network_security_group.public_edge.id
@@ -46,6 +46,7 @@ locals {
         { protocol = "tcp", port = 443, purpose = "https-and-websocket-pass-through" }
       ]
       host_public_ip_enabled = false
+      public_backend_enabled = var.public_backend_enabled
       outbound_internet_path = "nat-gateway"
       oracle_services_path   = "service-gateway"
       ssh_default_enabled    = true
@@ -60,13 +61,27 @@ locals {
       }
     }
     host = {
-      instance_id                = oci_core_instance.host.id
+      instance_id                = oci_core_instance.private_host.id
       image_id                   = var.oracle_linux_image_ocid
-      private_ipv4               = oci_core_instance.host.private_ip
+      private_ipv4               = oci_core_instance.private_host.private_ip
       public_ipv4                = null
       public_ip_mode             = "none"
       legacy_imds_disabled       = true
       run_command_plugin_enabled = true
+    }
+    recovery = {
+      fallback_instance_id  = oci_core_instance.private_fallback.id
+      fallback_private_ipv4 = oci_core_instance.private_fallback.private_ip
+      fallback_state        = var.fallback_desired_state
+      public_ip_mode        = "none"
+      host_subnet_id        = oci_core_subnet.private_host.id
+    }
+    legacy_retained = {
+      instance_id      = oci_core_instance.host.id
+      host_subnet_id   = oci_core_subnet.edge.id
+      traffic_eligible = false
+      deletion_allowed = false
+      retention_reason = "blue-green-private-subnet-recovery"
     }
     storage = {
       data_volume_id               = oci_core_volume.data.id
@@ -112,7 +127,10 @@ output "host_bootstrap_sha256" {
 output "replacement_impact" {
   description = "Stateful preservation and external recovery authority for replacement planning."
   value = {
-    host_replaceable            = true
+    host_replaceable            = false
+    legacy_host_retained        = true
+    legacy_subnet_retained      = true
+    private_blue_green_additive = true
     host_public_ip_enabled      = false
     public_edge_stable          = var.enable_reserved_public_ip
     data_volume_preserved       = true
