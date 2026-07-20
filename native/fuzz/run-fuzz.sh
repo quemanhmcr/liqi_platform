@@ -12,7 +12,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
   printf '%s\n' '{"validation":"native-fuzz-v1","status":"blocked","reason":"linux-clang-toolchain-required"}' >&2
   exit 69
 fi
-if [[ ! "$FUZZ_TOOLCHAIN" =~ ^nightly(?:-[0-9]{4}-[0-9]{2}-[0-9]{2})?$ ]]; then
+if [[ ! "$FUZZ_TOOLCHAIN" =~ ^nightly(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$ ]]; then
   printf 'LIQI_FUZZ_TOOLCHAIN must be nightly or nightly-YYYY-MM-DD\n' >&2
   exit 64
 fi

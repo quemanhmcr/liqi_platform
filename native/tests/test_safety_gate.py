@@ -27,6 +27,12 @@ class SafetyGateTest(unittest.TestCase):
         self.assertIn('--fuzz-dir "$ROOT_DIR/native/fuzz"', runner)
         self.assertNotIn('cd "$ROOT_DIR/native/fuzz"', runner)
 
+    def test_fuzz_toolchain_selector_uses_bash_ere(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        runner = (root / "native/fuzz/run-fuzz.sh").read_text(encoding="utf-8")
+        self.assertIn(r'^nightly(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$', runner)
+        self.assertNotIn('(?:', runner)
+
 
 if __name__ == "__main__":
     unittest.main()
