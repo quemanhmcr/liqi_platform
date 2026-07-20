@@ -96,6 +96,15 @@ def private_instance(profile: str, region: str, compartment_id: str, instance: d
     return True
 
 
+def fallback_capacity(instance: dict[str, Any]) -> tuple[str | None, float | None, float | None]:
+    shape = instance.get("shape-config") or {}
+    return instance.get("shape"), shape.get("ocpus"), shape.get("memory-in-gbs")
+
+
+def reviewed_fallback_capacity(instance: dict[str, Any]) -> bool:
+    return fallback_capacity(instance) == ("VM.Standard.E5.Flex", 4, 24)
+
+
 def traffic_is_off(profile: str, region: str, compartment_id: str, nlb_name: str) -> bool:
     nlbs = oci(
         profile, region, "nlb", "network-load-balancer", "list",
@@ -366,13 +375,13 @@ def main() -> int:
         document["primary"]["instance_id_sha256"] = sha256_text(primary["id"])
         document["fallback"]["instance_id_sha256"] = sha256_text(fallback["id"])
         document["fallback"]["lifecycle_state"] = fallback.get("lifecycle-state", "UNKNOWN")
-        shape = fallback.get("shape-config") or {}
+        fallback_shape, fallback_ocpus, fallback_memory = fallback_capacity(fallback)
         document["fallback"].update({
-            "shape": fallback.get("shape"),
-            "ocpus": shape.get("ocpus"),
-            "memory_gib": shape.get("memory-in-gbs"),
+            "shape": fallback_shape,
+            "ocpus": fallback_ocpus,
+            "memory_gib": fallback_memory,
         })
-        if document["fallback"]["shape"] != "VM.Standard.E5.Flex" or document["fallback"]["ocpus"] != 4 or document["fallback"]["memory_gib"] != 24:
+        if not reviewed_fallback_capacity(fallback):
             raise RuntimeError("fallback instance must retain the reviewed E5 4 OCPU/24 GiB capacity")
 
         primary_private = private_instance(args.profile, region, compartment["id"], primary)

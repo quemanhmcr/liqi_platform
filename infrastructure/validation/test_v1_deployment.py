@@ -167,6 +167,16 @@ class FirstReleaseRecoveryProducerTests(unittest.TestCase):
         self.assertNotIn("ocid1", value or "")
         self.assertEqual(value, establish_first_release_recovery.sha256_text(identifier))
 
+    def test_fallback_capacity_is_exactly_reviewed_e5(self) -> None:
+        reviewed = {"shape": "VM.Standard.E5.Flex", "shape-config": {"ocpus": 4, "memory-in-gbs": 24}}
+        self.assertTrue(establish_first_release_recovery.reviewed_fallback_capacity(reviewed))
+        for changed in (
+            {"shape": "VM.Standard.A1.Flex", "shape-config": {"ocpus": 4, "memory-in-gbs": 24}},
+            {"shape": "VM.Standard.E5.Flex", "shape-config": {"ocpus": 2, "memory-in-gbs": 24}},
+            {"shape": "VM.Standard.E5.Flex", "shape-config": {"ocpus": 4, "memory-in-gbs": 16}},
+        ):
+            self.assertFalse(establish_first_release_recovery.reviewed_fallback_capacity(changed))
+
     def test_traffic_off_accepts_missing_nlb_and_rejects_online_backend(self) -> None:
         with patch("infrastructure.deployment.establish_first_release_recovery.oci", return_value=[]):
             self.assertTrue(establish_first_release_recovery.traffic_is_off("DEFAULT", "ap-singapore-2", "compartment", "edge"))
