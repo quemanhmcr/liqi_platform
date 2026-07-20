@@ -141,6 +141,22 @@ def tcp_destination(rule: dict[str, Any]) -> tuple[int, int] | None:
     return int(value["min"]), int(value["max"])
 
 
+def udp_destination(rule: dict[str, Any]) -> tuple[int, int] | None:
+    options = rule.get("udp-options") or {}
+    value = options.get("destination-port-range") or {}
+    if "min" not in value or "max" not in value:
+        return None
+    return int(value["min"]), int(value["max"])
+
+
+def icmp_type_code(rule: dict[str, Any]) -> tuple[int, int | None] | None:
+    options = rule.get("icmp-options") or {}
+    if "type" not in options:
+        return None
+    code = options.get("code")
+    return int(options["type"]), int(code) if code is not None else None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", default="DEFAULT")
@@ -255,15 +271,57 @@ def main() -> int:
 
         if host_nsg:
             rules = oci(args.profile, region, "network", "nsg", "rules", "list", "--nsg-id", host_nsg["id"], "--all")
+            recognized_rule_ids: set[str] = set()
+
+            def add_rule(key: str, candidates: list[dict[str, Any]], label: str, required: bool = False) -> None:
+                if len(candidates) > 1:
+                    blockers.append(f"workload NSG contains multiple rules matching {label}")
+                    return
+                if not candidates:
+                    if required:
+                        blockers.append(f"workload NSG is missing required {label}")
+                    return
+                rule = candidates[0]
+                recognized_rule_ids.add(rule["id"])
+                add_import(imports, key, rule, label, nsg_rule_import_id(host_nsg["id"], rule["id"]))
+
             for source, key in BASTION_SOURCES.items():
                 matches = [r for r in rules if r.get("direction") == "INGRESS" and r.get("protocol") == "6" and r.get("source") == source and tcp_destination(r) == (22, 22)]
-                if len(matches) != 1:
-                    blockers.append(f"workload NSG must contain exactly one Bastion SSH rule for {source}")
-                else:
-                    add_import(imports, key, matches[0], source, nsg_rule_import_id(host_nsg["id"], matches[0]["id"]))
-            for rule in rules:
-                if rule.get("direction") == "INGRESS" and rule.get("protocol") == "6" and tcp_destination(rule) == (22, 22) and rule.get("source") not in BASTION_SOURCES:
-                    blockers.append("workload NSG contains SSH ingress outside the two accepted OCI Bastion /32 addresses")
+                add_rule(key, matches, f"Bastion SSH rule for {source}", required=True)
+            if nlb_nsg:
+                for key, port in (("host_http", 80), ("host_https", 443)):
+                    add_rule(key, [r for r in rules if r.get("direction") == "INGRESS" and r.get("protocol") == "6" and r.get("source-type") == "NETWORK_SECURITY_GROUP" and r.get("source") == nlb_nsg["id"] and tcp_destination(r) == (port, port)], f"NLB-to-host TCP/{port}")
+            add_rule("host_pmtu", [r for r in rules if r.get("direction") == "INGRESS" and r.get("protocol") == "1" and r.get("source") == "10.42.0.0/16" and icmp_type_code(r) == (3, 4)], "VCN path-MTU ICMP")
+            for key, port in (("egress_80", 80), ("egress_443", 443)):
+                add_rule(key, [r for r in rules if r.get("direction") == "EGRESS" and r.get("protocol") == "6" and r.get("destination") == "0.0.0.0/0" and tcp_destination(r) == (port, port)], f"web egress TCP/{port}")
+            add_rule("dns_udp", [r for r in rules if r.get("direction") == "EGRESS" and r.get("protocol") == "17" and r.get("destination") == "169.254.169.254/32" and udp_destination(r) == (53, 53)], "OCI resolver UDP/53")
+            add_rule("dns_tcp", [r for r in rules if r.get("direction") == "EGRESS" and r.get("protocol") == "6" and r.get("destination") == "169.254.169.254/32" and tcp_destination(r) == (53, 53)], "OCI resolver TCP/53")
+            add_rule("ntp", [r for r in rules if r.get("direction") == "EGRESS" and r.get("protocol") == "17" and r.get("destination") == "169.254.169.254/32" and udp_destination(r) == (123, 123)], "OCI NTP UDP/123")
+            add_rule("oracle_services_egress", [r for r in rules if r.get("direction") == "EGRESS" and r.get("protocol") == "6" and r.get("destination-type") == "SERVICE_CIDR_BLOCK" and tcp_destination(r) == (443, 443)], "Oracle Services TCP/443")
+            if {r.get("id") for r in rules} - recognized_rule_ids:
+                blockers.append("workload NSG contains rules outside the exact retained-compute source graph")
+        if nlb_nsg:
+            rules = oci(args.profile, region, "network", "nsg", "rules", "list", "--nsg-id", nlb_nsg["id"], "--all")
+            recognized_rule_ids: set[str] = set()
+
+            def add_edge_rule(key: str, candidates: list[dict[str, Any]], label: str) -> None:
+                if len(candidates) > 1:
+                    blockers.append(f"public-edge NSG contains multiple rules matching {label}")
+                    return
+                if not candidates:
+                    return
+                rule = candidates[0]
+                recognized_rule_ids.add(rule["id"])
+                add_import(imports, key, rule, label, nsg_rule_import_id(nlb_nsg["id"], rule["id"]))
+
+            for key, port in (("edge_http", 80), ("edge_https", 443)):
+                add_edge_rule(key, [r for r in rules if r.get("direction") == "INGRESS" and r.get("protocol") == "6" and r.get("source") == "0.0.0.0/0" and tcp_destination(r) == (port, port)], f"public TCP/{port}")
+            add_edge_rule("edge_pmtu", [r for r in rules if r.get("direction") == "INGRESS" and r.get("protocol") == "1" and r.get("source") == "0.0.0.0/0" and icmp_type_code(r) == (3, 4)], "public path-MTU ICMP")
+            if host_nsg:
+                for key, port in (("edge_egress_http", 80), ("edge_egress_https", 443)):
+                    add_edge_rule(key, [r for r in rules if r.get("direction") == "EGRESS" and r.get("protocol") == "6" and r.get("destination-type") == "NETWORK_SECURITY_GROUP" and r.get("destination") == host_nsg["id"] and tcp_destination(r) == (port, port)], f"edge-to-host TCP/{port}")
+            if {r.get("id") for r in rules} - recognized_rule_ids:
+                blockers.append("public-edge NSG contains rules outside the exact source graph")
         for item in nsgs:
             if item.get("display-name") not in {names["nsg"], names["nlb_nsg"]}:
                 unmanaged.append({"kind": "network-security-group", "display_name": item.get("display-name") or "unnamed", "reason": "Additional NSG remains outside the reviewed V1 graph."})
@@ -341,6 +399,34 @@ def main() -> int:
     nlbs = oci(args.profile, region, "nlb", "network-load-balancer", "list", "--compartment-id", compartment_id, "--all")
     nlb = one(nlbs, "display-name", names["network_load_balancer"])
     add_import(imports, "nlb", nlb, names["network_load_balancer"])
+    if nlb:
+        backend_sets = oci(args.profile, region, "nlb", "backend-set", "list", "--network-load-balancer-id", nlb["id"], "--all")
+        listeners = oci(args.profile, region, "nlb", "listener", "list", "--network-load-balancer-id", nlb["id"], "--all")
+        for lane, port in (("http", 80), ("https", 443)):
+            backend_set_name = f"liqi-{lane}-backends"
+            backend_set = one(backend_sets, "name", backend_set_name)
+            backend_set_id = f"networkLoadBalancers/{nlb['id']}/backendSets/{backend_set_name}"
+            add_import(imports, f"backend_set_{lane}", backend_set, backend_set_name, backend_set_id)
+            if backend_set:
+                health = backend_set.get("health-checker") or {}
+                if backend_set.get("policy") != "FIVE_TUPLE" or backend_set.get("is-fail-open") is not False or health.get("protocol") != "TCP" or int(health.get("port", 0)) != port:
+                    blockers.append(f"existing {lane} backend set does not match the fail-closed source contract")
+                backends = oci(args.profile, region, "nlb", "backend", "list", "--network-load-balancer-id", nlb["id"], "--backend-set-name", backend_set_name, "--all")
+                matches = [item for item in backends if legacy_instance and item.get("target-id") == legacy_instance["id"] and int(item.get("port", 0)) == port]
+                if len(matches) > 1:
+                    blockers.append(f"multiple retained-primary backends exist for {lane}")
+                elif matches:
+                    backend = matches[0]
+                    backend_id = f"{backend_set_id}/backends/{backend['name']}"
+                    add_import(imports, f"backend_{lane}", backend, backend["name"], backend_id)
+                    if backend.get("is-offline") is not True:
+                        blockers.append(f"existing {lane} backend must remain offline before public cutover")
+            listener_name = f"liqi-{lane}-listener"
+            listener = one(listeners, "name", listener_name)
+            listener_id = f"networkLoadBalancers/{nlb['id']}/listeners/{listener_name}"
+            add_import(imports, f"listener_{lane}", listener, listener_name, listener_id)
+            if listener and (listener.get("protocol") != "TCP" or int(listener.get("port", 0)) != port or int(listener.get("tcp-idle-timeout", 0)) != 1800):
+                blockers.append(f"existing {lane} listener does not match TCP/{port} with 1800-second idle timeout")
 
     imported_addresses = {item["address"] for item in imports}
     missing = sorted(address for address, _kind in ADDRESSES.values() if address not in imported_addresses)
