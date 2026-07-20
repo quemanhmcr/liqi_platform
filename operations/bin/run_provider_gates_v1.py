@@ -51,6 +51,9 @@ except ModuleNotFoundError:
 DEFAULT_REGISTRY = ROOT / "operations" / "readiness" / "provider-gates-v1.json"
 CHECKPOINT_SCHEMA = ROOT / "contracts" / "readiness" / "checkpoint-result-v1.schema.json"
 ENV_PATTERN = re.compile(r"\{env:([A-Z][A-Z0-9_]{1,63})\}")
+OPTIONAL_ENV_ARG_PATTERN = re.compile(
+    r"^\{optional-env-arg:(--[a-z0-9][a-z0-9-]{1,63}):([A-Z][A-Z0-9_]{1,63})\}$"
+)
 STAGES = ("source", "integration", "artifact", "live-staging", "promotion", "cutover", "post-cutover")
 
 
@@ -75,6 +78,16 @@ def expand(parts: list[str], output: Path) -> tuple[list[str], str]:
     actual: list[str] = []
     displayed: list[str] = []
     for part in parts:
+        if part.startswith("{optional-env-arg:"):
+            match = OPTIONAL_ENV_ARG_PATTERN.fullmatch(part)
+            if match is None:
+                raise ValueError(f"invalid optional environment argument token: {part}")
+            flag, name = match.groups()
+            value = os.environ.get(name)
+            if value:
+                actual.extend((flag, value))
+                displayed.extend((flag, f"<env:{name}>"))
+            continue
         resolved = part.replace("{output}", str(output))
         display = part.replace("{output}", output.name)
         for name in ENV_PATTERN.findall(part):
@@ -188,7 +201,11 @@ def main() -> int:
 
         if mutation == "isolated-restore":
             os.environ.setdefault("LIQI_RESTORE_APPROVAL_REF", args.approval_ref or "")
-        argv, displayed = expand(gate["argv"], gate_output)
+        try:
+            argv, displayed = expand(gate["argv"], gate_output)
+        except ValueError as exc:
+            add_result(gate, "failed", None, "PROVIDER_REGISTRY_INVALID", str(exc))
+            continue
         started = time.monotonic()
         try:
             argv = resolve_bash(argv)

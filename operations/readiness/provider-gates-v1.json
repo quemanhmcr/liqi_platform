@@ -337,7 +337,7 @@
       "required_paths": [
         "infrastructure/deployment/prepare_mix_deployment.py",
         "contracts/deployment/mix-deployment-v1.schema.json",
-        "contracts/deployment/v0-rollback-compatibility-v1.schema.json",
+        "contracts/deployment/release-target-v1.schema.json",
         "contracts/infrastructure/database-credentials-v1.schema.json"
       ],
       "argv": [
@@ -355,8 +355,7 @@
         "{env:LIQI_MIGRATION_READINESS}",
         "--native-manifest",
         "{env:LIQI_NATIVE_MANIFEST}",
-        "--rollback-target-descriptor",
-        "{env:LIQI_ROLLBACK_TARGET_DESCRIPTOR}",
+        "{optional-env-arg:--rollback-target-descriptor:LIQI_ROLLBACK_TARGET_DESCRIPTOR}",
         "--deployment-key-id",
         "{env:LIQI_DEPLOYMENT_KEY_ID}",
         "--deployment-signing-key",
@@ -371,14 +370,13 @@
         "LIQI_DATABASE_CONTRACT",
         "LIQI_MIGRATION_READINESS",
         "LIQI_NATIVE_MANIFEST",
-        "LIQI_ROLLBACK_TARGET_DESCRIPTOR",
         "LIQI_DEPLOYMENT_KEY_ID",
         "LIQI_DEPLOYMENT_SIGNING_KEY",
         "LIQI_DEPLOYMENT_OUTPUT_DIR"
       ],
       "timeout_seconds": 1800,
       "result_schema": null,
-      "action_required": "Supply the exact signed runtime/database/native/V0 rollback inputs and an approved deployment signing key path. The command creates a separate signed wrapper without changing provider artifact bytes.",
+      "action_required": "Supply the exact signed runtime, database and native inputs plus an approved deployment signing key path. A first release must omit the application rollback descriptor; a V1-to-V1 upgrade may provide LIQI_ROLLBACK_TARGET_DESCRIPTOR for the retained compatible V1 release. First-release infrastructure recovery evidence remains a separate pre-apply readiness requirement.",
       "provider_branch": "v1/oci-live-runtime",
       "provider_commit": "ca99b7d14816cd051fce15a54accdeb17276096d"
     },

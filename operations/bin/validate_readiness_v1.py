@@ -63,6 +63,10 @@ FORBIDDEN_COMMANDS = (
     re.compile(r"\boci\s+[^\n]*(?:create|update|delete|terminate)\b", re.IGNORECASE),
     re.compile(r"\bsystemctl\s+(?:start|stop|restart|enable|disable)\b", re.IGNORECASE),
 )
+ENV_PATTERN = re.compile(r"\{env:([A-Z][A-Z0-9_]{1,63})\}")
+OPTIONAL_ENV_ARG_PATTERN = re.compile(
+    r"^\{optional-env-arg:(--[a-z0-9][a-z0-9-]{1,63}):([A-Z][A-Z0-9_]{1,63})\}$"
+)
 
 
 def require_path(value: str, label: str, failures: list[str]) -> None:
@@ -109,7 +113,25 @@ def validate_registry(document: dict[str, Any], failures: list[str]) -> None:
     failures.extend(validate_document(PROVIDER_SCHEMA, document, "provider-gates-v1"))
     failures.extend(exact_set((item.get("id", "") for item in document.get("gates", [])), EXPECTED_GATES, "provider gate IDs"))
     for gate in document.get("gates", []):
-        command = " ".join(str(part) for part in gate.get("argv", []))
+        argv = [str(part) for part in gate.get("argv", [])]
+        command = " ".join(argv)
+        required_environment = set(gate.get("required_environment", []))
+        referenced_required_environment: set[str] = set()
+        referenced_optional_environment: set[str] = set()
+        for part in argv:
+            referenced_required_environment.update(ENV_PATTERN.findall(part))
+            if part.startswith("{optional-env-arg:"):
+                match = OPTIONAL_ENV_ARG_PATTERN.fullmatch(part)
+                if match is None:
+                    failures.append(f"provider gate {gate.get('id')} has an invalid optional environment argument token: {part}")
+                else:
+                    referenced_optional_environment.add(match.group(2))
+        unregistered = sorted(referenced_required_environment - required_environment)
+        if unregistered:
+            failures.append(f"provider gate {gate.get('id')} argv references unregistered required environment: {unregistered}")
+        incorrectly_required = sorted(referenced_optional_environment & required_environment)
+        if incorrectly_required:
+            failures.append(f"provider gate {gate.get('id')} optional environment must not be required: {incorrectly_required}")
         if "mock" in command.lower() or "fixture" in command.lower():
             failures.append(f"provider gate {gate.get('id')} cannot use mock or fixture commands")
         for pattern in FORBIDDEN_COMMANDS:
