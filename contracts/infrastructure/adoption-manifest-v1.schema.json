@@ -53,6 +53,10 @@
               {
                 "pattern": "^managementEndpoint/https://[A-Za-z0-9.-]+/keys/ocid1\\.key\\.[A-Za-z0-9._-]+$",
                 "type": "string"
+              },
+              {
+                "pattern": "^networkLoadBalancers/ocid1\\.networkloadbalancer\\.[A-Za-z0-9._-]+/(?:backendSets/[A-Za-z0-9._-]+(?:/backends/[A-Za-z0-9._:-]+)?|listeners/[A-Za-z0-9._-]+)$",
+                "type": "string"
               }
             ]
           },

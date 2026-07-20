@@ -461,6 +461,16 @@ class StateBackendBootstrapTests(unittest.TestCase):
 
 
 class AdoptionStateTests(unittest.TestCase):
+    def test_adoption_manifest_accepts_bounded_nlb_composite_ids(self) -> None:
+        from jsonschema import Draft202012Validator
+
+        schema = json.loads((ROOT / "contracts/infrastructure/adoption-manifest-v1.schema.json").read_text(encoding="utf-8"))
+        document = json.loads((ROOT / "contracts/infrastructure/adoption-manifest-v1.example.json").read_text(encoding="utf-8"))
+        document["imports"][0]["id"] = "networkLoadBalancers/ocid1.networkloadbalancer.oc1.example/backendSets/liqi-http-backends"
+        self.assertEqual([], list(Draft202012Validator(schema).iter_errors(document)))
+        document["imports"][0]["id"] += "/../../escape"
+        self.assertTrue(list(Draft202012Validator(schema).iter_errors(document)))
+
     def test_state_ids_preserve_module_addresses_and_ids(self) -> None:
         state = {
             "resources": [
