@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+CORPUS_DIR="$ROOT_DIR/.artifacts/native-fuzz/corpus/sequence_diff_parity"
 MAX_TOTAL_TIME=${LIQI_FUZZ_SECONDS:-60}
 FUZZ_TOOLCHAIN=${LIQI_FUZZ_TOOLCHAIN:-nightly}
 if [[ ! "$MAX_TOTAL_TIME" =~ ^[0-9]+$ ]] || (( MAX_TOTAL_TIME < 1 || MAX_TOTAL_TIME > 3600 )); then
@@ -25,9 +26,10 @@ if ! cargo +"$FUZZ_TOOLCHAIN" fuzz --help >/dev/null 2>&1; then
   exit 69
 fi
 cd "$ROOT_DIR"
+mkdir -p "$CORPUS_DIR"
 cargo +"$FUZZ_TOOLCHAIN" fuzz run \
   --fuzz-dir "$ROOT_DIR/native/fuzz" \
-  sequence_diff_parity -- \
+  sequence_diff_parity "$CORPUS_DIR" -- \
   -max_total_time="$MAX_TOTAL_TIME" \
   -rss_limit_mb=512 \
   -timeout=2

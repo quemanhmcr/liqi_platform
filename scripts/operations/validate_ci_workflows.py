@@ -122,6 +122,7 @@ def main() -> int:
         if path.name == "v1-source-readiness.yml":
             for required in (
                 "scripts/operations/verify_ci_provenance.py",
+                "database.tests.integration.test_pg_prove_adapter",
                 "LIQI_EXPECTED_SOURCE_SHA",
                 "github.event.pull_request.head.sha || github.sha",
                 "ref: ${{ env.LIQI_EXPECTED_SOURCE_SHA }}",

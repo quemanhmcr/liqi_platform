@@ -27,6 +27,13 @@ class SafetyGateTest(unittest.TestCase):
         self.assertIn('--fuzz-dir "$ROOT_DIR/native/fuzz"', runner)
         self.assertNotIn('cd "$ROOT_DIR/native/fuzz"', runner)
 
+    def test_fuzz_runner_writes_corpus_only_below_ignored_artifacts(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        runner = (root / "native/fuzz/run-fuzz.sh").read_text(encoding="utf-8")
+        self.assertIn('CORPUS_DIR="$ROOT_DIR/.artifacts/native-fuzz/corpus/sequence_diff_parity"', runner)
+        self.assertIn('sequence_diff_parity "$CORPUS_DIR" --', runner)
+        self.assertNotIn('sequence_diff_parity -- \\', runner)
+
     def test_fuzz_toolchain_selector_uses_bash_ere(self) -> None:
         root = Path(__file__).resolve().parents[2]
         runner = (root / "native/fuzz/run-fuzz.sh").read_text(encoding="utf-8")

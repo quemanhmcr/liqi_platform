@@ -83,7 +83,11 @@ jobs:
           sudo --non-interactive "$(command -v python)" -B -m unittest containers.local.tests.test_local_stack -v
 
       - name: Validate exact source provenance contracts
-        run: python -m unittest scripts.operations.tests.test_verify_ci_provenance -v
+        run: >-
+          python -m unittest
+          scripts.operations.tests.test_verify_ci_provenance
+          database.tests.integration.test_pg_prove_adapter
+          -v
 
       - name: Validate load harness JavaScript
         run: |

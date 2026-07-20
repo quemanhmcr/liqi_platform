@@ -223,6 +223,7 @@ def validate_semantics() -> list[str]:
             {
                 "bounded exact nightly selection": r'LIQI_FUZZ_TOOLCHAIN.*nightly-YYYY-MM-DD',
                 "selected cargo fuzz toolchain": r'cargo \+"\$FUZZ_TOOLCHAIN" fuzz run',
+                "ignored bounded corpus": r'CORPUS_DIR="\$ROOT_DIR/\.artifacts/native-fuzz/corpus/sequence_diff_parity"',
             },
         )
     )

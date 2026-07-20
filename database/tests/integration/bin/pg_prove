@@ -18,7 +18,7 @@ for argument in "$@"; do
       [[ "$relative" != */* ]] || { echo "nested pgTAP path is forbidden" >&2; exit 64; }
       mapped+=("$container_root$relative")
       ;;
-    *.sql)
+    /*.sql)
       echo "pgTAP SQL path is outside the checked-out suite" >&2
       exit 64
       ;;
