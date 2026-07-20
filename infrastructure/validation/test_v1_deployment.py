@@ -215,6 +215,17 @@ class FirstReleaseRecoveryProducerTests(unittest.TestCase):
         self.assertIn("START", call.call_args_list[0].args)
         self.assertIn("STOP", call.call_args_list[1].args)
 
+    def test_matching_backup_reuses_newest_valid_purpose_restore_point(self) -> None:
+        backups = [
+            {"id": "old", "boot-volume-id": "boot", "lifecycle-state": "AVAILABLE", "type": "FULL", "time-created": "2026-07-19T00:00:00Z", "freeform-tags": {"liqi_purpose": "predeploy-restore-point"}},
+            {"id": "new", "boot-volume-id": "boot", "lifecycle-state": "AVAILABLE", "type": "FULL", "time-created": "2026-07-20T00:00:00Z", "freeform-tags": {"liqi_purpose": "predeploy-restore-point"}},
+            {"id": "wrong", "boot-volume-id": "boot", "lifecycle-state": "AVAILABLE", "type": "FULL", "time-created": "2026-07-21T00:00:00Z", "freeform-tags": {"liqi_purpose": "other"}},
+        ]
+        with patch("infrastructure.deployment.establish_first_release_recovery.oci", return_value=backups) as call:
+            selected = establish_first_release_recovery.matching_backup("DEFAULT", "ap-singapore-2", "compartment", "boot", None)
+        self.assertEqual("new", selected["id"])
+        self.assertIn("--boot-volume-id", call.call_args.args)
+
     def test_backup_age_rejects_future_and_accepts_recent(self) -> None:
         from datetime import datetime, timezone
         now = datetime(2026, 7, 20, 1, 0, tzinfo=timezone.utc)

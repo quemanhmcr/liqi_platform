@@ -154,21 +154,28 @@ def matching_backup(
     region: str,
     compartment_id: str,
     boot_volume_id: str,
-    backup_name: str,
+    backup_name: str | None,
 ) -> dict[str, Any] | None:
     backups = oci(
         profile, region, "bv", "boot-volume-backup", "list",
-        "--compartment-id", compartment_id, "--all",
+        "--compartment-id", compartment_id,
+        "--boot-volume-id", boot_volume_id,
+        "--all",
     )
-    matches = [
-        item for item in backups
-        if item.get("display-name") == backup_name
-        and item.get("boot-volume-id") == boot_volume_id
-        and item.get("lifecycle-state") != "TERMINATED"
+    active = [item for item in backups if item.get("lifecycle-state") != "TERMINATED"]
+    if backup_name is not None:
+        matches = [item for item in active if item.get("display-name") == backup_name]
+        if len(matches) > 1:
+            raise RuntimeError("boot-volume backup name is ambiguous for the primary boot volume")
+        return matches[0] if matches else None
+    reusable = [
+        item for item in active
+        if item.get("lifecycle-state") == "AVAILABLE"
+        and item.get("type") == "FULL"
+        and (item.get("freeform-tags") or {}).get("liqi_purpose") == "predeploy-restore-point"
     ]
-    if len(matches) > 1:
-        raise RuntimeError("boot-volume backup name is ambiguous for the primary boot volume")
-    return matches[0] if matches else None
+    reusable.sort(key=lambda item: item.get("time-created") or "", reverse=True)
+    return reusable[0] if reusable else None
 
 
 def backup_age_seconds(backup: dict[str, Any], now: datetime | None = None) -> int:
@@ -190,7 +197,7 @@ def ensure_full_backup(
     region: str,
     compartment_id: str,
     boot_volume_id: str,
-    backup_name: str,
+    backup_name: str | None,
     git_sha: str,
     execute: bool,
     max_wait_seconds: int,
@@ -202,11 +209,12 @@ def ensure_full_backup(
         return existing, False
     if not execute:
         return None, False
+    create_name = backup_name or f"liqi-v1-predeploy-{git_sha[:12]}"
     tags = json.dumps({"liqi_git_sha": git_sha, "liqi_purpose": "predeploy-restore-point"}, separators=(",", ":"))
     created = oci(
         profile, region, "bv", "boot-volume-backup", "create",
         "--boot-volume-id", boot_volume_id,
-        "--display-name", backup_name,
+        "--display-name", create_name,
         "--type", "FULL",
         "--freeform-tags", tags,
         "--wait-for-state", "AVAILABLE",
@@ -321,7 +329,7 @@ def main() -> int:
     if status:
         raise SystemExit("clean exact-SHA worktree is required")
     git_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, timeout=30).strip()
-    backup_name = args.backup_name or f"liqi-v1-predeploy-{git_sha[:12]}"
+    backup_name = args.backup_name
     region = load_region(args.profile)
     if region != "ap-singapore-2":
         raise SystemExit("first-release recovery is restricted to ap-singapore-2")
@@ -405,7 +413,7 @@ def main() -> int:
             git_sha, args.execute, args.max_wait_seconds,
         )
         if backup is None:
-            document["blockers"].append("Exact-name full boot-volume backup is missing; rerun with --execute and approval.")
+            document["blockers"].append("Fresh full predeploy boot-volume backup is missing; rerun with --execute and approval.")
         else:
             age = backup_age_seconds(backup)
             if age > 86400:
