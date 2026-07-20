@@ -177,9 +177,22 @@ def validate_instance(resources: list[dict[str, Any]], capacity_profile: str, pl
     return rendered
 
 
+def provider_decimal_integer(value: Any, label: str) -> int:
+    """Normalize an OCI plan integer without accepting booleans, floats, or malformed strings."""
+    if isinstance(value, bool):
+        fail(f"{label} must be a non-negative decimal integer")
+    if isinstance(value, int) and value >= 0:
+        return value
+    if isinstance(value, str) and re.fullmatch(r"0|[1-9][0-9]*", value):
+        return int(value)
+    fail(f"{label} must be a non-negative decimal integer")
+
+
 def validate_storage(resources: list[dict[str, Any]]) -> None:
     volume = one(resources, "oci_core_volume")["values"]
-    if int(volume.get("size_in_gbs", 0)) != 130 or volume.get("vpus_per_gb") != 0:
+    size_in_gbs = provider_decimal_integer(volume.get("size_in_gbs"), "data volume size_in_gbs")
+    vpus_per_gb = provider_decimal_integer(volume.get("vpus_per_gb"), "data volume vpus_per_gb")
+    if size_in_gbs != 130 or vpus_per_gb != 0:
         fail("preserved block volume must be 130 GiB at the declared lower-cost performance tier")
     vault = one(resources, "oci_kms_vault")["values"]
     key = one(resources, "oci_kms_key")["values"]
@@ -207,6 +220,12 @@ def validate_security_list(resources: list[dict[str, Any]]) -> None:
     rule = egress[0]
     if rule.get("destination") != "0.0.0.0/0" or rule.get("destination_type") != "CIDR_BLOCK" or rule.get("protocol") != "all" or rule.get("stateless") is not False:
         fail("subnet Security List egress baseline does not match technical acceptance")
+
+
+def validate_nlb_nsg_cardinality(values: dict[str, Any]) -> None:
+    nlb_nsg_ids = values.get("network_security_group_ids")
+    if nlb_nsg_ids is not None and (not isinstance(nlb_nsg_ids, list) or len(nlb_nsg_ids) != 1):
+        fail("edge NLB must attach exactly one dedicated NSG")
 
 
 def validate_network(resources: list[dict[str, Any]]) -> None:
@@ -242,8 +261,7 @@ def validate_network(resources: list[dict[str, Any]]) -> None:
     nlb = one(resources, "oci_network_load_balancer_network_load_balancer")["values"]
     if nlb.get("is_private") is not False or nlb.get("is_preserve_source_destination") is not False:
         fail("edge NLB must be public and use full NAT rather than exposing source addresses to the single backend")
-    if len(nlb.get("network_security_group_ids") or []) != 1:
-        fail("edge NLB must attach exactly one dedicated NSG")
+    validate_nlb_nsg_cardinality(nlb)
 
 
 def validate_ingress(resources: list[dict[str, Any]]) -> None:
@@ -319,16 +337,20 @@ def validate_private_host_references(plan: dict[str, Any]) -> None:
 
     def references(address: str, expression: str) -> set[str]:
         resource = configured.get(address) or {}
-        return set((resource.get("expressions", {}).get(expression) or {}).get("references") or [])
+        raw = (resource.get("expressions", {}).get(expression) or {}).get("references") or []
+        return {item[:-3] if item.endswith(".id") else item for item in raw}
 
     primary = "oci_core_instance.private_host"
     fallback = "oci_core_instance.private_fallback"
-    if references("oci_core_volume_attachment.data", "instance_id") != {f"{primary}.id"}:
+    if references("oci_core_volume_attachment.data", "instance_id") != {primary}:
         fail("preserved data volume must attach only to the new private primary")
-    if references("oci_network_load_balancer_backend.host", "target_id") != {f"{primary}.id"}:
+    if references("oci_network_load_balancer_backend.host", "target_id") != {primary}:
         fail("NLB backend must target the new private primary")
+    edge_nsg = "oci_core_network_security_group.public_edge"
+    if references("oci_network_load_balancer_network_load_balancer.edge", "network_security_group_ids") != {edge_nsg}:
+        fail("edge NLB must reference exactly its dedicated public-edge NSG")
     identity_refs = references("oci_identity_dynamic_group.host", "matching_rule")
-    if identity_refs != {f"{primary}.id", f"{fallback}.id"}:
+    if identity_refs != {primary, fallback}:
         fail("instance-principal dynamic group must bind exactly the private primary and recovery fallback")
 
 

@@ -576,6 +576,30 @@ class AdoptionStateTests(unittest.TestCase):
 
 
 class PlanValidationTests(unittest.TestCase):
+    def test_storage_accepts_oci_decimal_strings_and_rejects_malformed_values(self) -> None:
+        resources = [
+            {
+                "address": "module.v1_live.oci_core_volume.data",
+                "type": "oci_core_volume",
+                "values": {"size_in_gbs": "130", "vpus_per_gb": "0"},
+            },
+            {
+                "address": "module.v1_live.oci_kms_vault.main",
+                "type": "oci_kms_vault",
+                "values": {"vault_type": "DEFAULT"},
+            },
+            {
+                "address": "module.v1_live.oci_kms_key.main",
+                "type": "oci_kms_key",
+                "values": {"protection_mode": "SOFTWARE"},
+            },
+        ]
+        validate_v1_plan.validate_storage(resources)
+        for invalid in ("0.0", "00", -1, True, None):
+            resources[0]["values"]["vpus_per_gb"] = invalid
+            with self.subTest(invalid=invalid), self.assertRaises(AssertionError):
+                validate_v1_plan.validate_storage(resources)
+
     def test_production_publication_checksum_index_is_portable_and_non_recursive(self) -> None:
         workflow = (ROOT / ".github/workflows/v1-e5-artifact-release.yml").read_text(encoding="utf-8")
         self.assertIn('cd "$publication"', workflow)
@@ -742,9 +766,10 @@ class PlanValidationTests(unittest.TestCase):
 
     def test_stateful_and_public_consumers_reference_only_private_hosts(self) -> None:
         resources = [
-            {"address": "oci_core_volume_attachment.data", "expressions": {"instance_id": {"references": ["oci_core_instance.private_host.id"]}}},
-            {"address": "oci_network_load_balancer_backend.host", "expressions": {"target_id": {"references": ["oci_core_instance.private_host.id"]}}},
-            {"address": "oci_identity_dynamic_group.host", "expressions": {"matching_rule": {"references": ["oci_core_instance.private_host.id", "oci_core_instance.private_fallback.id"]}}},
+            {"address": "oci_core_volume_attachment.data", "expressions": {"instance_id": {"references": ["oci_core_instance.private_host", "oci_core_instance.private_host.id"]}}},
+            {"address": "oci_network_load_balancer_backend.host", "expressions": {"target_id": {"references": ["oci_core_instance.private_host", "oci_core_instance.private_host.id"]}}},
+            {"address": "oci_network_load_balancer_network_load_balancer.edge", "expressions": {"network_security_group_ids": {"references": ["oci_core_network_security_group.public_edge", "oci_core_network_security_group.public_edge.id"]}}},
+            {"address": "oci_identity_dynamic_group.host", "expressions": {"matching_rule": {"references": ["oci_core_instance.private_host", "oci_core_instance.private_host.id", "oci_core_instance.private_fallback", "oci_core_instance.private_fallback.id"]}}},
         ]
         plan = {"configuration": {"root_module": {"module_calls": {"v1_live": {"module": {"resources": resources}}}}}}
         validate_v1_plan.validate_private_host_references(plan)
@@ -752,9 +777,16 @@ class PlanValidationTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             validate_v1_plan.validate_private_host_references(plan)
         resources[1]["expressions"]["target_id"]["references"] = ["oci_core_instance.private_host.id"]
-        resources[2]["expressions"]["matching_rule"]["references"].append("oci_core_instance.host.id")
+        resources[3]["expressions"]["matching_rule"]["references"].append("oci_core_instance.host.id")
         with self.assertRaises(AssertionError):
             validate_v1_plan.validate_private_host_references(plan)
+
+    def test_nlb_nsg_cardinality_accepts_unknown_then_requires_exactly_one(self) -> None:
+        validate_v1_plan.validate_nlb_nsg_cardinality({"network_security_group_ids": None})
+        validate_v1_plan.validate_nlb_nsg_cardinality({"network_security_group_ids": ["computed-id"]})
+        for invalid in ([], ["one", "two"], "computed-id", True):
+            with self.subTest(invalid=invalid), self.assertRaises(AssertionError):
+                validate_v1_plan.validate_nlb_nsg_cardinality({"network_security_group_ids": invalid})
 
 
 
