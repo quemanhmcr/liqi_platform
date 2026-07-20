@@ -11,14 +11,18 @@
     "backup_state": "AVAILABLE",
     "backup_type": "FULL",
     "backup_purpose": "predeploy-restore-point",
-    "backup_age_seconds": 3600
+    "backup_age_seconds": 3600,
+    "public_ip_present": false
   },
   "fallback": {
     "instance_id_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
     "lifecycle_state": "STOPPED",
     "public_ip_present": false,
     "start_stop_test_status": "passed",
-    "restored_original_state": true
+    "restored_original_state": true,
+    "shape": "VM.Standard.E5.Flex",
+    "ocpus": 4,
+    "memory_gib": 24
   },
   "database": {
     "down_migration_allowed": false,

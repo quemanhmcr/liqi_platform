@@ -326,6 +326,7 @@ def main() -> int:
         "public_traffic_enabled": False,
         "primary": {
             "instance_id_sha256": None,
+            "public_ip_present": None,
             "boot_volume_backup_id_sha256": None,
             "backup_state": "MISSING",
             "backup_type": None,
@@ -338,6 +339,9 @@ def main() -> int:
             "public_ip_present": None,
             "start_stop_test_status": "not-run",
             "restored_original_state": False,
+            "shape": None,
+            "ocpus": None,
+            "memory_gib": None,
         },
         "database": {"down_migration_allowed": False, "recovery_mode": "forward-only"},
         "approval_reference": args.approval_reference or "dry-run-no-approval",
@@ -362,10 +366,22 @@ def main() -> int:
         document["primary"]["instance_id_sha256"] = sha256_text(primary["id"])
         document["fallback"]["instance_id_sha256"] = sha256_text(fallback["id"])
         document["fallback"]["lifecycle_state"] = fallback.get("lifecycle-state", "UNKNOWN")
+        shape = fallback.get("shape-config") or {}
+        document["fallback"].update({
+            "shape": fallback.get("shape"),
+            "ocpus": shape.get("ocpus"),
+            "memory_gib": shape.get("memory-in-gbs"),
+        })
+        if document["fallback"]["shape"] != "VM.Standard.E5.Flex" or document["fallback"]["ocpus"] != 4 or document["fallback"]["memory_gib"] != 24:
+            raise RuntimeError("fallback instance must retain the reviewed E5 4 OCPU/24 GiB capacity")
 
-        private = private_instance(args.profile, region, compartment["id"], fallback)
-        document["fallback"]["public_ip_present"] = not private
-        if not private:
+        primary_private = private_instance(args.profile, region, compartment["id"], primary)
+        document["primary"]["public_ip_present"] = not primary_private
+        if not primary_private:
+            raise RuntimeError("primary instance has a public IP before cutover")
+        fallback_private = private_instance(args.profile, region, compartment["id"], fallback)
+        document["fallback"]["public_ip_present"] = not fallback_private
+        if not fallback_private:
             raise RuntimeError("fallback instance has a public IP")
         if not traffic_is_off(args.profile, region, compartment["id"], args.network_load_balancer_name):
             document["public_traffic_enabled"] = True
