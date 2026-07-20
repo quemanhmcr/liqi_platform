@@ -41,7 +41,7 @@
       "const": "traffic-disable-and-boot-volume-restore"
     },
     "public_traffic_enabled": {
-      "const": false
+      "type": "boolean"
     },
     "primary": {
       "type": "object",
@@ -140,7 +140,7 @@
           ]
         },
         "restored_original_state": {
-          "const": true
+          "type": "boolean"
         },
         "shape": {
           "type": [
@@ -286,6 +286,9 @@
                 "const": 24
               }
             }
+          },
+          "public_traffic_enabled": {
+            "const": false
           }
         }
       },

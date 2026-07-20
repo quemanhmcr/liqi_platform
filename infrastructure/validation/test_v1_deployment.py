@@ -167,6 +167,15 @@ class FirstReleaseRecoveryProducerTests(unittest.TestCase):
         self.assertNotIn("ocid1", value or "")
         self.assertEqual(value, establish_first_release_recovery.sha256_text(identifier))
 
+    def test_failed_recovery_evidence_can_record_unsafe_observation(self) -> None:
+        from jsonschema import Draft202012Validator, FormatChecker
+        schema = json.loads((ROOT / "contracts/infrastructure/first-release-recovery-v1.schema.json").read_text(encoding="utf-8"))
+        document = json.loads((ROOT / "contracts/infrastructure/first-release-recovery-v1.example.json").read_text(encoding="utf-8"))
+        document.update({"status": "failed", "public_traffic_enabled": True, "oci_mutation_performed": False, "blockers": ["traffic remained enabled"]})
+        document["fallback"].update({"lifecycle_state": "RUNNING", "start_stop_test_status": "failed", "restored_original_state": False})
+        errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(document))
+        self.assertEqual([], [error.message for error in errors])
+
     def test_fallback_capacity_is_exactly_reviewed_e5(self) -> None:
         reviewed = {"shape": "VM.Standard.E5.Flex", "shape-config": {"ocpus": 4, "memory-in-gbs": 24}}
         self.assertTrue(establish_first_release_recovery.reviewed_fallback_capacity(reviewed))
