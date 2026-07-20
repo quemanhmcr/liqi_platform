@@ -530,7 +530,7 @@
           "type": "string"
         },
         "fallback_state": {
-          "enum": ["RUNNING", "STOPPED"]
+          "const": "STOPPED"
         },
         "public_ip_mode": {
           "const": "none"
@@ -567,7 +567,7 @@
           "const": false
         },
         "retention_reason": {
-          "const": "blue-green-private-subnet-recovery"
+          "const": "first-release-stopped-recovery-fallback"
         }
       },
       "required": [

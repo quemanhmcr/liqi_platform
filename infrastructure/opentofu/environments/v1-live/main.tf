@@ -36,6 +36,8 @@ module "v1_live" {
   public_backend_enabled                     = var.public_backend_enabled
   acknowledge_public_cutover                 = var.acknowledge_public_cutover
   fallback_desired_state                     = var.fallback_desired_state
+  retained_fallback_instance_ocid            = var.retained_fallback_instance_ocid
+  retained_fallback_private_ipv4             = var.retained_fallback_private_ipv4
   vault_secret_ocids                         = var.vault_secret_ocids
   bastion_ssh_source_cidrs                   = var.bastion_ssh_source_cidrs
   management_plane_evidence_id               = var.management_plane_evidence_id

@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import base64
-import gzip
 import hashlib
 import json
 import re
@@ -14,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 EXPECTED_COUNTS = {
-    "oci_core_instance": 3,
+    "oci_core_instance": 1,
     "oci_core_internet_gateway": 1,
     "oci_core_nat_gateway": 1,
     "oci_core_service_gateway": 1,
@@ -130,11 +128,7 @@ def validate_planned_resource_counts(resources: list[dict[str, Any]], allow_rese
 def validate_instance(resources: list[dict[str, Any]], capacity_profile: str, plan_mode: str = "initial-create") -> str:
     profiles = {"a1-target": {"shape": "VM.Standard.A1.Flex", "boot": 50}, "e5-temporary": {"shape": "VM.Standard.E5.Flex", "boot": 200}}
     expected = profiles[capacity_profile]
-    instances = {
-        "legacy": by_address(resources, "oci_core_instance.host")["values"],
-        "primary": by_address(resources, "oci_core_instance.private_host")["values"],
-        "fallback": by_address(resources, "oci_core_instance.private_fallback")["values"],
-    }
+    instances = {"primary": by_address(resources, "oci_core_instance.host")["values"]}
     for role, values in instances.items():
         if values.get("shape") != expected["shape"]:
             fail(f"{role} compute shape must be {expected['shape']} for {capacity_profile}")
@@ -145,36 +139,15 @@ def validate_instance(resources: list[dict[str, Any]], capacity_profile: str, pl
         if source and int(source[0].get("boot_volume_size_in_gbs", 0)) != expected["boot"]:
             fail(f"{role} boot volume must be {expected['boot']} GiB for {capacity_profile}")
     values = instances["primary"]
-    rendered = ""
-    metadata = values.get("metadata") or {}
-    if plan_mode in {"initial-create", "adopt-existing"}:
-        if set(metadata) != {"user_data"}:
-            fail(f"new instance metadata must contain only compressed user_data, got {sorted(metadata)}")
-        encoded = metadata.get("user_data")
-        if not isinstance(encoded, str) or len(encoded.encode("ascii")) > 16384:
-            fail("encoded OCI user_data is absent or exceeds 16 KiB")
-        compressed = base64.b64decode(encoded, validate=True)
-        if not compressed.startswith(b"\x1f\x8b"):
-            fail("OCI user_data must be gzip-compressed")
-        rendered = gzip.decompress(compressed).decode("utf-8")
-        for token in ("liqi-bootstrap-host", "liqi-install-host-bundle", "liqi-configure-bastion-ssh"):
-            if token not in rendered:
-                fail(f"baseline cloud-init is missing {token}")
-        vnic = values.get("create_vnic_details") or []
-        if len(vnic) != 1 or str(vnic[0].get("assign_public_ip")).lower() not in {"false", "0"}:
-            fail("primary host must be created without a public IP")
-    for role in ("primary", "fallback"):
-        values = instances[role]
-        vnic = values.get("create_vnic_details") or []
-        if len(vnic) != 1 or str(vnic[0].get("assign_public_ip")).lower() not in {"false", "0"}:
-            fail(f"{role} must be created without a public IP")
-        agent = values.get("agent_config") or []
-        plugins = [item for block in agent for item in (block.get("plugins_config") or [])]
-        if not any(item.get("name") == "Compute Instance Run Command" and item.get("desired_state") == "ENABLED" for item in plugins):
-            fail(f"Compute Instance Run Command must remain enabled on {role}")
-    if instances["fallback"].get("state") not in {"RUNNING", "STOPPED"}:
-        fail("private fallback state must be RUNNING for bootstrap or STOPPED for recovery")
-    return rendered
+    vnic = values.get("create_vnic_details") or []
+    if len(vnic) != 1 or str(vnic[0].get("assign_public_ip")).lower() not in {"false", "0"} or values.get("public_ip") not in {None, ""}:
+        fail("retained primary must remain without a public IP")
+    agent = values.get("agent_config") or []
+    plugins = [item for block in agent for item in (block.get("plugins_config") or [])]
+    enabled = {item.get("name") for item in plugins if item.get("desired_state") == "ENABLED"}
+    if enabled != {"Compute Instance Run Command", "Compute Instance Monitoring", "Bastion"}:
+        fail("Run Command, Monitoring and Bastion plugins must remain explicitly enabled on the retained primary")
+    return ""
 
 
 def provider_decimal_integer(value: Any, label: str) -> int:
@@ -321,8 +294,8 @@ def validate_nlb(resources: list[dict[str, Any]]) -> bool:
     for item in resources_of(resources, "oci_network_load_balancer_listener"):
         values = item["values"]
         port = int(values.get("port", 0))
-        if values.get("protocol") != "TCP" or port not in {80, 443} or int(values.get("tcp_idle_timeout", 0)) < 3600:
-            fail("NLB listeners must be TCP 80/443 with WebSocket-safe idle timeout")
+        if values.get("protocol") != "TCP" or port not in {80, 443} or int(values.get("tcp_idle_timeout", 0)) != 1800:
+            fail("NLB listeners must be TCP 80/443 with the OCI-supported 1800-second WebSocket idle timeout")
         listeners.add(port)
     if backend_ports != {80, 443} or listeners != {80, 443}:
         fail("NLB must contain exactly backend and listener ports 80/443")
@@ -340,18 +313,18 @@ def validate_private_host_references(plan: dict[str, Any]) -> None:
         raw = (resource.get("expressions", {}).get(expression) or {}).get("references") or []
         return {item[:-3] if item.endswith(".id") else item for item in raw}
 
-    primary = "oci_core_instance.private_host"
-    fallback = "oci_core_instance.private_fallback"
+    primary = "oci_core_instance.host"
+    fallback = "var.retained_fallback_instance_ocid"
     if references("oci_core_volume_attachment.data", "instance_id") != {primary}:
-        fail("preserved data volume must attach only to the new private primary")
+        fail("preserved data volume must attach only to the retained private primary")
     if references("oci_network_load_balancer_backend.host", "target_id") != {primary}:
-        fail("NLB backend must target the new private primary")
+        fail("NLB backend must target the retained private primary")
     edge_nsg = "oci_core_network_security_group.public_edge"
     if references("oci_network_load_balancer_network_load_balancer.edge", "network_security_group_ids") != {edge_nsg}:
         fail("edge NLB must reference exactly its dedicated public-edge NSG")
     identity_refs = references("oci_identity_dynamic_group.host", "matching_rule")
     if identity_refs != {primary, fallback}:
-        fail("instance-principal dynamic group must bind exactly the private primary and recovery fallback")
+        fail("instance-principal dynamic group must bind exactly the retained primary and stopped recovery fallback")
 
 
 def validate_management(resources: list[dict[str, Any]]) -> None:
@@ -406,10 +379,8 @@ def validate_outputs(plan: dict[str, Any], mode: str, capacity_profile: str, pub
     if host.get("public_ipv4") is not None or host.get("public_ip_mode") != "none":
         fail("primary host output must not expose a public IP")
     recovery = contract.get("recovery", {})
-    if recovery.get("public_ip_mode") != "none" or recovery.get("fallback_state") not in {"RUNNING", "STOPPED"}:
-        fail("private fallback output must be explicit, non-public and lifecycle-bounded")
-    if public_backend_enabled and recovery.get("fallback_state") != "STOPPED":
-        fail("public cutover requires the private recovery fallback to be STOPPED")
+    if recovery.get("public_ip_mode") != "none" or recovery.get("fallback_state") != "STOPPED":
+        fail("retained recovery fallback output must be explicit, non-public and STOPPED")
     retained = contract.get("legacy_retained", {})
     if retained.get("traffic_eligible") is not False or retained.get("deletion_allowed") is not False:
         fail("legacy host and subnet must remain retained and ineligible for NLB traffic")

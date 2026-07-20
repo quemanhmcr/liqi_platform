@@ -92,7 +92,9 @@ acknowledge_capacity_availability_and_cost = true
 operation_mode = "plan"
 public_backend_enabled = false
 acknowledge_public_cutover = false
-fallback_desired_state = "RUNNING"
+fallback_desired_state = "STOPPED"
+retained_fallback_instance_ocid = "ocid1.instance.oc1.ap-singapore-2.retained"
+retained_fallback_private_ipv4 = "10.42.10.61"
 legacy_host_subnet_cidr = "10.42.10.0/24"
 legacy_host_subnet_label = "live"
 host_subnet_cidr = "10.42.20.0/24"
@@ -164,7 +166,7 @@ acknowledge_host_bundle_signing_key = true
 
             online_with_running_fallback = online_without_recovery.replace(
                 "acknowledge_public_cutover = false", "acknowledge_public_cutover = true"
-            )
+            ).replace('fallback_desired_state = "STOPPED"', 'fallback_desired_state = "RUNNING"')
             path.write_text(online_with_running_fallback, encoding="utf-8", newline="\n")
             result, _ = module.tfvars_check(path, SHA, now)
             self.assertEqual("blocked", result["status"])

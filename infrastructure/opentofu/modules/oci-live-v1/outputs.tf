@@ -35,7 +35,7 @@ locals {
     }
     network = {
       vcn_id                   = oci_core_vcn.main.id
-      host_subnet_id           = oci_core_subnet.private_host.id
+      host_subnet_id           = oci_core_subnet.edge.id
       public_edge_subnet_id    = oci_core_subnet.public_edge.id
       host_nsg_id              = oci_core_network_security_group.host.id
       public_edge_nsg_id       = oci_core_network_security_group.public_edge.id
@@ -61,27 +61,27 @@ locals {
       }
     }
     host = {
-      instance_id                = oci_core_instance.private_host.id
+      instance_id                = oci_core_instance.host.id
       image_id                   = var.oracle_linux_image_ocid
-      private_ipv4               = oci_core_instance.private_host.private_ip
+      private_ipv4               = oci_core_instance.host.private_ip
       public_ipv4                = null
       public_ip_mode             = "none"
       legacy_imds_disabled       = true
       run_command_plugin_enabled = true
     }
     recovery = {
-      fallback_instance_id  = oci_core_instance.private_fallback.id
-      fallback_private_ipv4 = oci_core_instance.private_fallback.private_ip
-      fallback_state        = var.fallback_desired_state
+      fallback_instance_id  = nonsensitive(var.retained_fallback_instance_ocid)
+      fallback_private_ipv4 = nonsensitive(var.retained_fallback_private_ipv4)
+      fallback_state        = "STOPPED"
       public_ip_mode        = "none"
-      host_subnet_id        = oci_core_subnet.private_host.id
+      host_subnet_id        = oci_core_subnet.edge.id
     }
     legacy_retained = {
-      instance_id      = oci_core_instance.host.id
+      instance_id      = nonsensitive(var.retained_fallback_instance_ocid)
       host_subnet_id   = oci_core_subnet.edge.id
       traffic_eligible = false
       deletion_allowed = false
-      retention_reason = "blue-green-private-subnet-recovery"
+      retention_reason = "first-release-stopped-recovery-fallback"
     }
     storage = {
       data_volume_id               = oci_core_volume.data.id
@@ -130,7 +130,7 @@ output "replacement_impact" {
     host_replaceable            = false
     legacy_host_retained        = true
     legacy_subnet_retained      = true
-    private_blue_green_additive = true
+    private_blue_green_additive = false
     host_public_ip_enabled      = false
     public_edge_stable          = var.enable_reserved_public_ip
     data_volume_preserved       = true

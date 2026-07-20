@@ -1,8 +1,8 @@
 resource "oci_identity_dynamic_group" "host" {
   compartment_id = var.tenancy_ocid
   name           = var.resource_names.dynamic_group
-  description    = "Exact-instance principals for the LIQI v1-live private primary and recovery fallback."
-  matching_rule  = "ANY {instance.id = '${oci_core_instance.private_host.id}', instance.id = '${oci_core_instance.private_fallback.id}'}"
+  description    = "Exact-instance principals for the retained LIQI v1-live primary and stopped recovery fallback."
+  matching_rule  = "ANY {instance.id = '${oci_core_instance.host.id}', instance.id = '${var.retained_fallback_instance_ocid}'}"
   freeform_tags  = local.common_tags
 }
 

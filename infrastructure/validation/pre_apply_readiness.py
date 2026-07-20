@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import ipaddress
 import json
 import os
 import re
@@ -176,10 +177,17 @@ def tfvars_check(path: Path | None, git_sha: str, now: datetime) -> tuple[dict[s
         blockers.append("public cutover acknowledgement must remain false while NLB backends are offline")
     if public_backend_enabled is True and cutover_acknowledged is not True:
         blockers.append("public cutover acknowledgement must be true when NLB backends are enabled")
-    if public_backend_enabled is True and fallback_state != "STOPPED":
-        blockers.append("public cutover requires fallback_desired_state=STOPPED")
-    if fallback_state not in {"RUNNING", "STOPPED"}:
-        blockers.append("fallback_desired_state must be RUNNING or STOPPED")
+    if fallback_state != "STOPPED":
+        blockers.append("retained first-release fallback requires fallback_desired_state=STOPPED")
+    retained_fallback = assignment(text, "retained_fallback_instance_ocid") or ""
+    if not retained_fallback.startswith("ocid1.instance.") or "replace" in retained_fallback.lower():
+        blockers.append("retained fallback instance identity is missing")
+    retained_fallback_ip = assignment(text, "retained_fallback_private_ipv4") or ""
+    try:
+        if not ipaddress.ip_address(retained_fallback_ip).is_private:
+            blockers.append("retained fallback IPv4 must be private")
+    except ValueError:
+        blockers.append("retained fallback private IPv4 is missing or invalid")
     if assignment(text, "source_git_sha") != git_sha:
         blockers.append("source_git_sha must match the exact checkout")
     availability_domain = assignment(text, "availability_domain") or ""

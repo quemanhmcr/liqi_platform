@@ -414,7 +414,7 @@ resource "oci_network_load_balancer_backend" "host" {
 
   network_load_balancer_id = oci_network_load_balancer_network_load_balancer.edge.id
   backend_set_name         = oci_network_load_balancer_backend_set.edge[each.key].name
-  target_id                = oci_core_instance.private_host.id
+  target_id                = oci_core_instance.host.id
   port                     = each.value
   is_backup                = false
   is_drain                 = false
@@ -431,6 +431,6 @@ resource "oci_network_load_balancer_listener" "edge" {
   port                     = each.value
   protocol                 = "TCP"
   ip_version               = "IPV4"
-  tcp_idle_timeout         = 3600
+  tcp_idle_timeout         = 1800
   is_ppv2enabled           = false
 }

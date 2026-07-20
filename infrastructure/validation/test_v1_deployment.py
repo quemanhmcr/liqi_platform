@@ -489,10 +489,12 @@ class AdoptionStateTests(unittest.TestCase):
     def test_state_ids_ignore_data_sources_and_normalize_provider_ids(self) -> None:
         state = {"resources": [
             {"mode": "data", "module": "module.v1_live", "type": "oci_core_services", "name": "regional", "instances": [{"attributes": {"id": "data-id"}}]},
+            {"mode": "managed", "module": "module.v1_live", "type": "terraform_data", "name": "guard", "instances": [{"attributes": {"id": "synthetic-id"}}]},
             {"mode": "managed", "module": "module.v1_live", "type": "oci_core_network_security_group_security_rule", "name": "example", "instances": [{"index_key": "cidr", "attributes": {"id": "RULE123"}}]},
         ]}
         ids = adopt_v1_live_state.state_ids(state)
         self.assertNotIn("module.v1_live.oci_core_services.regional", ids)
+        self.assertNotIn("module.v1_live.terraform_data.guard", ids)
         address = 'module.v1_live.oci_core_network_security_group_security_rule.example["cidr"]'
         self.assertTrue(adopt_v1_live_state.identifiers_match(address, "networkSecurityGroups/ocid1.networksecuritygroup.oc1.example/securityRules/RULE123", ids[address]))
         self.assertTrue(adopt_v1_live_state.identifiers_match("module.v1_live.oci_kms_key.main", "managementEndpoint/https://example/keys/ocid1.key.oc1.example", "ocid1.key.oc1.example"))
@@ -648,27 +650,18 @@ class PlanValidationTests(unittest.TestCase):
             )
 
     def test_e5_instance_profile_is_explicit(self) -> None:
-        import base64
-        import gzip
-
-        cloud_init = b"liqi-bootstrap-host liqi-install-host-bundle liqi-configure-bastion-ssh"
-        encoded = base64.b64encode(gzip.compress(cloud_init, mtime=0)).decode("ascii")
         values = {
                 "shape": "VM.Standard.E5.Flex",
                 "shape_config": [{"ocpus": 4, "memory_in_gbs": 24}],
                 "source_details": [{"boot_volume_size_in_gbs": 200}],
-                "metadata": {"user_data": encoded},
                 "create_vnic_details": [{"assign_public_ip": "false"}],
-                "agent_config": [{"plugins_config": [{"name": "Compute Instance Run Command", "desired_state": "ENABLED"}]}],
+                "agent_config": [{"plugins_config": [{"name": name, "desired_state": "ENABLED"} for name in ("Compute Instance Run Command", "Compute Instance Monitoring", "Bastion")]}],
                 "state": "RUNNING",
+                "public_ip": "",
         }
-        resources = [
-            {"address": "module.v1_live.oci_core_instance.host", "type": "oci_core_instance", "values": dict(values)},
-            {"address": "module.v1_live.oci_core_instance.private_host", "type": "oci_core_instance", "values": dict(values)},
-            {"address": "module.v1_live.oci_core_instance.private_fallback", "type": "oci_core_instance", "values": dict(values)},
-        ]
+        resources = [{"address": "module.v1_live.oci_core_instance.host", "type": "oci_core_instance", "values": dict(values)}]
         validate_v1_plan.validate_instance(resources, "e5-temporary")
-        resources[1]["values"]["shape"] = "VM.Standard.A1.Flex"
+        resources[0]["values"]["shape"] = "VM.Standard.A1.Flex"
         with self.assertRaises(AssertionError):
             validate_v1_plan.validate_instance(resources, "e5-temporary")
 
@@ -699,28 +692,21 @@ class PlanValidationTests(unittest.TestCase):
             validate_v1_plan.validate_ingress(resources)
 
 
-    def test_instance_metadata_is_bounded_and_hardened(self) -> None:
-        import base64
-        import gzip
-
-        cloud_init = b"liqi-bootstrap-host liqi-install-host-bundle liqi-configure-bastion-ssh"
-        encoded = base64.b64encode(gzip.compress(cloud_init, mtime=0)).decode("ascii")
+    def test_retained_instance_must_remain_private_and_managed(self) -> None:
         values = {
                 "shape": "VM.Standard.A1.Flex",
                 "shape_config": [{"ocpus": 4, "memory_in_gbs": 24}],
                 "source_details": [{"boot_volume_size_in_gbs": 50}],
-                "metadata": {"user_data": encoded},
                 "create_vnic_details": [{"assign_public_ip": "false"}],
-                "agent_config": [{"plugins_config": [{"name": "Compute Instance Run Command", "desired_state": "ENABLED"}]}],
+                "agent_config": [{"plugins_config": [{"name": name, "desired_state": "ENABLED"} for name in ("Compute Instance Run Command", "Compute Instance Monitoring", "Bastion")]}],
                 "state": "RUNNING",
+                "public_ip": "",
         }
-        resources = [
-            {"address": "module.v1_live.oci_core_instance.host", "type": "oci_core_instance", "values": dict(values)},
-            {"address": "module.v1_live.oci_core_instance.private_host", "type": "oci_core_instance", "values": dict(values)},
-            {"address": "module.v1_live.oci_core_instance.private_fallback", "type": "oci_core_instance", "values": dict(values)},
-        ]
-        rendered = validate_v1_plan.validate_instance(resources, "a1-target")
-        self.assertIn("liqi-bootstrap-host", rendered)
+        resources = [{"address": "module.v1_live.oci_core_instance.host", "type": "oci_core_instance", "values": values}]
+        validate_v1_plan.validate_instance(resources, "a1-target")
+        values["public_ip"] = "203.0.113.10"
+        with self.assertRaises(AssertionError):
+            validate_v1_plan.validate_instance(resources, "a1-target")
 
     def test_management_rejects_superseded_external_wireguard_egress(self) -> None:
         dns = [{
@@ -747,7 +733,7 @@ class PlanValidationTests(unittest.TestCase):
             resources.extend([
                 {"address": f'module.v1_live.oci_network_load_balancer_backend_set.edge["{key}"]', "type": "oci_network_load_balancer_backend_set", "values": {"policy": "FIVE_TUPLE", "is_fail_open": False, "is_preserve_source": False, "health_checker": [{"protocol": "TCP", "port": port}]}},
                 {"address": f'module.v1_live.oci_network_load_balancer_backend.host["{key}"]', "type": "oci_network_load_balancer_backend", "values": {"port": port, "is_backup": False, "is_drain": False, "is_offline": False}},
-                {"address": f'module.v1_live.oci_network_load_balancer_listener.edge["{key}"]', "type": "oci_network_load_balancer_listener", "values": {"port": port, "protocol": "TCP", "tcp_idle_timeout": 3600}},
+                {"address": f'module.v1_live.oci_network_load_balancer_listener.edge["{key}"]', "type": "oci_network_load_balancer_listener", "values": {"port": port, "protocol": "TCP", "tcp_idle_timeout": 1800}},
             ])
         self.assertTrue(validate_v1_plan.validate_nlb(resources))
         for item in resources:
@@ -766,18 +752,18 @@ class PlanValidationTests(unittest.TestCase):
 
     def test_stateful_and_public_consumers_reference_only_private_hosts(self) -> None:
         resources = [
-            {"address": "oci_core_volume_attachment.data", "expressions": {"instance_id": {"references": ["oci_core_instance.private_host", "oci_core_instance.private_host.id"]}}},
-            {"address": "oci_network_load_balancer_backend.host", "expressions": {"target_id": {"references": ["oci_core_instance.private_host", "oci_core_instance.private_host.id"]}}},
+            {"address": "oci_core_volume_attachment.data", "expressions": {"instance_id": {"references": ["oci_core_instance.host", "oci_core_instance.host.id"]}}},
+            {"address": "oci_network_load_balancer_backend.host", "expressions": {"target_id": {"references": ["oci_core_instance.host", "oci_core_instance.host.id"]}}},
             {"address": "oci_network_load_balancer_network_load_balancer.edge", "expressions": {"network_security_group_ids": {"references": ["oci_core_network_security_group.public_edge", "oci_core_network_security_group.public_edge.id"]}}},
-            {"address": "oci_identity_dynamic_group.host", "expressions": {"matching_rule": {"references": ["oci_core_instance.private_host", "oci_core_instance.private_host.id", "oci_core_instance.private_fallback", "oci_core_instance.private_fallback.id"]}}},
+            {"address": "oci_identity_dynamic_group.host", "expressions": {"matching_rule": {"references": ["oci_core_instance.host", "oci_core_instance.host.id", "var.retained_fallback_instance_ocid"]}}},
         ]
         plan = {"configuration": {"root_module": {"module_calls": {"v1_live": {"module": {"resources": resources}}}}}}
         validate_v1_plan.validate_private_host_references(plan)
-        resources[1]["expressions"]["target_id"]["references"] = ["oci_core_instance.host.id"]
+        resources[1]["expressions"]["target_id"]["references"] = ["oci_core_instance.private_host.id"]
         with self.assertRaises(AssertionError):
             validate_v1_plan.validate_private_host_references(plan)
-        resources[1]["expressions"]["target_id"]["references"] = ["oci_core_instance.private_host.id"]
-        resources[3]["expressions"]["matching_rule"]["references"].append("oci_core_instance.host.id")
+        resources[1]["expressions"]["target_id"]["references"] = ["oci_core_instance.host.id"]
+        resources[3]["expressions"]["matching_rule"]["references"].append("oci_core_instance.private_fallback.id")
         with self.assertRaises(AssertionError):
             validate_v1_plan.validate_private_host_references(plan)
 

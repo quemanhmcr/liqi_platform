@@ -64,10 +64,6 @@ variable "resource_names" {
     legacy_instance          = string
     legacy_vnic              = string
     legacy_fallback_instance = string
-    instance                 = string
-    vnic                     = string
-    fallback_instance        = string
-    fallback_vnic            = string
     data_volume              = string
     data_attachment          = string
     vault                    = string
@@ -95,10 +91,6 @@ variable "resource_names" {
     legacy_instance          = "liqi-v1-live-legacy-host-01"
     legacy_vnic              = "liqi-v1-live-legacy-host-vnic"
     legacy_fallback_instance = "liqi-v1-live-legacy-fallback"
-    instance                 = "liqi-v1-live-host-01"
-    vnic                     = "liqi-v1-live-host-vnic"
-    fallback_instance        = "liqi-v1-live-fallback-01"
-    fallback_vnic            = "liqi-v1-live-fallback-vnic"
     data_volume              = "liqi-v1-live-data"
     data_attachment          = "liqi-v1-live-data-attachment"
     vault                    = "liqi-v1-live-vault"
@@ -158,10 +150,28 @@ variable "acknowledge_public_cutover" {
 
 variable "fallback_desired_state" {
   type    = string
-  default = "RUNNING"
+  default = "STOPPED"
   validation {
-    condition     = contains(["RUNNING", "STOPPED"], var.fallback_desired_state)
-    error_message = "fallback_desired_state must be RUNNING or STOPPED."
+    condition     = var.fallback_desired_state == "STOPPED"
+    error_message = "The retained first-release fallback must remain STOPPED outside an evidence-producing recovery drill."
+  }
+}
+
+variable "retained_fallback_instance_ocid" {
+  type      = string
+  sensitive = true
+  validation {
+    condition     = can(regex("^ocid1\\.instance\\.", var.retained_fallback_instance_ocid))
+    error_message = "retained_fallback_instance_ocid must be an OCI compute instance OCID."
+  }
+}
+
+variable "retained_fallback_private_ipv4" {
+  type      = string
+  sensitive = true
+  validation {
+    condition     = can(cidrhost("${var.retained_fallback_private_ipv4}/32", 0))
+    error_message = "retained_fallback_private_ipv4 must be an IPv4 address."
   }
 }
 

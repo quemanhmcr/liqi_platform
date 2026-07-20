@@ -47,6 +47,8 @@ def state_ids(document: dict[str, Any]) -> dict[str, str]:
     for resource in document.get("resources", []):
         if resource.get("mode", "managed") != "managed":
             continue
+        if not str(resource.get("type", "")).startswith("oci_"):
+            continue
         module = resource.get("module")
         prefix = f"{module}." if module else ""
         base = f"{prefix}{resource.get('type')}.{resource.get('name')}"

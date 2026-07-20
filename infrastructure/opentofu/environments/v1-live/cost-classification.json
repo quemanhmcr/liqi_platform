@@ -24,21 +24,21 @@
       "apply_allowed_under_current_approval": true,
       "approval_required": true,
       "classification": "paid-approved",
-      "rationale": "Temporary x86_64 bridge while A1 capacity is unavailable. The additive private-subnet correction temporarily runs the retained legacy primary plus a new private primary and bootstrap fallback; no legacy instance is terminated during rollout. Apply requires an explicit approval reference, a future expiry no more than 90 days away, and a reviewed source/plan bound to the E5 profile.",
+      "rationale": "Temporary x86_64 bridge while A1 capacity is unavailable. The first release reuses the existing private-addressed primary and stopped recovery fallback because the tenancy rejects additional Core Instance creation. No instance is deleted or replaced. Apply requires an explicit approval reference, a future expiry no more than 90 days away, and a reviewed source/plan bound to the E5 profile.",
       "resource": "VM.Standard.E5.Flex 4 OCPU / 24 GiB temporary bridge"
     },
     {
       "apply_allowed_under_current_approval": true,
       "approval_required": true,
-      "classification": "paid-approved-temporary-peak",
-      "rationale": "Peak blue-green state is three RUNNING and one STOPPED E5 4/24 instances. After private bootstrap and recovery validation, the new fallback and retained legacy primary are stopped; all legacy resources remain protected from deletion.",
-      "resource": "additive private-subnet blue-green compute peak"
+      "classification": "paid-approved-retained-capacity",
+      "rationale": "Steady state remains one RUNNING and one STOPPED E5 4/24 instance. Recovery drills start the stopped fallback only for a bounded exercise and restore STOPPED in finally. The rollout creates no additional compute and terminates none.",
+      "resource": "retained primary and stopped recovery compute"
     },
     {
       "approval_required": true,
-      "classification": "paid-approved-temporary-peak",
-      "rationale": "Four retained 200 GiB boot volumes plus one 130 GiB data volume can reach 930 GiB before any later cleanup. Stopped instances continue to retain boot-volume storage.",
-      "resource": "blue-green retained boot and data volumes up to 930 GiB"
+      "classification": "paid-approved-retained-capacity",
+      "rationale": "Two retained 200 GiB boot volumes plus one 130 GiB data volume total 530 GiB. Stopped instances continue to retain boot-volume storage.",
+      "resource": "retained boot and data volumes totaling 530 GiB"
     },
     {
       "approval_required": true,
@@ -69,8 +69,8 @@
     },
     {
       "approval_required": false,
-      "classification": "no-direct-resource-charge-external-peer-owner",
-      "resource": "outbound-only WireGuard NSG rule to independent management peer"
+      "classification": "no-direct-resource-charge",
+      "resource": "OCI Bastion and Run Command management path"
     },
     {
       "approval_required": true,

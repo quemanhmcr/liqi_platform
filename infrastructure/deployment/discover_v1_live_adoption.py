@@ -15,9 +15,9 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = ROOT / "contracts/infrastructure/adoption-manifest-v1.schema.json"
 
-# Static source graph for the E5 private-host/public-NLB lane. The optional
-# reserved public IP is deliberately excluded unless a later reviewed source
-# makes it mandatory.
+# Static source graph for the E5 retained-compute/public-NLB lane. The optional
+# reserved public IP and the stopped recovery fallback are deliberately outside
+# OpenTofu mutation scope.
 ADDRESSES: dict[str, tuple[str, str]] = {
     "compartment": ("module.v1_live.oci_identity_compartment.environment", "oci_identity_compartment"),
     "vcn": ("module.v1_live.oci_core_vcn.main", "oci_core_vcn"),
@@ -50,8 +50,6 @@ ADDRESSES: dict[str, tuple[str, str]] = {
     "edge_egress_http": ('module.v1_live.oci_core_network_security_group_security_rule.public_edge_egress["http"]', "oci_core_network_security_group_security_rule"),
     "edge_egress_https": ('module.v1_live.oci_core_network_security_group_security_rule.public_edge_egress["https"]', "oci_core_network_security_group_security_rule"),
     "legacy_instance": ("module.v1_live.oci_core_instance.host", "oci_core_instance"),
-    "instance": ("module.v1_live.oci_core_instance.private_host", "oci_core_instance"),
-    "fallback_instance": ("module.v1_live.oci_core_instance.private_fallback", "oci_core_instance"),
     "data_volume": ("module.v1_live.oci_core_volume.data", "oci_core_volume"),
     "data_attachment": ("module.v1_live.oci_core_volume_attachment.data", "oci_core_volume_attachment"),
     "vault": ("module.v1_live.oci_kms_vault.main", "oci_kms_vault"),
@@ -71,7 +69,7 @@ RESOURCE_NAME_KEYS = {
     "compartment", "vcn", "internet_gateway", "nat_gateway", "service_gateway",
     "legacy_route_table", "route_table", "public_edge_route_table", "security_list", "legacy_subnet", "subnet",
     "public_edge_subnet", "nsg", "nlb_nsg", "network_load_balancer", "legacy_instance", "legacy_vnic",
-    "legacy_fallback_instance", "instance", "vnic", "fallback_instance", "fallback_vnic",
+    "legacy_fallback_instance",
     "data_volume", "data_attachment", "vault", "key", "reserved_public_ip",
     "dynamic_group", "policy",
 }
@@ -182,7 +180,6 @@ def main() -> int:
 
     host_nsg: dict[str, Any] | None = None
     host_subnet: dict[str, Any] | None = None
-    instance: dict[str, Any] | None = None
     if vcn_id:
         igw = one(oci(args.profile, region, "network", "internet-gateway", "list", "--compartment-id", compartment_id, "--all"), "display-name", names["internet_gateway"])
         nat = one(oci(args.profile, region, "network", "nat-gateway", "list", "--compartment-id", compartment_id, "--all"), "display-name", names["nat_gateway"])
@@ -273,18 +270,16 @@ def main() -> int:
 
     instances = oci(args.profile, region, "compute", "instance", "list", "--compartment-id", compartment_id, "--all")
     legacy_instance = one(instances, "display-name", names["legacy_instance"])
-    instance = one(instances, "display-name", names["instance"])
-    fallback_instance = one(instances, "display-name", names["fallback_instance"])
+    retained_fallback = one(instances, "display-name", names["legacy_fallback_instance"])
     add_import(imports, "legacy_instance", legacy_instance, names["legacy_instance"])
-    add_import(imports, "instance", instance, names["instance"])
-    add_import(imports, "fallback_instance", fallback_instance, names["fallback_instance"])
     if not legacy_instance:
-        blockers.append("retained legacy primary must exist before additive migration")
+        blockers.append("retained private primary must exist before first-release reconciliation")
+    if not retained_fallback:
+        blockers.append("retained stopped first-release fallback must exist")
 
-    for role, candidate, require_private_subnet in (
-        ("legacy primary", legacy_instance, False),
-        ("private primary", instance, True),
-        ("private fallback", fallback_instance, True),
+    for role, candidate in (
+        ("retained primary", legacy_instance),
+        ("retained fallback", retained_fallback),
     ):
         if not candidate:
             continue
@@ -301,8 +296,6 @@ def main() -> int:
                 blockers.append(f"{role} must not have a public IP")
             if host_nsg and host_nsg["id"] not in (vnic.get("nsg-ids") or []):
                 blockers.append(f"{role} VNIC is not attached to the adopted workload NSG")
-            if require_private_subnet and (not host_subnet or vnic.get("subnet-id") != host_subnet.get("id")):
-                blockers.append(f"{role} must use the adopted private 10.42.20.0/24 subnet")
         boot_attachments = oci(args.profile, region, "compute", "boot-volume-attachment", "list", "--compartment-id", compartment_id, "--instance-id", candidate["id"], "--availability-domain", candidate["availability-domain"])
         active_boots = [item for item in boot_attachments if item.get("lifecycle-state") == "ATTACHED"]
         if len(active_boots) != 1:
@@ -311,27 +304,27 @@ def main() -> int:
             boot = oci(args.profile, region, "bv", "boot-volume", "get", "--boot-volume-id", active_boots[0]["boot-volume-id"])
             if int(boot.get("size-in-gbs", 0)) != 200:
                 blockers.append(f"{role} boot volume must be exactly 200 GiB")
-    if fallback_instance and fallback_instance.get("lifecycle-state") not in {"RUNNING", "STOPPED"}:
-        blockers.append("private fallback must be RUNNING for bootstrap or STOPPED for recovery readiness")
+    if legacy_instance and legacy_instance.get("lifecycle-state") != "RUNNING":
+        blockers.append("retained primary must be RUNNING")
+    if retained_fallback and retained_fallback.get("lifecycle-state") != "STOPPED":
+        blockers.append("retained first-release fallback must remain STOPPED")
 
-    reviewed_names = {
-        names["legacy_instance"], names["legacy_fallback_instance"],
-        names["instance"], names["fallback_instance"],
-    }
+    reviewed_names = {names["legacy_instance"], names["legacy_fallback_instance"]}
     for item in instances:
         if item.get("display-name") not in reviewed_names and item.get("lifecycle-state") != "TERMINATED":
-            unmanaged.append({"kind": "compute-instance", "display_name": item.get("display-name") or "unnamed", "reason": "Additional instance remains outside the reviewed blue-green source graph."})
+            unmanaged.append({"kind": "compute-instance", "display_name": item.get("display-name") or "unnamed", "reason": "Additional instance remains outside the reviewed retained-compute source graph."})
+            blockers.append("unexpected non-terminated compute instance exists outside the retained primary/fallback pair")
         elif item.get("display-name") == names["legacy_fallback_instance"] and item.get("lifecycle-state") != "TERMINATED":
-            unmanaged.append({"kind": "compute-instance", "display_name": item.get("display-name") or "unnamed", "reason": "Retained stopped first-release fallback remains outside mutation scope until the private fallback passes recovery."})
+            unmanaged.append({"kind": "compute-instance", "display_name": item.get("display-name") or "unnamed", "reason": "Retained stopped first-release fallback is the recovery authority and remains outside OpenTofu mutation scope."})
 
     volumes = oci(args.profile, region, "bv", "volume", "list", "--compartment-id", compartment_id, "--all")
     volume = one(volumes, "display-name", names["data_volume"])
     add_import(imports, "data_volume", volume, names["data_volume"])
     if volume and (int(volume.get("size-in-gbs", 0)) != 130 or int(volume.get("vpus-per-gb", 0)) != 0):
         blockers.append("adopted data volume must be 130 GiB at 0 VPUs/GB")
-    if volume and instance:
+    if volume and legacy_instance:
         attachments = oci(args.profile, region, "compute", "volume-attachment", "list", "--compartment-id", compartment_id, "--all")
-        attachment = next((item for item in attachments if item.get("volume-id") == volume["id"] and item.get("instance-id") == instance["id"] and item.get("lifecycle-state") != "DETACHED"), None)
+        attachment = next((item for item in attachments if item.get("volume-id") == volume["id"] and item.get("instance-id") == legacy_instance["id"] and item.get("lifecycle-state") != "DETACHED"), None)
         add_import(imports, "data_attachment", attachment, names["data_attachment"])
 
     vault = one(oci(args.profile, region, "kms", "management", "vault", "list", "--compartment-id", compartment_id, "--all"), "display-name", names["vault"])

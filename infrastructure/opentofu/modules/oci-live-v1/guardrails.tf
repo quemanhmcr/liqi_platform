@@ -156,5 +156,9 @@ resource "terraform_data" "cutover_guard" {
       condition     = !var.public_backend_enabled || var.fallback_desired_state == "STOPPED"
       error_message = "Public NLB backends remain offline until the private recovery fallback is STOPPED and recovery-ready."
     }
+    precondition {
+      condition     = cidrcontains(var.network_config.vcn_cidr, var.retained_fallback_private_ipv4)
+      error_message = "The retained fallback private IPv4 must remain inside the production VCN."
+    }
   }
 }

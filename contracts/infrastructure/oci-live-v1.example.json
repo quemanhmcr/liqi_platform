@@ -48,7 +48,7 @@
     "deletion_allowed": false,
     "host_subnet_id": "ocid1.subnet.oc1.examplelegacy",
     "instance_id": "ocid1.instance.oc1.examplelegacy",
-    "retention_reason": "blue-green-private-subnet-recovery",
+    "retention_reason": "first-release-stopped-recovery-fallback",
     "traffic_eligible": false
   },
   "mutation": {
@@ -108,7 +108,7 @@
   "recovery": {
     "fallback_instance_id": "ocid1.instance.oc1.examplefallback",
     "fallback_private_ipv4": "10.40.20.11",
-    "fallback_state": "RUNNING",
+    "fallback_state": "STOPPED",
     "host_subnet_id": "ocid1.subnet.oc1.examplehost",
     "public_ip_mode": "none"
   },

@@ -19,11 +19,12 @@ acknowledge_reserved_public_ip = false
 # Secret OCIDs are metadata only. Never place secret values in this file.
 vault_secret_ocids = []
 
-# Exact public endpoint of the independent management WireGuard peer. No inbound host rule is created.
-management_wireguard_peer_cidr = "198.51.100.10/32"
-management_wireguard_port      = 51820
+# Retained first-release recovery compute remains stopped and outside OpenTofu mutation scope.
+fallback_desired_state          = "STOPPED"
+retained_fallback_instance_ocid = "ocid1.instance.oc1.ap-singapore-2.example-retained-fallback"
+retained_fallback_private_ipv4  = "10.42.10.61"
 
-# Exact-SHA preflight evidence for independent storage authority and the reviewed WireGuard peer configuration.
+# Exact-SHA preflight evidence for the OCI Bastion and Run Command management boundary.
 management_plane_evidence_id = ""
 
 # Must reference exact-SHA machine evidence for the independent PostgreSQL state backend.
