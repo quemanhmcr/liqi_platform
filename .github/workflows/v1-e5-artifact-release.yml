@@ -112,6 +112,7 @@ jobs:
           sudo apt-get install --yes --no-install-recommends build-essential clang pkg-config ca-certificates curl openssl
           python -m pip install -r operations/ci/requirements-v0.txt
           rustup toolchain install 1.97.1 --profile minimal --component rustfmt,clippy --target x86_64-unknown-linux-gnu
+          rustup target add --toolchain 1.97.1 aarch64-unknown-linux-gnu
           rustup default 1.97.1
           rustup toolchain install "$LIQI_FUZZ_TOOLCHAIN" --profile minimal
           cargo +1.97.1 install cargo-fuzz --version "$CARGO_FUZZ_VERSION" --locked
@@ -165,6 +166,15 @@ jobs:
         run: |
           set -euo pipefail
           python native/scripts/run_v1_safety_gates.py --output .artifacts/e5/native-safety-result-v1.json
+
+      - name: Upload native safety evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: liqi-v1-e5-native-safety-${{ github.sha }}-${{ github.run_attempt }}
+          path: .artifacts/e5/**
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Build exact x86_64 native artifact
         env:

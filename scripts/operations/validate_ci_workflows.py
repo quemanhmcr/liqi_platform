@@ -173,6 +173,7 @@ def main() -> int:
                 "nightly-2026-07-01",
                 'CARGO_FUZZ_VERSION: "0.13.2"',
                 'COSIGN_VERSION: "3.1.2"',
+                "rustup target add --toolchain 1.97.1 aarch64-unknown-linux-gnu",
                 "native/scripts/run_v1_safety_gates.py",
                 "native/scripts/build-x86_64-artifact.sh",
                 "--target-triple x86_64-unknown-linux-gnu",
@@ -195,6 +196,14 @@ def main() -> int:
                 failures.append(f"{relative}: E5 artifact publication cannot tolerate blocked, not-ready, or mock evidence")
             if "$GITHUB_WORKSPACE/liqi-signing-private" in text or ".artifacts/liqi-signing-private" in text:
                 failures.append(f"{relative}: private signing keys must remain under RUNNER_TEMP")
+            step_by_name = {step.get("name"): step for step in iter_steps(workflow) if step.get("name")}
+            safety_upload = step_by_name.get("Upload native safety evidence")
+            if not isinstance(safety_upload, dict) or safety_upload.get("if") != "always()":
+                failures.append(f"{relative}: native safety evidence must upload with if: always()")
+            safety_upload_with = safety_upload.get("with", {}) if isinstance(safety_upload, dict) else {}
+            safety_path = safety_upload_with.get("path", "") if isinstance(safety_upload_with, dict) else ""
+            if ".artifacts/e5/**" not in safety_path:
+                failures.append(f"{relative}: native safety upload must retain provider result and logs")
 
         if path.name == "v1-live-readiness.yml":
             triggers = workflow.get("on")

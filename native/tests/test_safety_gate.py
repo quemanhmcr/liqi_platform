@@ -40,6 +40,20 @@ class SafetyGateTest(unittest.TestCase):
         self.assertIn(r'^nightly(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$', runner)
         self.assertNotIn('(?:', runner)
 
+    def test_publication_provisions_cross_target_and_preserves_failure_evidence(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / ".github/workflows/v1-e5-artifact-release.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            "rustup target add --toolchain 1.97.1 aarch64-unknown-linux-gnu",
+            workflow,
+        )
+        upload = workflow.split("- name: Upload native safety evidence", 1)[1].split(
+            "- name: Build exact x86_64 native artifact", 1
+        )[0]
+        self.assertIn("if: always()", upload)
+        self.assertIn("path: .artifacts/e5/**", upload)
+        self.assertIn("${{ github.run_attempt }}", upload)
+
 
 if __name__ == "__main__":
     unittest.main()
