@@ -274,7 +274,13 @@ jobs:
             echo 'private key material detected in publication package' >&2
             exit 1
           fi
-          find "$publication" -type f -print0 | sort -z | xargs -0 sha256sum > "$publication/SHA256SUMS"
+          (
+            cd "$publication"
+            find . -type f ! -name SHA256SUMS -print0 \
+              | LC_ALL=C sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+            sha256sum --check --strict SHA256SUMS
+          )
 
       - name: Upload signed E5 publication
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

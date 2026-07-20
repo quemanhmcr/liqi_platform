@@ -576,6 +576,14 @@ class AdoptionStateTests(unittest.TestCase):
 
 
 class PlanValidationTests(unittest.TestCase):
+    def test_production_publication_checksum_index_is_portable_and_non_recursive(self) -> None:
+        workflow = (ROOT / ".github/workflows/v1-e5-artifact-release.yml").read_text(encoding="utf-8")
+        self.assertIn('cd "$publication"', workflow)
+        self.assertIn("find . -type f ! -name SHA256SUMS -print0", workflow)
+        self.assertIn("LC_ALL=C sort -z", workflow)
+        self.assertIn("sha256sum --check --strict SHA256SUMS", workflow)
+        self.assertNotIn('find "$publication" -type f -print0', workflow)
+
     def test_initial_plan_action_counts_are_exact(self) -> None:
         changes = []
         for resource_type, count in validate_v1_plan.EXPECTED_COUNTS.items():

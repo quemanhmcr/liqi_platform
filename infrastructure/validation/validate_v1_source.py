@@ -404,6 +404,17 @@ def validate_static_policy() -> None:
     for token in ("release build requires a clean exact-SHA worktree", "verify_deployment_manifest.py", "artifact and manifest signing key IDs must be distinct", "self-verification did not pass", "os.replace(staged_output, final_output)"):
         if token not in release_builder:
             raise AssertionError(f"canonical Linux release builder is missing {token}")
+    release_workflow = (ROOT / ".github/workflows/v1-e5-artifact-release.yml").read_text(encoding="utf-8")
+    for token in (
+        'cd "$publication"',
+        "find . -type f ! -name SHA256SUMS -print0",
+        "LC_ALL=C sort -z",
+        "sha256sum --check --strict SHA256SUMS",
+    ):
+        if token not in release_workflow:
+            raise AssertionError(f"production publication checksum index is not portable or self-verified: {token}")
+    if 'find "$publication" -type f -print0' in release_workflow:
+        raise AssertionError("production publication checksum index contains absolute runner paths")
 
     runbook = (ROOT / "operations/runbooks/e5-temporary-adoption-v1.md").read_text(encoding="utf-8")
     for token in ("state adoption", "pre-apply-readiness", "does not create, update or delete OCI resources", "adopt-existing", "A1 remains the target profile"):
