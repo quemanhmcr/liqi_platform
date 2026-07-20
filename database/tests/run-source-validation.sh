@@ -12,6 +12,7 @@ if [[ -f "$ROOT_DIR/contracts/infrastructure/oci-live-v1.example.json" ]]; then
   PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tools/validate_v1_host_adapter.py" \
     "$ROOT_DIR/contracts/infrastructure/oci-live-v1.example.json"
 fi
+PYTHONDONTWRITEBYTECODE=1 python -m unittest database.tests.contract.test_v1_host_adapter -v
 PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tools/recovery_contract.py" validate-contracts
 PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tests/static/validate_database_source.py"
 PYTHONDONTWRITEBYTECODE=1 python "$ROOT_DIR/database/tests/static/validate_beam_provider_source.py"

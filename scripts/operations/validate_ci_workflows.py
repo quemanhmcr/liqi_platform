@@ -123,6 +123,7 @@ def main() -> int:
             for required in (
                 "scripts/operations/verify_ci_provenance.py",
                 "database.tests.integration.test_pg_prove_adapter",
+                "database/requirements-validation.txt",
                 "LIQI_EXPECTED_SOURCE_SHA",
                 "github.event.pull_request.head.sha || github.sha",
                 "ref: ${{ env.LIQI_EXPECTED_SOURCE_SHA }}",
@@ -150,6 +151,8 @@ def main() -> int:
                 failures.append(f"{relative}: all three jobs must checkout the exact expected source SHA")
             if text.count("python scripts/operations/verify_ci_provenance.py") != 3:
                 failures.append(f"{relative}: all three jobs must emit early source provenance evidence")
+            if text.count("-r database/requirements-validation.txt") != 3:
+                failures.append(f"{relative}: all three jobs must install pinned database validation dependencies")
             if "LIQI_RELEASE_ID: liqi-v1-ci-${{ github.sha }}" in text:
                 failures.append(f"{relative}: release IDs must not bind pull requests to synthetic merge SHAs")
         if path.name == "v1-e5-artifact-release.yml":

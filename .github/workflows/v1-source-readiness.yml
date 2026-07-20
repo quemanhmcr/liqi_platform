@@ -69,10 +69,15 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: operations/ci/requirements-v0.txt
+          cache-dependency-path: |
+            operations/ci/requirements-v0.txt
+            database/requirements-validation.txt
 
       - name: Install pinned readiness dependencies
-        run: python -m pip install -r operations/ci/requirements-v0.txt
+        run: >-
+          python -m pip install
+          -r operations/ci/requirements-v0.txt
+          -r database/requirements-validation.txt
 
       - name: Validate V1 readiness source
         run: python operations/bin/validate_readiness_v1.py
@@ -218,10 +223,15 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: operations/ci/requirements-v0.txt
+          cache-dependency-path: |
+            operations/ci/requirements-v0.txt
+            database/requirements-validation.txt
 
       - name: Install pinned readiness dependencies
-        run: python -m pip install -r operations/ci/requirements-v0.txt
+        run: >-
+          python -m pip install
+          -r operations/ci/requirements-v0.txt
+          -r database/requirements-validation.txt
 
       - name: Collect owner-attributed integration checkpoint
         run: >-
@@ -292,10 +302,15 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: operations/ci/requirements-v0.txt
+          cache-dependency-path: |
+            operations/ci/requirements-v0.txt
+            database/requirements-validation.txt
 
       - name: Install pinned readiness dependencies
-        run: python -m pip install -r operations/ci/requirements-v0.txt
+        run: >-
+          python -m pip install
+          -r operations/ci/requirements-v0.txt
+          -r database/requirements-validation.txt
 
       - name: Collect owner-attributed artifact checkpoint
         run: >-
