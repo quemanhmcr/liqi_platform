@@ -49,6 +49,7 @@ defmodule Liqi.Runtime.ReleaseProviderContractTest do
 
     assert manifest["manifest_signature"]["signed_payload"] == "exact-manifest-bytes"
     assert manifest["artifact"]["signature"]["signed_payload"] == "artifact-bytes"
-    assert String.starts_with?(manifest["rollback_target_release_id"], "liqi-v0-")
+    assert is_nil(manifest["rollback_target_release_id"])
+    assert manifest["database_compatibility"]["rollback_safe_through"] == 8
   end
 end

@@ -38,11 +38,7 @@
       "required": false
     }
   ],
-  "rollback_target": {
-    "release_id": "liqi-v0-example",
-    "descriptor_filename": "liqi-v0-example.release-target.json",
-    "descriptor_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
-  },
+  "rollback_target": null,
   "signature": {
     "algorithm": "ed25519",
     "key_id": "deployment-signing-v1",

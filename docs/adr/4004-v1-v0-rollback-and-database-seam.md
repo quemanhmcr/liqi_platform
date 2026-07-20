@@ -1,6 +1,6 @@
 # ADR 4004: Retained V0 rollback descriptors and migration-8 compatibility
 
-- Status: Accepted; source integration complete, live evidence pending
+- Status: Superseded by ADR 4006 for the first production V1 release; retained only as historical V0/V1 compatibility design
 - Date: 2026-07-18
 - Owner: Senior 4
 - Consumers: Senior 1, Senior 2, Senior 5

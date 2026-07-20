@@ -587,12 +587,12 @@
         "data_volume_preserved": {
           "const": true
         },
-        "kms_key_id": {
-          "pattern": "^ocid1\\.key\\.",
-          "type": "string"
-        },
         "vault_id": {
           "pattern": "^ocid1\\.vault\\.",
+          "type": "string"
+        },
+        "kms_key_id_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         }
       },
@@ -601,7 +601,7 @@
         "data_volume_preserved",
         "application_backup_authority",
         "artifact_archive_authority",
-        "kms_key_id",
+        "kms_key_id_sha256",
         "vault_id"
       ],
       "type": "object"

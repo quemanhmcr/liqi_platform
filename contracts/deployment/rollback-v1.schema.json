@@ -9,6 +9,7 @@
     "rollback_id",
     "from_release_id",
     "target_release_id",
+    "recovery_mode",
     "target_git_sha",
     "target_manifest_sha256",
     "database_compatibility",
@@ -34,15 +35,24 @@
       "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
     },
     "target_release_id": {
-      "type": "string",
+      "type": [
+        "string",
+        "null"
+      ],
       "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
     },
     "target_git_sha": {
-      "type": "string",
+      "type": [
+        "string",
+        "null"
+      ],
       "pattern": "^[0-9a-f]{40}$"
     },
     "target_manifest_sha256": {
-      "type": "string",
+      "type": [
+        "string",
+        "null"
+      ],
       "pattern": "^[0-9a-f]{64}$"
     },
     "database_compatibility": {
@@ -127,6 +137,12 @@
       "enum": [
         "dry-run",
         "live-approved"
+      ]
+    },
+    "recovery_mode": {
+      "enum": [
+        "release-switch",
+        "deactivate-first-release"
       ]
     }
   }

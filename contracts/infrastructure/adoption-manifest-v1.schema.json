@@ -49,6 +49,10 @@
               {
                 "pattern": "^networkSecurityGroups/ocid1\\.networksecuritygroup\\.[A-Za-z0-9._-]+/securityRules/[A-Za-z0-9._-]+$",
                 "type": "string"
+              },
+              {
+                "pattern": "^managementEndpoint/https://[A-Za-z0-9.-]+/keys/ocid1\\.key\\.[A-Za-z0-9._-]+$",
+                "type": "string"
               }
             ]
           },

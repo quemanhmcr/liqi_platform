@@ -61,7 +61,7 @@
       "max_age_seconds": 3600
     },
     {
-      "kind": "rollback",
+      "kind": "release-recovery",
       "schema": "contracts/readiness/rollback-result-v1.schema.json",
       "provider_owner": "Senior 4",
       "assurance_owner": "Senior 5",

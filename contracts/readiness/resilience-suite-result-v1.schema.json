@@ -86,7 +86,7 @@
               "beam-process-crash",
               "actor-supervisor-restart",
               "release-activation-failure",
-              "v1-rollback-to-v0",
+              "first-release-deactivation-recovery",
               "host-reboot"
             ]
           },

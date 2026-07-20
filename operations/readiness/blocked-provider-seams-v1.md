@@ -21,7 +21,7 @@ Provider: Senior 2
 Consumer: Senior 5
 Available command: database/bin/run-restore-drill-v1.sh
 Missing evidence: exact-release approved isolated restore/PITR result from the independent pgBackRest repository, including migration 8, BEAM read-only probe, RPO/RTO and cleanup proof.
-Why current work cannot safely continue: command publication does not prove the live backup/WAL chain or retained V0 compatibility.
+Why current work cannot safely continue: command publication does not prove the live backup/WAL chain or exact first-release deactivation and infrastructure recovery evidence.
 Minimal provider output required: passed recovery-result-v1 for the exact composite SHA and release; never restore over live.
 ```
 

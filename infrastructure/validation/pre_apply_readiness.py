@@ -25,7 +25,7 @@ SCHEMAS = {
     "state_backend": ROOT / "contracts/infrastructure/state-backend-evidence-v1.schema.json",
     "adoption_result": ROOT / "contracts/infrastructure/adoption-result-v1.schema.json",
     "build_result": ROOT / "contracts/runtime/linux-release-build-result-v1.schema.json",
-    "rollback": ROOT / "contracts/deployment/release-target-v1.schema.json",
+    "recovery": ROOT / "contracts/infrastructure/first-release-recovery-v1.schema.json",
     "output": ROOT / "contracts/infrastructure/pre-apply-readiness-v1.schema.json",
 }
 PUBLICATION_VERIFIER = ROOT / "beam/scripts/validate_linux_release_build_result.py"
@@ -35,7 +35,7 @@ CHECK_ORDER = (
     "state-adoption",
     "protected-tfvars",
     "signed-x86-release",
-    "rollback-target",
+    "recovery-target",
     "protected-environment",
 )
 OWNERS = {
@@ -44,7 +44,7 @@ OWNERS = {
     "state-adoption": "deployment-operator",
     "protected-tfvars": "deployment-operator",
     "signed-x86-release": "deployment-operator",
-    "rollback-target": "deployment-operator",
+    "recovery-target": "deployment-operator",
     "protected-environment": "deployment-operator",
 }
 EXPECTED_ADDRESSES = {address for address, _kind in ADDRESSES.values()}
@@ -233,7 +233,7 @@ def adoption_result_check(
         document.get("operation") != "execute"
         or document.get("status") != "passed"
         or document.get("blockers")
-        or document.get("state_mutation_performed") is not True
+        or not isinstance(document.get("state_mutation_performed"), bool)
         or document.get("oci_mutation_performed") is not False
     ):
         return check("state-adoption", "blocked", "State adoption has not completed as an executed pass."), document
@@ -279,26 +279,28 @@ def publication_check(
     return check("signed-x86-release", "passed", "Exact-SHA x86_64 release and native artifacts passed cryptographic cross-binding verification."), document
 
 
-def rollback_check(path: Path | None, build_path: Path | None, build: dict[str, Any] | None) -> dict[str, str]:
+def recovery_check(path: Path | None, build_path: Path | None, build: dict[str, Any] | None, git_sha: str) -> dict[str, str]:
     if path is None:
-        return check("rollback-target", "blocked", "Retained V0 rollback descriptor is missing.")
+        return check("recovery-target", "blocked", "First-release infrastructure recovery evidence is missing.")
     if build_path is None or build is None:
-        return check("rollback-target", "blocked", "Rollback cannot be bound until the signed release publication passes.")
+        return check("recovery-target", "blocked", "Recovery cannot be bound until the signed release publication passes.")
     try:
-        descriptor = load_json(path, SCHEMAS["rollback"], "rollback descriptor")
+        recovery = load_json(path, SCHEMAS["recovery"], "first-release recovery evidence")
         manifest_path = build_path.resolve().parent / build["manifest"]["filename"]
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as error:
-        return check("rollback-target", "failed", f"Rollback evidence is unreadable or invalid: {error}")
-    compatibility = descriptor["database_compatibility"]
+        return check("recovery-target", "failed", f"Recovery evidence is unreadable or invalid: {error}")
+    database = manifest.get("database_compatibility") or {}
     if (
-        descriptor.get("release_id") != manifest.get("rollback_target_release_id")
-        or descriptor.get("runtime_generation") != "rust-v0"
-        or not compatibility["minimum_migration"] <= 8 <= compatibility["rollback_safe_through"]
+        recovery.get("git_sha") != git_sha
+        or recovery.get("status") != "passed"
+        or recovery.get("blockers")
+        or recovery.get("public_traffic_enabled") is not False
+        or manifest.get("rollback_target_release_id") is not None
+        or database != {"minimum_migration": 8, "maximum_migration": 8, "rollback_safe_through": 8}
     ):
-        return check("rollback-target", "failed", "V0 rollback identity or migration-8 compatibility binding failed.")
-    return check("rollback-target", "passed", "Retained V0 rollback target is identity-bound and compatible through migration 8.")
-
+        return check("recovery-target", "failed", "First-release recovery or forward-only release identity binding failed.")
+    return check("recovery-target", "passed", "First-release recovery is bound to a stopped private fallback, a full predeploy boot-volume backup, traffic-off state and forward-only database recovery.")
 
 def environment_check() -> dict[str, str]:
     missing: list[str] = []
@@ -325,7 +327,7 @@ def main() -> int:
     parser.add_argument("--linux-release-build-result", type=Path)
     parser.add_argument("--release-trust-dir", type=Path)
     parser.add_argument("--native-trust-dir", type=Path)
-    parser.add_argument("--rollback-target", type=Path)
+    parser.add_argument("--recovery-target", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--now", help="UTC RFC3339 override for deterministic tests")
     args = parser.parse_args()
@@ -359,10 +361,10 @@ def main() -> int:
         args.adoption_result, git_sha, adoption_sha, var_sha, expected_adopted_addresses
     )
     publication, build_document = publication_check(args.linux_release_build_result, args.release_trust_dir, args.native_trust_dir, git_sha)
-    rollback = rollback_check(args.rollback_target, args.linux_release_build_result, build_document)
+    recovery = recovery_check(args.recovery_target, args.linux_release_build_result, build_document, git_sha)
     protected_environment = environment_check()
 
-    by_name = {item["name"]: item for item in (adoption, state_backend, state_adoption, tfvars, publication, rollback, protected_environment)}
+    by_name = {item["name"]: item for item in (adoption, state_backend, state_adoption, tfvars, publication, recovery, protected_environment)}
     checks = [by_name[name] for name in CHECK_ORDER]
     statuses = {item["status"] for item in checks}
     overall = "failed" if "failed" in statuses else "blocked" if "blocked" in statuses else "passed"
@@ -380,7 +382,7 @@ def main() -> int:
             "adoption_result_sha256": digest_if_regular(args.adoption_result),
             "var_file_sha256": var_sha,
             "linux_release_build_result_sha256": digest_if_regular(args.linux_release_build_result),
-            "rollback_target_sha256": digest_if_regular(args.rollback_target),
+            "recovery_target_sha256": digest_if_regular(args.recovery_target),
         },
         "blockers": blockers,
         "state_mutation_performed": False,

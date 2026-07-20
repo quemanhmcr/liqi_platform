@@ -306,8 +306,12 @@ def main() -> int:
     database = load(database_path); validate("database-runtime-v1.schema.json", database, "database contract", "database")
     readiness_path = package_file(args.artifact_dir, wrapper["migration_readiness"]["filename"], wrapper["migration_readiness"]["sha256"])
     readiness = load(readiness_path); validate("migration-readiness-v1.schema.json", readiness, "migration readiness", "database")
-    rollback_path = package_file(args.artifact_dir, wrapper["rollback_target"]["descriptor_filename"], wrapper["rollback_target"]["descriptor_sha256"])
-    rollback = load(rollback_path); validate("release-target-v1.schema.json", rollback, "rollback descriptor")
+    rollback_spec = wrapper["rollback_target"]
+    rollback_path = None
+    rollback = None
+    if rollback_spec is not None:
+        rollback_path = package_file(args.artifact_dir, rollback_spec["descriptor_filename"], rollback_spec["descriptor_sha256"])
+        rollback = load(rollback_path); validate("release-target-v1.schema.json", rollback, "rollback descriptor")
 
     release_id = wrapper["release_id"]
     git_sha = wrapper["git_sha"]
@@ -318,11 +322,15 @@ def main() -> int:
         raise RuntimeError("runtime config release identity/environment mismatch")
     names = credential_names(runtime)
     required_migration = database_version(database, readiness, runtime)
-    if rollback["release_id"] != wrapper["rollback_target"]["release_id"] or provider["rollback_target_release_id"] != rollback["release_id"]:
-        raise RuntimeError("rollback target identity mismatch")
-    rollback_db = rollback["database_compatibility"]
-    if not rollback_db["minimum_migration"] <= required_migration <= rollback_db["rollback_safe_through"]:
-        raise RuntimeError("rollback target is not proven compatible with the live migration")
+    if rollback is None:
+        if provider["rollback_target_release_id"] is not None:
+            raise RuntimeError("provider declares an upgrade rollback target but wrapper does not")
+    else:
+        if rollback["release_id"] != rollback_spec["release_id"] or provider["rollback_target_release_id"] != rollback["release_id"]:
+            raise RuntimeError("rollback target identity mismatch")
+        rollback_db = rollback["database_compatibility"]
+        if not rollback_db["minimum_migration"] <= required_migration <= rollback_db["rollback_safe_through"]:
+            raise RuntimeError("rollback target is not proven compatible with the live migration")
 
     manifest_signature = args.artifact_dir / provider["manifest_signature"]["signature_filename"]
     verify_ed25519(provider_path, manifest_signature, trusted_key(args.provider_trust_dir, provider["manifest_signature"]["key_id"]))
@@ -372,7 +380,7 @@ def main() -> int:
             "health": {"argv": ["/usr/local/libexec/liqi-release-command", "health"], "timeout_seconds": provider["runtime"]["health_timeout_seconds"]},
             "database_compatibility": {"minimum_migration": required_migration, "maximum_migration": required_migration, "rollback_safe_through": required_migration, "database_rollback_allowed": False},
             "database_compatibility_evidence": {"schema_version": readiness["schemaVersion"], "sha256": digest(readiness_path), "retained_path": str(retained_readiness)},
-            "rollback_target_release_id": rollback["release_id"],
+            "rollback_target_release_id": None if rollback is None else rollback["release_id"],
             "runtime_config_path": str(runtime_install),
             "credential_directory": "/run/liqi/secrets/beam",
             "required_credentials": names,

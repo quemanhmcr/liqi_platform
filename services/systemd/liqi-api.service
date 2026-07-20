@@ -1,5 +1,6 @@
 [Unit]
-Description=LIQI API runtime
+Description=LIQI disabled V0 compatibility API runtime
+ConditionPathExists=/etc/liqi/compat/enable-v0-runtime
 Requires=liqi-host-readiness.service pgbouncer.service
 After=network-online.target liqi-host-readiness.service pgbouncer.service
 Wants=network-online.target

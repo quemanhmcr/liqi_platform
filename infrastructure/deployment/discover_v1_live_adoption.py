@@ -286,7 +286,7 @@ def main() -> int:
     add_import(imports, "vault", vault, names["vault"])
     if vault:
         key = one(oci(args.profile, region, "kms", "management", "key", "list", "--compartment-id", compartment_id, "--endpoint", vault["management-endpoint"], "--all"), "display-name", names["key"])
-        add_import(imports, "key", key, names["key"])
+        add_import(imports, "key", key, names["key"], f"managementEndpoint/{vault['management-endpoint']}/keys/{key['id']}" if key else None)
 
     dynamic_groups = oci(args.profile, region, "iam", "dynamic-group", "list", "--compartment-id", tenancy, "--all")
     policies = oci(args.profile, region, "iam", "policy", "list", "--compartment-id", tenancy, "--all")

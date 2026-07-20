@@ -18,7 +18,7 @@ CHECKS = {
     "state-adoption",
     "protected-tfvars",
     "signed-x86-release",
-    "rollback-target",
+    "recovery-target",
     "protected-environment",
 }
 

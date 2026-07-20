@@ -57,7 +57,7 @@ inputs = doc.get("inputs", {})
 for name in (
     "state_backend_evidence_sha256", "adoption_result_sha256", "pre_apply_readiness_sha256",
     "var_file_sha256", "adoption_manifest_sha256", "linux_release_build_result_sha256",
-    "rollback_target_sha256",
+    "recovery_target_sha256",
 ):
     if not inputs.get(name): raise SystemExit(f"plan result is not bound to {name}")
 if doc.get("approval_reference") != approval: raise SystemExit("approval reference mismatch")
@@ -78,7 +78,7 @@ if pre.digest(readiness_path) != inputs["pre_apply_readiness_sha256"]:
     raise SystemExit("pre-apply readiness digest mismatch")
 for name in (
     "state_backend_evidence_sha256", "adoption_result_sha256", "var_file_sha256",
-    "adoption_manifest_sha256", "linux_release_build_result_sha256", "rollback_target_sha256",
+    "adoption_manifest_sha256", "linux_release_build_result_sha256", "recovery_target_sha256",
 ):
     if readiness.get("inputs", {}).get(name) != inputs.get(name):
         raise SystemExit(f"pre-apply readiness/plan binding mismatch: {name}")
@@ -128,7 +128,7 @@ doc = {
   "saved_plan_sha256": plan["saved_plan"]["sha256"],
   "pre_apply_readiness_sha256": plan["inputs"]["pre_apply_readiness_sha256"],
   "linux_release_build_result_sha256": plan["inputs"]["linux_release_build_result_sha256"],
-  "rollback_target_sha256": plan["inputs"]["rollback_target_sha256"],
+  "recovery_target_sha256": plan["inputs"]["recovery_target_sha256"],
   "completed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
   "status": "applied",
   "oci_output_sha256": hashlib.sha256(Path(output_json).read_bytes()).hexdigest(),

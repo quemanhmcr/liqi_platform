@@ -18,7 +18,7 @@
     "status",
     "traffic",
     "preconditions",
-    "rollback",
+    "recovery",
     "observation",
     "correctness_events",
     "evidence_bundle",
@@ -58,7 +58,7 @@
         "limited-client-cohort",
         "broader-cohort",
         "v1-default",
-        "v0-rollback-window"
+        "first-release-recovery-window"
       ]
     },
     "previous_phase": {
@@ -140,7 +140,7 @@
               "reconnect-storm",
               "recovery",
               "security",
-              "rollback",
+              "release-recovery",
               "approved-plan",
               "exact-release-binding"
             ]
@@ -157,34 +157,6 @@
             "minLength": 1,
             "maxLength": 1024
           }
-        }
-      }
-    },
-    "rollback": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "status",
-        "target_release_id",
-        "result_ref"
-      ],
-      "properties": {
-        "status": {
-          "enum": [
-            "passed",
-            "blocked",
-            "failed"
-          ]
-        },
-        "target_release_id": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 128
-        },
-        "result_ref": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 1024
         }
       }
     },
@@ -314,7 +286,7 @@
               "reconnect",
               "recovery",
               "security",
-              "rollback",
+              "release-recovery",
               "capacity",
               "artifact",
               "oci-plan"
@@ -382,6 +354,43 @@
         "minLength": 1,
         "maxLength": 1000
       }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "status",
+        "target_release_id",
+        "result_ref"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "passed",
+            "blocked",
+            "failed"
+          ]
+        },
+        "target_release_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+        },
+        "result_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "mode": {
+          "enum": [
+            "deactivate-first-release",
+            "release-switch"
+          ]
+        }
+      }
     }
   },
   "allOf": [
@@ -418,13 +427,6 @@
               "required": [
                 "status"
               ]
-            }
-          },
-          "rollback": {
-            "properties": {
-              "status": {
-                "const": "passed"
-              }
             }
           },
           "observation": {
@@ -483,6 +485,13 @@
           },
           "failures": {
             "maxItems": 0
+          },
+          "recovery": {
+            "properties": {
+              "status": {
+                "const": "passed"
+              }
+            }
           }
         }
       }

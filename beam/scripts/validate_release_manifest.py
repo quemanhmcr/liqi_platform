@@ -297,13 +297,18 @@ def main() -> int:
         database_ok = (
             database.get("minimum_migration") == 8
             and database.get("maximum_migration") == 8
-            and database.get("rollback_safe_through") == 4
+            and database.get("rollback_safe_through") == 8
         )
-        add_check(checks, blockers, "database-compatibility", "passed" if database_ok else "failed", "database compatibility must be 8/8 with V0 rollback safe through 4")
+        add_check(checks, blockers, "database-compatibility", "passed" if database_ok else "failed", "database compatibility must remain forward-only at migration 8")
 
-        rollback = manifest.get("rollback_target_release_id", "")
-        rollback_ok = rollback.startswith("liqi-v0-") and rollback != manifest.get("release_id")
-        add_check(checks, blockers, "rollback-target", "passed" if rollback_ok else "failed", "rollback target must be a distinct retained liqi-v0 release")
+        rollback = manifest.get("rollback_target_release_id")
+        first_release = rollback is None
+        upgrade = isinstance(rollback, str) and rollback.startswith("liqi-v1-") and rollback != manifest.get("release_id")
+        add_check(
+            checks, blockers, "release-transition",
+            "passed" if first_release or upgrade else "failed",
+            "release transition must be an explicit first release or a distinct retained V1 rollback target",
+        )
     except Exception as error:  # evidence must still be emitted for unexpected verification failures
         add_check(checks, blockers, "verification-exception", "failed", f"{type(error).__name__}: {error}")
 

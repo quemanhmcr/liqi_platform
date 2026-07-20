@@ -43,20 +43,20 @@ EXPECTED_CORRECTNESS = {
 }
 EXPECTED_EVIDENCE = {
     "capacity", "platform-probe", "load", "reconnect", "recovery",
-    "resilience", "security", "cutover", "rollback",
+    "resilience", "security", "cutover", "release-recovery",
 }
 EXPECTED_CHECKPOINTS = {"source", "integration", "artifact", "live-staging", "promotion", "cutover", "post-cutover"}
 EXPECTED_SCENARIOS = {
     "postgresql-restart", "pgbouncer-unavailable", "outbox-backlog", "oban-backlog",
     "realtime-slow-consumers", "reconnect-storm-25pct", "native-artifact-disabled",
     "native-kernel-panic", "telemetry-sink-unavailable", "disk-pressure", "beam-process-crash",
-    "actor-supervisor-restart", "release-activation-failure", "v1-rollback-to-v0", "host-reboot",
+    "actor-supervisor-restart", "release-activation-failure", "first-release-deactivation-recovery", "host-reboot",
 }
 EXPECTED_GATES = {
     "runtime-source", "runtime-integration", "runtime-artifact", "runtime-live-probe",
     "database-source", "database-integration", "database-recovery",
     "native-source", "native-safety", "native-artifact", "deployment-artifact",
-    "infrastructure-source", "infrastructure-plan", "host-readiness", "rollback-evidence",
+    "infrastructure-source", "infrastructure-plan", "host-readiness", "release-recovery-evidence",
 }
 FORBIDDEN_COMMANDS = (
     re.compile(r"\b(?:tofu|terraform)\s+apply\b", re.IGNORECASE),
@@ -235,9 +235,9 @@ def main() -> int:
     validate_load_harness(failures)
     if CUTOVER_POLICY in documents:
         policy = documents[CUTOVER_POLICY]
-        failures.extend(exact_set(policy.get("phases", []), {"shadow", "internal-only", "canary-route", "limited-client-cohort", "broader-cohort", "v1-default", "v0-rollback-window"}, "cutover phases"))
-        if policy.get("big_bang_forbidden") is not True or policy.get("rollback_required_before_canary") is not True:
-            failures.append("cutover policy must forbid big bang and require rollback proof before canary")
+        failures.extend(exact_set(policy.get("phases", []), {"shadow", "internal-only", "canary-route", "limited-client-cohort", "broader-cohort", "v1-default", "first-release-recovery-window"}, "cutover phases"))
+        if policy.get("big_bang_forbidden") is not True or policy.get("recovery_exercise_required_before_canary") is not True or policy.get("first_release_recovery_evidence_required") is not True:
+            failures.append("cutover policy must forbid big bang and require first-release recovery proof before canary")
         require_path(str(policy.get("required_result_schema", "")), "cutover policy", failures)
 
     if failures:

@@ -19,6 +19,7 @@ if str(ROOT) not in sys.path:
 from infrastructure.deployment import adopt_v1_live_state
 from infrastructure.deployment import build_host_bundle
 from infrastructure.deployment import enable_backup_timers
+from infrastructure.deployment import establish_first_release_recovery
 from infrastructure.deployment import host_package_manifest
 from infrastructure.deployment import release_control
 from infrastructure.deployment import prepare_mix_deployment
@@ -99,10 +100,10 @@ class ReleaseBoundaryTests(unittest.TestCase):
             path.write_text(json.dumps(document), encoding="utf-8")
             self.assertEqual(release_control.database_version(path), 8)
 
-    def test_prepare_adapter_rejects_v0_migration_gap(self) -> None:
+    def test_prepare_adapter_rejects_v1_upgrade_migration_gap(self) -> None:
         descriptor = json.loads((ROOT / "contracts/deployment/release-target-v1.example.json").read_text(encoding="utf-8"))
-        descriptor["release_id"] = "liqi-v0-example"
-        descriptor["runtime_generation"] = "rust-v0"
+        descriptor["release_id"] = "liqi-v1-previous"
+        descriptor["runtime_generation"] = "beam-v1"
         descriptor["runtime_config_path"] = None
         descriptor["credential_directory"] = None
         descriptor["required_credentials"] = []
@@ -116,7 +117,7 @@ class ReleaseBoundaryTests(unittest.TestCase):
             path = Path(directory) / "rollback.json"
             path.write_text(json.dumps(descriptor), encoding="utf-8")
             with self.assertRaises(RuntimeError):
-                prepare_mix_deployment.verify_rollback(path, "liqi-v0-example", 8)
+                prepare_mix_deployment.verify_rollback(path, "liqi-v1-previous", 8)
 
     def test_runtime_credentials_come_from_committed_runtime_config(self) -> None:
         runtime_config = json.loads((ROOT / "contracts/runtime/examples/runtime-config-v1.json").read_text(encoding="utf-8"))
@@ -158,6 +159,122 @@ class ReleaseBoundaryTests(unittest.TestCase):
         self.assertEqual(stage_mix_release.safe_relative("lib/liqi/native.so").as_posix(), "lib/liqi/native.so")
 
 
+class FirstReleaseRecoveryProducerTests(unittest.TestCase):
+    def test_identifier_hash_is_one_way_and_stable(self) -> None:
+        identifier = "ocid1.instance.oc1.example.sensitive"
+        value = establish_first_release_recovery.sha256_text(identifier)
+        self.assertRegex(value or "", r"^[0-9a-f]{64}$")
+        self.assertNotIn("ocid1", value or "")
+        self.assertEqual(value, establish_first_release_recovery.sha256_text(identifier))
+
+    def test_traffic_off_accepts_missing_nlb_and_rejects_online_backend(self) -> None:
+        with patch("infrastructure.deployment.establish_first_release_recovery.oci", return_value=[]):
+            self.assertTrue(establish_first_release_recovery.traffic_is_off("DEFAULT", "ap-singapore-2", "compartment", "edge"))
+
+        def online(_profile: str, _region: str, *args: str, **_kwargs):
+            command = " ".join(args)
+            if "network-load-balancer list" in command:
+                return [{"id": "nlb-id", "display-name": "edge", "lifecycle-state": "ACTIVE"}]
+            if "backend-set list" in command:
+                return [{"name": "http"}]
+            if "backend list" in command:
+                return [{"is-offline": False}]
+            raise AssertionError(command)
+
+        with patch("infrastructure.deployment.establish_first_release_recovery.oci", side_effect=online):
+            self.assertFalse(establish_first_release_recovery.traffic_is_off("DEFAULT", "ap-singapore-2", "compartment", "edge"))
+
+    def test_fallback_exercise_restores_stopped_state(self) -> None:
+        with patch(
+            "infrastructure.deployment.establish_first_release_recovery.oci",
+            side_effect=[{"lifecycle-state": "RUNNING"}, {"lifecycle-state": "STOPPED"}],
+        ) as call:
+            status, restored, mutated = establish_first_release_recovery.exercise_fallback(
+                "DEFAULT", "ap-singapore-2", {"id": "instance", "lifecycle-state": "STOPPED"}, True, 600
+            )
+        self.assertEqual(("passed", True, True), (status, restored, mutated))
+        self.assertIn("START", call.call_args_list[0].args)
+        self.assertIn("STOP", call.call_args_list[1].args)
+
+    def test_backup_age_rejects_future_and_accepts_recent(self) -> None:
+        from datetime import datetime, timezone
+        now = datetime(2026, 7, 20, 1, 0, tzinfo=timezone.utc)
+        self.assertEqual(
+            3600,
+            establish_first_release_recovery.backup_age_seconds(
+                {"time-created": "2026-07-20T00:00:00Z"}, now
+            ),
+        )
+        with self.assertRaisesRegex(RuntimeError, "future"):
+            establish_first_release_recovery.backup_age_seconds(
+                {"time-created": "2026-07-20T02:00:00Z"}, now
+            )
+
+    def test_failed_first_activation_deactivates_without_fabricated_release(self) -> None:
+        from argparse import Namespace
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = json.loads((ROOT / "contracts/deployment/release-target-v1.example.json").read_text(encoding="utf-8"))
+            target.update({
+                "release_id": "liqi-v1-first-test",
+                "git_sha": "a" * 40,
+                "release_path": str(root / "release"),
+                "rollback_target_release_id": None,
+                "database_compatibility": {
+                    "minimum_migration": 8,
+                    "maximum_migration": 8,
+                    "rollback_safe_through": 8,
+                    "database_rollback_allowed": False,
+                },
+            })
+            Path(target["release_path"]).mkdir()
+            recovery = json.loads((ROOT / "contracts/infrastructure/first-release-recovery-v1.example.json").read_text(encoding="utf-8"))
+            recovery["git_sha"] = target["git_sha"]
+            recovery_path = root / "recovery.json"
+            recovery_path.write_text(json.dumps(recovery), encoding="utf-8")
+            host = json.loads((ROOT / "contracts/infrastructure/host-runtime-v1.example.json").read_text(encoding="utf-8"))
+            host["status"] = "ready"
+            host_path = root / "host.json"
+            host_path.write_text(json.dumps(host), encoding="utf-8")
+            activation_path = root / "activation.json"
+            rollback_path = root / "rollback.json"
+            args = Namespace(
+                mode="activate",
+                target_release_id=target["release_id"],
+                deployment_id="deploy-first-test",
+                descriptor_dir=root,
+                current_link=root / "current",
+                runtime_config_link=root / "runtime.json",
+                host_readiness=host_path,
+                database_readiness=ROOT / "contracts/database/migration-readiness-v1.example.json",
+                first_release_recovery=recovery_path,
+                systemctl="systemctl",
+                maximum_duration_seconds=300,
+                approval_reference="APPROVAL-FIRST",
+                execute=True,
+                activation_output=activation_path,
+                rollback_output=rollback_path,
+            )
+            with (
+                patch("infrastructure.deployment.release_control.parse", return_value=args),
+                patch("infrastructure.deployment.release_control.current_release_id", return_value=None),
+                patch("infrastructure.deployment.release_control.descriptor", return_value=target),
+                patch("infrastructure.deployment.release_control.database_version", return_value=8),
+                patch("infrastructure.deployment.release_control.configs_ready"),
+                patch("infrastructure.deployment.release_control.select_release"),
+                patch("infrastructure.deployment.release_control.start_release", side_effect=RuntimeError("health failed")),
+                patch("infrastructure.deployment.release_control.stop_release", return_value=[]),
+                patch("infrastructure.deployment.release_control.clear_selection") as clear,
+                patch("infrastructure.deployment.release_control.root_posix", return_value=True),
+            ):
+                self.assertEqual(3, release_control.main())
+            clear.assert_called_once_with(args.current_link, args.runtime_config_link)
+            activation = json.loads(activation_path.read_text(encoding="utf-8"))
+            rollback = json.loads(rollback_path.read_text(encoding="utf-8"))
+            self.assertEqual(("failed", "rolled-back", None), (activation["status"], activation["state"], activation["rollback_target_release_id"]))
+            self.assertEqual(("passed", "deactivate-first-release", None), (rollback["status"], rollback["recovery_mode"], rollback["target_release_id"]))
+
+
 class DatabaseCredentialProviderTests(unittest.TestCase):
     def test_role_url_and_pgpass_escape_are_bounded(self) -> None:
         provider = load_database_credential_provider()
@@ -178,6 +295,17 @@ class DatabaseCredentialProviderTests(unittest.TestCase):
 
 
 class HostBundleTests(unittest.TestCase):
+    def test_v0_compatibility_units_are_fail_closed(self) -> None:
+        marker = "ConditionPathExists=/etc/liqi/compat/enable-v0-runtime"
+        for relative in (
+            "services/systemd/liqi-api.service",
+            "services/systemd/liqi-realtime.service",
+            "services/systemd/liqi-worker.service",
+        ):
+            source = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn(marker, source)
+            self.assertNotIn("/etc/liqi/compat/enable-v0-runtime", (ROOT / "infrastructure/cloud-init/host-bootstrap.yaml.tftpl").read_text(encoding="utf-8"))
+
     def test_inventory_is_bounded_and_has_unique_targets(self) -> None:
         targets = [record[1] for record in build_host_bundle.FILES]
         self.assertEqual(len(targets), len(set(targets)))
@@ -299,6 +427,29 @@ class AdoptionStateTests(unittest.TestCase):
             },
         )
 
+    def test_state_ids_ignore_data_sources_and_normalize_provider_ids(self) -> None:
+        state = {"resources": [
+            {"mode": "data", "module": "module.v1_live", "type": "oci_core_services", "name": "regional", "instances": [{"attributes": {"id": "data-id"}}]},
+            {"mode": "managed", "module": "module.v1_live", "type": "oci_core_network_security_group_security_rule", "name": "example", "instances": [{"index_key": "cidr", "attributes": {"id": "RULE123"}}]},
+        ]}
+        ids = adopt_v1_live_state.state_ids(state)
+        self.assertNotIn("module.v1_live.oci_core_services.regional", ids)
+        address = 'module.v1_live.oci_core_network_security_group_security_rule.example["cidr"]'
+        self.assertTrue(adopt_v1_live_state.identifiers_match(address, "networkSecurityGroups/ocid1.networksecuritygroup.oc1.example/securityRules/RULE123", ids[address]))
+        self.assertTrue(adopt_v1_live_state.identifiers_match("module.v1_live.oci_kms_key.main", "managementEndpoint/https://example/keys/ocid1.key.oc1.example", "ocid1.key.oc1.example"))
+
+    def test_first_release_has_no_current_link_and_requires_recovery_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.assertIsNone(release_control.current_release_id(root / "current"))
+            recovery = json.loads((ROOT / "contracts/infrastructure/first-release-recovery-v1.example.json").read_text(encoding="utf-8"))
+            recovery["git_sha"] = "a" * 40
+            path = root / "recovery.json"
+            path.write_text(json.dumps(recovery), encoding="utf-8")
+            self.assertEqual("passed", release_control.recovery_evidence(path, "a" * 40)["status"])
+            with self.assertRaisesRegex(RuntimeError, "exact-SHA"):
+                release_control.recovery_evidence(path, "b" * 40)
+
     def test_redaction_removes_oci_identifiers(self) -> None:
         redacted = adopt_v1_live_state.redact("failure for ocid1.instance.oc1.ap-singapore-2.secret-value")
         self.assertNotIn("secret-value", redacted)
@@ -327,9 +478,7 @@ class AdoptionStateTests(unittest.TestCase):
         })
         validate_adoption_result.validate_result(document, "a" * 40)
         document["state_mutation_performed"] = False
-        with self.assertRaises(ValueError):
-            validate_adoption_result.validate_result(document, "a" * 40)
-        document["state_mutation_performed"] = True
+        validate_adoption_result.validate_result(document, "a" * 40)
         document["operation"] = "validate"
         with self.assertRaises(ValueError):
             validate_adoption_result.validate_result(document, "a" * 40)
@@ -339,7 +488,7 @@ class AdoptionStateTests(unittest.TestCase):
         apply = (ROOT / "infrastructure/deployment/apply_v1_live.sh").read_text(encoding="utf-8")
         self.assertIn("validate_adoption_result.py", plan)
         self.assertIn("validate_pre_apply_readiness.py", plan)
-        for token in ("adoption_result_sha256", "pre_apply_readiness_sha256", "linux_release_build_result_sha256", "rollback_target_sha256"):
+        for token in ("adoption_result_sha256", "pre_apply_readiness_sha256", "linux_release_build_result_sha256", "recovery_target_sha256"):
             self.assertIn(token, plan)
         self.assertIn("approved apply requires an adopt-existing plan", plan)
         self.assertIn('doc.get("capacity_profile") != "e5-temporary"', apply)

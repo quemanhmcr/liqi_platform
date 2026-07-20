@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liqi.example/contracts/infrastructure/first-release-recovery-v1.schema.json",
+  "title": "LIQI first V1 production release recovery evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "git_sha",
+    "environment",
+    "status",
+    "strategy",
+    "public_traffic_enabled",
+    "primary",
+    "fallback",
+    "database",
+    "approval_reference",
+    "observed_at",
+    "oci_mutation_performed",
+    "blockers"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "liqi.infrastructure.first-release-recovery/v1"
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "environment": {
+      "const": "production"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked",
+        "failed"
+      ]
+    },
+    "strategy": {
+      "const": "traffic-disable-and-boot-volume-restore"
+    },
+    "public_traffic_enabled": {
+      "const": false
+    },
+    "primary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instance_id_sha256",
+        "boot_volume_backup_id_sha256",
+        "backup_state",
+        "backup_type",
+        "backup_age_seconds",
+        "backup_purpose"
+      ],
+      "properties": {
+        "instance_id_sha256": {
+          "$ref": "#/$defs/optional_sha256"
+        },
+        "boot_volume_backup_id_sha256": {
+          "$ref": "#/$defs/optional_sha256"
+        },
+        "backup_state": {
+          "enum": [
+            "AVAILABLE",
+            "CREATING",
+            "MISSING",
+            "UNKNOWN"
+          ]
+        },
+        "backup_type": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "FULL",
+            "INCREMENTAL",
+            null
+          ]
+        },
+        "backup_purpose": {
+          "const": "predeploy-restore-point"
+        },
+        "backup_age_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 86400
+        }
+      }
+    },
+    "fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instance_id_sha256",
+        "lifecycle_state",
+        "public_ip_present",
+        "start_stop_test_status",
+        "restored_original_state"
+      ],
+      "properties": {
+        "instance_id_sha256": {
+          "$ref": "#/$defs/optional_sha256"
+        },
+        "lifecycle_state": {
+          "enum": [
+            "RUNNING",
+            "STOPPED",
+            "STARTING",
+            "STOPPING",
+            "UNKNOWN"
+          ]
+        },
+        "public_ip_present": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "start_stop_test_status": {
+          "enum": [
+            "passed",
+            "failed",
+            "not-run"
+          ]
+        },
+        "restored_original_state": {
+          "const": true
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "down_migration_allowed",
+        "recovery_mode"
+      ],
+      "properties": {
+        "down_migration_allowed": {
+          "const": false
+        },
+        "recovery_mode": {
+          "const": "forward-only"
+        }
+      }
+    },
+    "approval_reference": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 256
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "oci_mutation_performed": {
+      "type": "boolean"
+    },
+    "blockers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 1000
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "optional_sha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "blockers": {
+            "maxItems": 0
+          },
+          "oci_mutation_performed": {
+            "const": true
+          },
+          "primary": {
+            "properties": {
+              "instance_id_sha256": {
+                "type": "string"
+              },
+              "boot_volume_backup_id_sha256": {
+                "type": "string"
+              },
+              "backup_state": {
+                "const": "AVAILABLE"
+              },
+              "backup_type": {
+                "const": "FULL"
+              },
+              "backup_age_seconds": {
+                "type": "integer",
+                "maximum": 86400
+              }
+            }
+          },
+          "fallback": {
+            "properties": {
+              "instance_id_sha256": {
+                "type": "string"
+              },
+              "lifecycle_state": {
+                "const": "STOPPED"
+              },
+              "public_ip_present": {
+                "const": false
+              },
+              "start_stop_test_status": {
+                "const": "passed"
+              },
+              "restored_original_state": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "blockers": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}

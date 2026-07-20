@@ -75,6 +75,33 @@
       "output": "adoption-result-v1 status=passed"
     },
     {
+      "id": "establish-first-release-recovery",
+      "command": [
+        "python",
+        "infrastructure/deployment/establish_first_release_recovery.py",
+        "--primary-instance-name",
+        "liqi-live-primary",
+        "--fallback-instance-name",
+        "liqi-live-primary-fallback-stopped",
+        "--network-load-balancer-name",
+        "liqi-live-edge-nlb",
+        "--backup-name",
+        "<approved-full-boot-volume-backup-name>",
+        "--approval-reference",
+        "<approval>",
+        "--execute",
+        "--output",
+        "<first-release-recovery-v1.json>"
+      ],
+      "working_directory": "repository-root-clean",
+      "required_environment": [
+        "OCI CLI authenticated for ap-singapore-2"
+      ],
+      "mutation": "approval-required-oci-backup-and-fallback-start-stop",
+      "output": "first-release-recovery-v1",
+      "failure_policy": "require traffic off, exact primary boot volume, AVAILABLE FULL backup no older than 24 hours, private STOPPED fallback, successful start/stop restoration, exact clean Git SHA and redacted evidence"
+    },
+    {
       "id": "pre-apply-readiness",
       "command": [
         "python",
@@ -93,8 +120,8 @@
         "<release-public-key-dir>",
         "--native-trust-dir",
         "<native-public-key-dir>",
-        "--rollback-target",
-        "<release-target-v1.json>",
+        "--recovery-target",
+        "<first-release-recovery-v1.json>",
         "--output",
         "<pre-apply-readiness-v1.json>"
       ],
@@ -109,7 +136,7 @@
       ],
       "mutation": "none",
       "output": "pre-apply-readiness-v1",
-      "failure_policy": "emit blocked for incomplete handoff or missing protected inputs; fail on schema, digest, signature, target, rollback, symlink or secret-hygiene mismatch; never print protected values"
+      "failure_policy": "emit blocked for incomplete handoff or missing protected inputs; fail on schema, digest, signature, recovery, symlink or secret-hygiene mismatch; never print protected values"
     },
     {
       "id": "read-only-live-plan",
@@ -255,8 +282,7 @@
         "<release-manifest-key-id>",
         "--manifest-signing-key",
         "<release-manifest-private-key>",
-        "--rollback-target-release-id",
-        "<retained-v0-release-id>",
+        "--first-release",
         "--output-dir",
         "<new-release-output-dir>"
       ],
@@ -270,7 +296,7 @@
       ],
       "mutation": "build-and-sign-artifacts-only-no-host-or-oci-mutation",
       "output": "linux-release-build-result-v1 plus mix-release-v1, runtime-artifact-result-v1 and complete native handoff",
-      "failure_policy": "reject dirty source, architecture mismatch, invalid native provenance/signature, shared signing key identity, non-deterministic archive shape, non-portable result evidence or failed self-verification"
+      "failure_policy": "reject dirty source, invalid first-release/upgrade mode, architecture mismatch, invalid native provenance/signature, shared signing key identity, non-deterministic archive shape, non-portable result evidence or failed self-verification"
     },
     {
       "id": "verify-linux-release-build-result",
@@ -310,8 +336,6 @@
         "<migration-readiness-v1.json>",
         "--native-manifest",
         "<Senior-3-native-artifact-v1.json>",
-        "--rollback-target-descriptor",
-        "<release-target-v1.json>",
         "--deployment-key-id",
         "<deployment-key-id>",
         "--deployment-signing-key",
@@ -322,7 +346,7 @@
       "working_directory": "repository-root-clean",
       "mutation": "local-artifact-only",
       "output": "signed mix-deployment-v1 wrapper and self-contained provider artifacts",
-      "failure_policy": "reject provider evidence that is not passed and reject rollback migration gaps"
+      "failure_policy": "first release rejects an application rollback descriptor; upgrades require an exact compatible retained V1 descriptor; all provider evidence must be passed"
     },
     {
       "id": "stage-mix-release",
@@ -402,6 +426,8 @@
         "<host-runtime-v1.json>",
         "--database-readiness",
         "<migration-readiness-v1.json>",
+        "--first-release-recovery",
+        "<first-release-recovery-v1.json>",
         "--activation-output",
         "<activation-v1.json>",
         "--rollback-output",
@@ -410,7 +436,7 @@
       "working_directory": "host",
       "mutation": "dry-run-unless---execute-and-approval-reference",
       "output": "activation-v1 and rollback-v1",
-      "failure_policy": "atomically restore release and runtime-config symlinks after failed activation"
+      "failure_policy": "first activation requires exact recovery evidence and deactivates on failure; upgrades atomically restore release and runtime-config symlinks"
     },
     {
       "id": "traffic-enable",

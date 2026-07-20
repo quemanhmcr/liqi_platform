@@ -481,9 +481,9 @@
       "provider_commit": "ca99b7d14816cd051fce15a54accdeb17276096d"
     },
     {
-      "id": "rollback-evidence",
+      "id": "release-recovery-evidence",
       "owner": "Senior 4",
-      "seam": "infrastructure/deployment/release_control.py rollback evidence",
+      "seam": "first-release OCI recovery producer plus infrastructure/deployment/release_control.py deactivation evidence",
       "stages": [
         "promotion",
         "cutover"
@@ -491,9 +491,10 @@
       "provider_state": "pending-live-evidence",
       "mutation_class": "live-read-only",
       "required_paths": [
+        "infrastructure/deployment/establish_first_release_recovery.py",
         "infrastructure/deployment/release_control.py",
         "contracts/deployment/rollback-v1.schema.json",
-        "contracts/deployment/v0-rollback-compatibility-v1.schema.json"
+        "contracts/infrastructure/first-release-recovery-v1.schema.json"
       ],
       "argv": [
         "python",
@@ -501,25 +502,25 @@
         "rollback",
         "--deployment-id",
         "{env:LIQI_DEPLOYMENT_ID}",
-        "--target-release-id",
-        "{env:LIQI_ROLLBACK_TARGET_RELEASE_ID}",
         "--host-readiness",
         "{env:LIQI_HOST_READINESS}",
         "--database-readiness",
         "{env:LIQI_DATABASE_READINESS}",
+        "--first-release-recovery",
+        "{env:LIQI_FIRST_RELEASE_RECOVERY}",
         "--rollback-output",
         "{output}"
       ],
       "required_environment": [
         "LIQI_DEPLOYMENT_ID",
-        "LIQI_ROLLBACK_TARGET_RELEASE_ID",
         "LIQI_HOST_READINESS",
         "LIQI_DATABASE_READINESS",
-        "LIQI_RELEASE_ID"
+        "LIQI_RELEASE_ID",
+        "LIQI_FIRST_RELEASE_RECOVERY"
       ],
       "timeout_seconds": 900,
       "result_schema": "contracts/deployment/rollback-v1.schema.json",
-      "action_required": "Return exact rollback evidence from an explicitly approved owner-run exercise. The readiness runner never adds --execute and does not perform live rollback mutation.",
+      "action_required": "After approved recovery establishment, return exact dry-run first-release deactivation evidence. The readiness runner never adds --execute and never changes traffic or release state.",
       "provider_branch": "v1/oci-live-runtime",
       "provider_commit": "ca99b7d14816cd051fce15a54accdeb17276096d"
     }

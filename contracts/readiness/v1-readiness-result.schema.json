@@ -17,7 +17,7 @@
     "evidence",
     "correctness_events",
     "compatibility",
-    "rollback_target",
+    "recovery_target",
     "oci_mutations",
     "blockers"
   ],
@@ -70,7 +70,10 @@
       ],
       "properties": {
         "shape": {
-          "const": "VM.Standard.A1.Flex"
+          "enum": [
+            "VM.Standard.A1.Flex",
+            "VM.Standard.E5.Flex"
+          ]
         },
         "ocpu": {
           "const": 4
@@ -168,7 +171,7 @@
               "resilience",
               "security",
               "cutover",
-              "rollback"
+              "release-recovery"
             ]
           },
           "owner": {
@@ -280,41 +283,6 @@
         }
       }
     },
-    "rollback_target": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "retained",
-        "release_id",
-        "git_sha",
-        "runtime_generation",
-        "evidence_ref"
-      ],
-      "properties": {
-        "retained": {
-          "type": "boolean"
-        },
-        "release_id": {
-          "type": "string",
-          "pattern": "^liqi-[a-z0-9][a-z0-9._-]{2,95}$"
-        },
-        "git_sha": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{40}$"
-        },
-        "runtime_generation": {
-          "enum": [
-            "v0-rust",
-            "v1-beam"
-          ]
-        },
-        "evidence_ref": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 1024
-        }
-      }
-    },
     "oci_mutations": {
       "type": "array",
       "items": {
@@ -339,7 +307,7 @@
               "backup",
               "restore",
               "traffic",
-              "rollback"
+              "recovery"
             ]
           },
           "approved": {
@@ -413,6 +381,58 @@
           }
         }
       }
+    },
+    "recovery_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "retained_application_release",
+        "release_id",
+        "git_sha",
+        "runtime_generation",
+        "evidence_ref"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "deactivate-first-release",
+            "release-switch"
+          ]
+        },
+        "retained_application_release": {
+          "type": "boolean"
+        },
+        "release_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$"
+        },
+        "git_sha": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "runtime_generation": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "v1-beam",
+            null
+          ]
+        },
+        "evidence_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      }
     }
   },
   "allOf": [
@@ -484,13 +504,6 @@
                 "const": true
               },
               "config_versioned": {
-                "const": true
-              }
-            }
-          },
-          "rollback_target": {
-            "properties": {
-              "retained": {
                 "const": true
               }
             }

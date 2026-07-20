@@ -14,6 +14,7 @@ PAIRS = [
     ("contracts/infrastructure/adoption-manifest-v1.schema.json", "contracts/infrastructure/adoption-manifest-v1.example.json"),
     ("contracts/infrastructure/adoption-result-v1.schema.json", "contracts/infrastructure/adoption-result-v1.example.json"),
     ("contracts/infrastructure/pre-apply-readiness-v1.schema.json", "contracts/infrastructure/pre-apply-readiness-v1.example.json"),
+    ("contracts/infrastructure/first-release-recovery-v1.schema.json", "contracts/infrastructure/first-release-recovery-v1.example.json"),
     ("contracts/infrastructure/plan-result-v1.schema.json", "contracts/infrastructure/plan-result-v1.example.json"),
     ("contracts/infrastructure/apply-result-v1.schema.json", "contracts/infrastructure/apply-result-v1.example.json"),
     ("contracts/infrastructure/host-runtime-v1.schema.json", "contracts/infrastructure/host-runtime-v1.example.json"),
@@ -79,7 +80,7 @@ def main() -> int:
     pre_apply = examples["contracts/infrastructure/pre-apply-readiness-v1.example.json"]
     expected_pre_apply_checks = [
         "oci-adoption-handoff", "state-backend", "state-adoption",
-        "protected-tfvars", "signed-x86-release", "rollback-target",
+        "protected-tfvars", "signed-x86-release", "recovery-target",
         "protected-environment",
     ]
     if [item["name"] for item in pre_apply["checks"]] != expected_pre_apply_checks:
@@ -98,7 +99,7 @@ def main() -> int:
             failures.append(f"approved adoption plan fixture is missing input binding {name}")
     if not apply_result["oci_mutation_performed"] or apply_result["status"] != "applied":
         failures.append("apply result fixture must record an approved OCI mutation")
-    for name in ("pre_apply_readiness_sha256", "linux_release_build_result_sha256", "rollback_target_sha256"):
+    for name in ("pre_apply_readiness_sha256", "linux_release_build_result_sha256", "recovery_target_sha256"):
         if apply_result[name] != plan_result["inputs"][name]:
             failures.append(f"apply result fixture differs from plan binding {name}")
     if apply_result["saved_plan_sha256"] != plan_result["saved_plan"]["sha256"]:

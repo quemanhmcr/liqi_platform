@@ -7,12 +7,12 @@
     "limited-client-cohort",
     "broader-cohort",
     "v1-default",
-    "v0-rollback-window"
+    "first-release-recovery-window"
   ],
   "minimum_observation_seconds_per_promoted_phase": 1800,
-  "rollback_required_before_canary": true,
-  "v0_retained_through_window": true,
   "big_bang_forbidden": true,
-  "simultaneous_runtime_policy": "Use dual runtime only when the aggregated 3 OCPU/20 GiB/180 GiB provider ceilings and mandatory reserves remain satisfied; otherwise use short overlap plus drain and resume-aware switch.",
-  "required_result_schema": "contracts/readiness/cutover-result-v1.schema.json"
+  "simultaneous_runtime_policy": "First release has no dual runtime. Keep public traffic disabled until private health passes; future V1-to-V1 upgrades may use short overlap only when capacity and reserve checks pass.",
+  "required_result_schema": "contracts/readiness/cutover-result-v1.schema.json",
+  "recovery_exercise_required_before_canary": true,
+  "first_release_recovery_evidence_required": true
 }

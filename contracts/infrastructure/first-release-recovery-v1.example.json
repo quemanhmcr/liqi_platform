@@ -1,0 +1,31 @@
+{
+  "schema_version": "liqi.infrastructure.first-release-recovery/v1",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "environment": "production",
+  "status": "passed",
+  "strategy": "traffic-disable-and-boot-volume-restore",
+  "public_traffic_enabled": false,
+  "primary": {
+    "instance_id_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "boot_volume_backup_id_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "backup_state": "AVAILABLE",
+    "backup_type": "FULL",
+    "backup_purpose": "predeploy-restore-point",
+    "backup_age_seconds": 3600
+  },
+  "fallback": {
+    "instance_id_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "lifecycle_state": "STOPPED",
+    "public_ip_present": false,
+    "start_stop_test_status": "passed",
+    "restored_original_state": true
+  },
+  "database": {
+    "down_migration_allowed": false,
+    "recovery_mode": "forward-only"
+  },
+  "approval_reference": "OWNER-APPROVAL-EXAMPLE",
+  "observed_at": "2026-07-20T00:00:00Z",
+  "oci_mutation_performed": true,
+  "blockers": []
+}

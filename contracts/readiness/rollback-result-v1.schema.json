@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.liqi.internal/readiness/rollback-result-v1.schema.json",
-  "title": "LIQI rollback result V1",
+  "title": "LIQI release recovery result V1",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -15,6 +15,7 @@
     "completed_at",
     "status",
     "from",
+    "recovery_mode",
     "to",
     "trigger",
     "steps",
@@ -92,7 +93,10 @@
       }
     },
     "to": {
-      "type": "object",
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "required": [
         "release_id",
@@ -146,8 +150,11 @@
             "enum": [
               "stop-new-admission",
               "drain-sessions",
+              "disable-traffic",
+              "stop-release",
               "switch-route",
               "verify-health",
+              "verify-no-public-traffic",
               "verify-resume",
               "observe",
               "cleanup"
@@ -175,7 +182,10 @@
       }
     },
     "resume": {
-      "type": "object",
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "required": [
         "attempted",
@@ -264,6 +274,12 @@
         "minLength": 1,
         "maxLength": 1000
       }
+    },
+    "recovery_mode": {
+      "enum": [
+        "deactivate-first-release",
+        "release-switch"
+      ]
     }
   },
   "allOf": [
@@ -283,13 +299,6 @@
           "evidence_mode": {
             "const": "live"
           },
-          "to": {
-            "properties": {
-              "retained": {
-                "const": true
-              }
-            }
-          },
           "steps": {
             "items": {
               "properties": {
@@ -300,16 +309,6 @@
               "required": [
                 "status"
               ]
-            }
-          },
-          "resume": {
-            "properties": {
-              "success_ratio": {
-                "minimum": 0.99
-              },
-              "gap_repair_available": {
-                "const": true
-              }
             }
           },
           "database": {
@@ -337,6 +336,63 @@
           },
           "failures": {
             "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "recovery_mode": {
+            "const": "release-switch"
+          }
+        },
+        "required": [
+          "recovery_mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "to": {
+            "type": "object",
+            "properties": {
+              "retained": {
+                "const": true
+              }
+            }
+          },
+          "resume": {
+            "type": "object",
+            "properties": {
+              "success_ratio": {
+                "minimum": 0.99
+              },
+              "gap_repair_available": {
+                "const": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "recovery_mode": {
+            "const": "deactivate-first-release"
+          }
+        },
+        "required": [
+          "recovery_mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "to": {
+            "type": "null"
+          },
+          "resume": {
+            "type": "null"
           }
         }
       }

@@ -1,28 +1,34 @@
-# Traffic cutover, activation failure and rollback V1
+# Traffic cutover and first-release recovery V1
 
 ## Trigger
-- A phased cutover gate fails
-- Release activation fails, host reboots, or rollback criteria are met
 
-## Expected degradation and safety
+- A phased cutover or release activation gate fails.
+- A correctness, security, SLO, host or storage condition requires removal of public traffic.
+- The first V1 release must be deactivated or the predeploy boot-volume restore procedure must be invoked.
 
-No big-bang switch. V0 remains retained; route changes are health-gated, resume-aware and approved. Single-node reboot is an outage, not HA.
+## Safety model
+
+The first production V1 release has no previous application release. No target is invented. Public traffic remains disabled until private application health and NLB backend health pass. Database migration 8 is forward-only; recovery never runs a down migration.
+
+The proven recovery boundary is:
+
+1. Disable public traffic or mark both NLB backends offline before stopping V1.
+2. Stop new admission, drain bounded sessions and stop the V1 services.
+3. Remove `/opt/liqi/current` and `/etc/liqi/runtime/current.json` when deactivating the first release.
+4. For host corruption, restore only from the exact AVAILABLE full predeploy boot-volume backup bound in `first-release-recovery-v1` evidence, or start the private stopped fallback after an approved incident decision.
+5. Re-run private health, database readiness and security checks before any later traffic enablement.
+
+Future V1-to-V1 upgrades use the same controller in `release-switch` mode with a real retained V1 descriptor.
 
 ## Operator procedure
-1. Stop new admission and freeze the current cohort.
-2. Capture exact V0/V1 release IDs and SHAs, Caddy route/cohort, drain status, readiness probes and database compatibility.
-3. Use only the Senior 4 approved deployment/rollback command; the readiness plane does not mutate traffic.
-4. Verify health, WebSocket reconnect/resume, outbox age, DB pool, BEAM run queue, native fallback, memory and disk.
-5. Observe at least 30 minutes after a promoted phase; rollback immediately on correctness events or unavailable rollback evidence.
 
-## Evidence to retain
+1. Record exact Git SHA, release ID, NLB/backend state, current symlink target, database migration readiness and the approval reference.
+2. Disable traffic first and verify external probes no longer reach the backend.
+3. Run `release_control.py rollback` with `--first-release-recovery` for first-release deactivation. Do not pass a target release ID.
+4. Verify V1 services are stopped, current/runtime symlinks are absent, the fallback remains private, and no public IP exists on either instance.
+5. Restore a boot volume only when deactivation is insufficient and the owner approves the infrastructure mutation.
+6. Retain command results, OCI mutation evidence, health output and UTC timestamps. Never retain secret values or private key material.
 
-Exact Git SHA and release ID; UTC start/end; alert and dashboard references; provider-owned command/result; p50/p95/p99/max where applicable; CPU, memory, disk and queue state; correctness counters; operator and approval reference for any mutation.
+## Acceptance
 
-Do not place credentials, tokens, raw session tokens, PEM material or unredacted crash dumps in evidence.
-
-## Recovery acceptance
-
-The phase meets SLOs through the observation window, rollback remains proven/retained and all mutation approvals/evidence are present.
-
-A missing, stale, synthetic, blocked or release-mismatched result is **not** a pass.
+A recovery exercise passes only when traffic is fail-closed, all deactivation steps pass, no database down migration occurs, durable-event loss is zero, and the exact fallback/backup evidence is still valid. Missing, stale, synthetic, blocked or SHA-mismatched evidence is not a pass.

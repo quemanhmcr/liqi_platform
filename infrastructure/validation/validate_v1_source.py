@@ -135,7 +135,7 @@ def validate_static_policy() -> None:
     if (parent_cpu, parent_mem) != (300, 20480) or v1_cpu != 300 or v1_mem > parent_mem:
         raise AssertionError(f"V1 slices violate 3 OCPU/20 GiB ceiling: parent={(parent_cpu,parent_mem)} children={(v1_cpu,v1_mem)}")
     if v0_runtime_cpu > parent_cpu or v0_runtime_mem > parent_mem:
-        raise AssertionError("retained V0 runtime slice exceeds the shared parent ceiling")
+        raise AssertionError("disabled V0 compatibility slice exceeds the shared parent ceiling")
     beam = (systemd / "liqi-beam.service").read_text(encoding="utf-8")
     if "MemoryDenyWriteExecute" in beam or "User=liqi-beam" not in beam or "NoNewPrivileges=yes" not in beam:
         raise AssertionError("BEAM unit hardening/JIT compatibility changed")
@@ -378,9 +378,13 @@ def validate_static_policy() -> None:
 
     commands = json.loads((INFRA / "deployment/commands-v1.json").read_text(encoding="utf-8"))
     command_ids = {item["id"] for item in commands["commands"]}
-    for command_id in ("discover-e5-adoption", "validate-e5-state-adoption", "execute-e5-state-adoption", "pre-apply-readiness", "read-only-live-plan", "approved-oci-apply", "build-signed-linux-release"):
+    for command_id in ("discover-e5-adoption", "validate-e5-state-adoption", "execute-e5-state-adoption", "establish-first-release-recovery", "pre-apply-readiness", "read-only-live-plan", "approved-oci-apply", "build-signed-linux-release"):
         if command_id not in command_ids:
             raise AssertionError(f"provider command registry is missing {command_id}")
+    recovery_producer = (INFRA / "deployment/establish_first_release_recovery.py").read_text(encoding="utf-8")
+    for token in ("traffic_is_off", "--wait-for-state", "FULL", "fallback instance has a public IP", "clean exact-SHA worktree is required", "oci_mutation_performed"):
+        if token not in recovery_producer:
+            raise AssertionError(f"first-release recovery producer is missing fail-closed token {token}")
     pre_apply = (INFRA / "validation/pre_apply_readiness.py").read_text(encoding="utf-8")
     for token in ("validate_linux_release_build_result.py", "state_mutation_performed", "oci_mutation_performed", "protected-environment"):
         if token not in pre_apply:

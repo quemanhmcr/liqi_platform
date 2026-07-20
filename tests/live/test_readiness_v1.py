@@ -52,7 +52,7 @@ class ReadinessV1Tests(unittest.TestCase):
   for ident,commit in integrated.items():
    self.assertEqual('available',gates[ident]['provider_state'])
    self.assertEqual(commit,gates[ident]['provider_commit'])
-  for ident in ('runtime-live-probe','host-readiness','rollback-evidence'):
+  for ident in ('runtime-live-probe','host-readiness','release-recovery-evidence'):
    self.assertEqual('pending-live-evidence',gates[ident]['provider_state'])
    self.assertIsNotNone(gates[ident]['provider_commit'])
 

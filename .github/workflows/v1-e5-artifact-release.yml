@@ -7,9 +7,18 @@ on:
         description: Stable lowercase release ID bound to this exact Git SHA
         required: true
         type: string
-      rollback_target_release_id:
-        description: Retained V0 release ID approved for rollback
+      deployment_mode:
+        description: First production release or V1-to-V1 upgrade
         required: true
+        default: first-release
+        type: choice
+        options:
+          - first-release
+          - upgrade
+      rollback_target_release_id:
+        description: Required only for upgrade; must name the retained V1 release
+        required: false
+        default: ""
         type: string
       authorization_reference:
         description: Non-secret approval reference for offline native authorization
@@ -57,13 +66,21 @@ jobs:
       - name: Validate protected inputs and exact source
         env:
           RELEASE_ID: ${{ inputs.release_id }}
+          DEPLOYMENT_MODE: ${{ inputs.deployment_mode }}
           ROLLBACK_ID: ${{ inputs.rollback_target_release_id }}
           AUTHORIZATION_REFERENCE: ${{ inputs.authorization_reference }}
           FUZZ_SECONDS: ${{ inputs.fuzz_seconds }}
         run: |
           set -euo pipefail
-          [[ "$RELEASE_ID" =~ ^[a-z0-9][a-z0-9._-]{2,95}$ ]]
-          [[ "$ROLLBACK_ID" =~ ^[a-z0-9][a-z0-9._-]{2,95}$ ]]
+          [[ "$RELEASE_ID" =~ ^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$ ]]
+          case "$DEPLOYMENT_MODE" in
+            first-release) [[ -z "$ROLLBACK_ID" ]] ;;
+            upgrade)
+              [[ "$ROLLBACK_ID" =~ ^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$ ]]
+              [[ "$ROLLBACK_ID" != "$RELEASE_ID" ]]
+              ;;
+            *) exit 64 ;;
+          esac
           [[ ${#AUTHORIZATION_REFERENCE} -ge 3 && ${#AUTHORIZATION_REFERENCE} -le 256 ]]
           [[ "$FUZZ_SECONDS" =~ ^[0-9]+$ ]] && (( FUZZ_SECONDS >= 300 && FUZZ_SECONDS <= 3600 ))
           [[ -z "$(git status --porcelain --untracked-files=all)" ]]
@@ -201,11 +218,18 @@ jobs:
       - name: Build and self-verify signed Mix release
         env:
           RELEASE_ID: ${{ inputs.release_id }}
+          DEPLOYMENT_MODE: ${{ inputs.deployment_mode }}
           ROLLBACK_ID: ${{ inputs.rollback_target_release_id }}
         run: |
           set -euo pipefail
           native_dir="$RUNNER_TEMP/liqi-native-output"
           release_dir="$RUNNER_TEMP/liqi-release-output"
+          transition_args=()
+          if [[ "$DEPLOYMENT_MODE" == first-release ]]; then
+            transition_args+=(--first-release)
+          else
+            transition_args+=(--rollback-target-release-id "$ROLLBACK_ID")
+          fi
           python beam/scripts/build_linux_release.py \
             --release-id "$RELEASE_ID" \
             --target-triple x86_64-unknown-linux-gnu \
@@ -216,7 +240,7 @@ jobs:
             --artifact-signing-key "$RUNNER_TEMP/liqi-signing-private/release-artifact.pem" \
             --manifest-key-id "$RELEASE_MANIFEST_KEY_ID" \
             --manifest-signing-key "$RUNNER_TEMP/liqi-signing-private/release-manifest.pem" \
-            --rollback-target-release-id "$ROLLBACK_ID" \
+            "${transition_args[@]}" \
             --output-dir "$release_dir" \
             --build-jobs 2
           python beam/scripts/validate_linux_release_build_result.py \

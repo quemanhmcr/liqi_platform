@@ -123,14 +123,14 @@
       "artifact_archive_authority": "independent-management-storage",
       "data_volume_id": "ocid1.volume.oc1.example",
       "data_volume_preserved": true,
-      "kms_key_id": "ocid1.key.oc1.example",
-      "vault_id": "ocid1.vault.oc1.example"
+      "vault_id": "ocid1.vault.oc1.example",
+      "kms_key_id_sha256": "4444444444444444444444444444444444444444444444444444444444444444"
     }
   },
   "oci_output_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "plan_mode": "adopt-existing",
   "pre_apply_readiness_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-  "rollback_target_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "recovery_target_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "saved_plan_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "schema_version": "liqi.infrastructure.apply-result/v1",
   "status": "applied"

@@ -213,7 +213,7 @@ def main() -> int:
     parser.add_argument("--database-contract", required=True, type=Path)
     parser.add_argument("--migration-readiness", required=True, type=Path)
     parser.add_argument("--native-manifest", action="append", default=[], type=Path)
-    parser.add_argument("--rollback-target-descriptor", required=True, type=Path)
+    parser.add_argument("--rollback-target-descriptor", type=Path)
     parser.add_argument("--deployment-key-id", required=True)
     parser.add_argument("--deployment-signing-key", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
@@ -237,9 +237,17 @@ def main() -> int:
         raise RuntimeError("runtime config release/environment mismatch")
     runtime_credentials(runtime)
     required_migration = database_ready(database, readiness, runtime)
-    if provider["database_compatibility"] != {"minimum_migration": 8, "maximum_migration": 8, "rollback_safe_through": 4}:
+    if provider["database_compatibility"] != {"minimum_migration": 8, "maximum_migration": 8, "rollback_safe_through": 8}:
         raise RuntimeError("Senior 1 database compatibility contract changed")
-    rollback = verify_rollback(args.rollback_target_descriptor, provider["rollback_target_release_id"], required_migration)
+    rollback_id = provider["rollback_target_release_id"]
+    if rollback_id is None:
+        if args.rollback_target_descriptor is not None:
+            raise RuntimeError("first release must not supply an application rollback descriptor")
+        rollback = None
+    else:
+        if args.rollback_target_descriptor is None:
+            raise RuntimeError("V1 upgrade requires a rollback target descriptor")
+        rollback = verify_rollback(args.rollback_target_descriptor, rollback_id, required_migration)
 
     output_dir = args.output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -263,7 +271,7 @@ def main() -> int:
     runtime_copy = copy_exact(args.runtime_config.resolve(), output_dir, seen)
     database_copy = copy_exact(args.database_contract.resolve(), output_dir, seen)
     readiness_copy = copy_exact(args.migration_readiness.resolve(), output_dir, seen)
-    rollback_copy = copy_exact(args.rollback_target_descriptor.resolve(), output_dir, seen)
+    rollback_copy = copy_exact(args.rollback_target_descriptor.resolve(), output_dir, seen) if rollback is not None else None
 
     supplied_native: dict[str, tuple[Path, dict[str, Any]]] = {}
     native_roots = [provider_base]
@@ -338,7 +346,7 @@ def main() -> int:
         "database_contract": {"schema_version": database["contractVersion"], "filename": database_copy.name, "sha256": digest(database_copy)},
         "migration_readiness": {"schema_version": readiness["schemaVersion"], "filename": readiness_copy.name, "sha256": digest(readiness_copy)},
         "native_artifacts": native_entries,
-        "rollback_target": {"release_id": rollback["release_id"], "descriptor_filename": rollback_copy.name, "descriptor_sha256": digest(rollback_copy)},
+        "rollback_target": None if rollback is None else {"release_id": rollback["release_id"], "descriptor_filename": rollback_copy.name, "descriptor_sha256": digest(rollback_copy)},
         "signature": {"algorithm": "ed25519", "key_id": args.deployment_key_id, "signature_filename": f"{release_id}.mix-deployment-v1.json.sig", "signed_payload": "exact-wrapper-bytes"},
         "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
@@ -359,7 +367,7 @@ def main() -> int:
         "signature_path": str(signature_path),
         "signature_sha256": digest(signature_path),
         "required_migration": required_migration,
-        "rollback_target_release_id": rollback["release_id"],
+        "rollback_target_release_id": None if rollback is None else rollback["release_id"],
         "oci_mutation_performed": False,
     }, indent=2, sort_keys=True))
     return 0

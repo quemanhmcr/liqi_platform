@@ -162,13 +162,35 @@ acknowledge_host_bundle_signing_key = true
         a1.update({"mode": "plan", "capacity_profile": "a1-target", "plan_mode": "initial-create", "approval_reference": None})
         for name in (
             "adoption_result_sha256", "pre_apply_readiness_sha256", "adoption_manifest_sha256",
-            "linux_release_build_result_sha256", "rollback_target_sha256",
+            "linux_release_build_result_sha256", "recovery_target_sha256",
         ):
             a1["inputs"][name] = None
         self.assertEqual([], list(plan_validator.iter_errors(a1)))
 
         apply["oci_mutation_performed"] = False
         self.assertNotEqual([], list(apply_validator.iter_errors(apply)))
+
+    def test_first_release_recovery_binds_exact_publication_and_sha(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            build = json.loads((ROOT / "contracts/runtime/linux-release-build-result-v1.example.json").read_text(encoding="utf-8"))
+            manifest = json.loads((ROOT / "contracts/deployment/mix-release-v1.e5-temporary.example.json").read_text(encoding="utf-8"))
+            recovery = json.loads((ROOT / "contracts/infrastructure/first-release-recovery-v1.example.json").read_text(encoding="utf-8"))
+            build["git_sha"] = SHA
+            manifest["git_sha"] = SHA
+            manifest["rollback_target_release_id"] = None
+            manifest["database_compatibility"] = {"minimum_migration": 8, "maximum_migration": 8, "rollback_safe_through": 8}
+            recovery["git_sha"] = SHA
+            manifest_path = self.write_json(root, build["manifest"]["filename"], manifest)
+            build["manifest"]["sha256"] = module.sha256(manifest_path)
+            build_path = self.write_json(root, "build.json", build)
+            recovery_path = self.write_json(root, "recovery.json", recovery)
+            result = module.recovery_check(recovery_path, build_path, build, SHA)
+            self.assertEqual("passed", result["status"])
+            recovery["git_sha"] = "2" * 40
+            self.write_json(root, "recovery.json", recovery)
+            result = module.recovery_check(recovery_path, build_path, build, SHA)
+            self.assertEqual("failed", result["status"])
 
     def test_environment_check_never_emits_connection_string(self) -> None:
         secret = "sentinel-sensitive-backend-value?sslmode=verify-full"
@@ -189,7 +211,7 @@ acknowledge_host_bundle_signing_key = true
         self.assertEqual("blocked", blocked["status"])
         self.assertNotIn(secret, blocked["detail"])
 
-    def test_executed_adoption_requires_state_mutation_and_exact_addresses(self) -> None:
+    def test_executed_adoption_accepts_idempotent_noop_and_requires_exact_addresses(self) -> None:
         base = {
             "schema_version": "liqi.infrastructure.adoption-result/v1",
             "git_sha": SHA,
@@ -210,8 +232,9 @@ acknowledge_host_bundle_signing_key = true
             path = self.write_json(root, "result.json", base)
             expected = set(base["imported_addresses"])
             result, _ = module.adoption_result_check(path, SHA, "a" * 64, "b" * 64, expected)
-            self.assertEqual("blocked", result["status"])
-            base["state_mutation_performed"] = True
+            self.assertEqual("passed", result["status"])
+            base["already_present_addresses"] = base["imported_addresses"]
+            base["imported_addresses"] = []
             path = self.write_json(root, "result.json", base)
             result, _ = module.adoption_result_check(path, SHA, "a" * 64, "b" * 64, expected)
             self.assertEqual("passed", result["status"])

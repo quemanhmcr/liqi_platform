@@ -45,6 +45,8 @@ def run(*argv: str, env: dict[str, str], timeout: int = 180) -> str:
 def state_ids(document: dict[str, Any]) -> dict[str, str]:
     result: dict[str, str] = {}
     for resource in document.get("resources", []):
+        if resource.get("mode", "managed") != "managed":
+            continue
         module = resource.get("module")
         prefix = f"{module}." if module else ""
         base = f"{prefix}{resource.get('type')}.{resource.get('name')}"
@@ -59,6 +61,16 @@ def state_ids(document: dict[str, Any]) -> dict[str, str]:
                 raise RuntimeError(f"duplicate state address: {address}")
             result[address] = identifier
     return result
+
+
+def identifiers_match(address: str, expected: str, actual: str) -> bool:
+    if actual == expected:
+        return True
+    if address.startswith("module.v1_live.oci_core_network_security_group_security_rule."):
+        return expected.endswith(f"/securityRules/{actual}")
+    if address == "module.v1_live.oci_kms_key.main":
+        return expected.endswith(f"/keys/{actual}")
+    return False
 
 
 def write_result(path: Path, document: dict[str, Any]) -> None:
@@ -128,6 +140,8 @@ def main() -> int:
     for name in ("PG_SKIP_SCHEMA_CREATION", "PG_SKIP_TABLE_CREATION", "PG_SKIP_INDEX_CREATION"):
         if env.get(name) != "true":
             raise SystemExit(f"{name} must be true")
+    env.pop("PGSERVICEFILE", None)
+    env.pop("PGPASSFILE", None)
     env["TF_DATA_DIR"] = str(args.output.resolve().parent / "tfdata-adoption")
 
     try:
@@ -148,7 +162,7 @@ def main() -> int:
             raise RuntimeError(f"state contains unexpected managed addresses: {unexpected}")
         for address, identifier in sorted(expected.items()):
             if address in current:
-                if current[address] != identifier:
+                if not identifiers_match(address, identifier, current[address]):
                     raise RuntimeError(f"state ID mismatch for {address}")
                 result["already_present_addresses"].append(address)
                 continue

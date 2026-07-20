@@ -73,7 +73,7 @@ locals {
       data_volume_preserved        = true
       application_backup_authority = "independent-management-storage"
       artifact_archive_authority   = "independent-management-storage"
-      kms_key_id                   = oci_kms_key.main.id
+      kms_key_id_sha256            = sha256(oci_kms_key.main.id)
       vault_id                     = oci_kms_vault.main.id
     }
     identity = {

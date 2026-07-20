@@ -321,7 +321,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--artifact-signing-key", required=True, type=Path)
     parser.add_argument("--manifest-key-id", required=True)
     parser.add_argument("--manifest-signing-key", required=True, type=Path)
-    parser.add_argument("--rollback-target-release-id", required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--first-release", action="store_true")
+    mode.add_argument("--rollback-target-release-id")
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--build-jobs", type=int, default=2)
     return parser.parse_args()
@@ -329,8 +331,13 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    if not IDENTIFIER.fullmatch(args.release_id) or not IDENTIFIER.fullmatch(args.rollback_target_release_id):
-        raise SystemExit("release and rollback IDs must be stable lowercase identifiers")
+    if not IDENTIFIER.fullmatch(args.release_id):
+        raise SystemExit("release ID must be a stable lowercase identifier")
+    if args.rollback_target_release_id is not None:
+        if not IDENTIFIER.fullmatch(args.rollback_target_release_id) or not args.rollback_target_release_id.startswith("liqi-v1-"):
+            raise SystemExit("upgrade rollback target must be a stable liqi-v1 release ID")
+        if args.rollback_target_release_id == args.release_id:
+            raise SystemExit("upgrade rollback target must differ from the new release")
     if not KEY_ID.fullmatch(args.artifact_key_id) or not KEY_ID.fullmatch(args.manifest_key_id):
         raise SystemExit("invalid release signing key ID")
     if args.artifact_key_id == args.manifest_key_id:
@@ -429,7 +436,7 @@ def main() -> int:
             "database_compatibility": {
                 "minimum_migration": 8,
                 "maximum_migration": 8,
-                "rollback_safe_through": 4,
+                "rollback_safe_through": 8,
             },
             "native_artifacts": [native_reference],
             "installation": {

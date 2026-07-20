@@ -5,15 +5,39 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version", "generated_at", "git_sha", "capacity_profile", "status",
-    "checks", "inputs", "blockers", "state_mutation_performed", "oci_mutation_performed"
+    "schema_version",
+    "generated_at",
+    "git_sha",
+    "capacity_profile",
+    "status",
+    "checks",
+    "inputs",
+    "blockers",
+    "state_mutation_performed",
+    "oci_mutation_performed"
   ],
   "properties": {
-    "schema_version": {"const": "liqi.infrastructure.pre-apply-readiness/v1"},
-    "generated_at": {"type": "string", "format": "date-time"},
-    "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-    "capacity_profile": {"const": "e5-temporary"},
-    "status": {"enum": ["passed", "blocked", "failed"]},
+    "schema_version": {
+      "const": "liqi.infrastructure.pre-apply-readiness/v1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "capacity_profile": {
+      "const": "e5-temporary"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked",
+        "failed"
+      ]
+    },
     "checks": {
       "type": "array",
       "minItems": 7,
@@ -21,18 +45,42 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "owner", "status", "detail"],
+        "required": [
+          "name",
+          "owner",
+          "status",
+          "detail"
+        ],
         "properties": {
           "name": {
             "enum": [
-              "oci-adoption-handoff", "state-backend", "state-adoption",
-              "protected-tfvars", "signed-x86-release", "rollback-target",
+              "oci-adoption-handoff",
+              "state-backend",
+              "state-adoption",
+              "protected-tfvars",
+              "signed-x86-release",
+              "recovery-target",
               "protected-environment"
             ]
           },
-          "owner": {"enum": ["infrastructure-lead", "deployment-operator"]},
-          "status": {"enum": ["passed", "blocked", "failed"]},
-          "detail": {"type": "string", "minLength": 3, "maxLength": 1000}
+          "owner": {
+            "enum": [
+              "infrastructure-lead",
+              "deployment-operator"
+            ]
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "blocked",
+              "failed"
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 1000
+          }
         }
       }
     },
@@ -40,47 +88,93 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "adoption_manifest_sha256", "state_backend_evidence_sha256",
-        "adoption_result_sha256", "var_file_sha256",
-        "linux_release_build_result_sha256", "rollback_target_sha256"
+        "adoption_manifest_sha256",
+        "state_backend_evidence_sha256",
+        "adoption_result_sha256",
+        "var_file_sha256",
+        "linux_release_build_result_sha256",
+        "recovery_target_sha256"
       ],
       "properties": {
-        "adoption_manifest_sha256": {"$ref": "#/$defs/optional_sha256"},
-        "state_backend_evidence_sha256": {"$ref": "#/$defs/optional_sha256"},
-        "adoption_result_sha256": {"$ref": "#/$defs/optional_sha256"},
-        "var_file_sha256": {"$ref": "#/$defs/optional_sha256"},
-        "linux_release_build_result_sha256": {"$ref": "#/$defs/optional_sha256"},
-        "rollback_target_sha256": {"$ref": "#/$defs/optional_sha256"}
+        "adoption_manifest_sha256": {
+          "$ref": "#/$defs/optional_sha256"
+        },
+        "state_backend_evidence_sha256": {
+          "$ref": "#/$defs/optional_sha256"
+        },
+        "adoption_result_sha256": {
+          "$ref": "#/$defs/optional_sha256"
+        },
+        "var_file_sha256": {
+          "$ref": "#/$defs/optional_sha256"
+        },
+        "linux_release_build_result_sha256": {
+          "$ref": "#/$defs/optional_sha256"
+        },
+        "recovery_target_sha256": {
+          "$ref": "#/$defs/optional_sha256"
+        }
       }
     },
     "blockers": {
       "type": "array",
       "uniqueItems": true,
-      "items": {"type": "string", "minLength": 3, "maxLength": 1000}
+      "items": {
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 1000
+      }
     },
-    "state_mutation_performed": {"const": false},
-    "oci_mutation_performed": {"const": false}
+    "state_mutation_performed": {
+      "const": false
+    },
+    "oci_mutation_performed": {
+      "const": false
+    }
   },
   "$defs": {
     "optional_sha256": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "pattern": "^[0-9a-f]{64}$"
     }
   },
   "allOf": [
     {
-      "if": {"properties": {"status": {"const": "passed"}}},
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        }
+      },
       "then": {
         "properties": {
-          "blockers": {"maxItems": 0},
+          "blockers": {
+            "maxItems": 0
+          },
           "inputs": {
             "properties": {
-              "adoption_manifest_sha256": {"type": "string"},
-              "state_backend_evidence_sha256": {"type": "string"},
-              "adoption_result_sha256": {"type": "string"},
-              "var_file_sha256": {"type": "string"},
-              "linux_release_build_result_sha256": {"type": "string"},
-              "rollback_target_sha256": {"type": "string"}
+              "adoption_manifest_sha256": {
+                "type": "string"
+              },
+              "state_backend_evidence_sha256": {
+                "type": "string"
+              },
+              "adoption_result_sha256": {
+                "type": "string"
+              },
+              "var_file_sha256": {
+                "type": "string"
+              },
+              "linux_release_build_result_sha256": {
+                "type": "string"
+              },
+              "recovery_target_sha256": {
+                "type": "string"
+              }
             }
           }
         }

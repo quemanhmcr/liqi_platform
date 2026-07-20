@@ -187,7 +187,10 @@
       }
     },
     "rollback_target": {
-      "type": "object",
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "required": [
         "release_id",

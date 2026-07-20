@@ -11,7 +11,7 @@ from readiness_v1_common import load_json, relative_ref, sha256_file, utc_now, v
 SCHEMA=ROOT/'contracts/readiness/resilience-result-v1.schema.json'
 SUITE_SCHEMA=ROOT/'contracts/readiness/resilience-suite-result-v1.schema.json'
 CATALOG={item['id']:item for item in load_json(ROOT/'operations/resilience/scenario-catalog-v1.json')['scenarios']}
-EXPECTED={"postgresql-restart","pgbouncer-unavailable","outbox-backlog","oban-backlog","realtime-slow-consumers","reconnect-storm-25pct","native-artifact-disabled","native-kernel-panic","telemetry-sink-unavailable","disk-pressure","beam-process-crash","actor-supervisor-restart","release-activation-failure","v1-rollback-to-v0","host-reboot"}
+EXPECTED={"postgresql-restart","pgbouncer-unavailable","outbox-backlog","oban-backlog","realtime-slow-consumers","reconnect-storm-25pct","native-artifact-disabled","native-kernel-panic","telemetry-sink-unavailable","disk-pressure","beam-process-crash","actor-supervisor-restart","release-activation-failure","first-release-deactivation-recovery","host-reboot"}
 
 def main()->int:
  p=argparse.ArgumentParser();p.add_argument('--git-sha',required=True);p.add_argument('--release-id',required=True);p.add_argument('--environment',choices=('staging','production'),required=True);p.add_argument('--scenario',action='append',default=[],help='id=path');p.add_argument('--output',type=Path,required=True);a=p.parse_args()

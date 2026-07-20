@@ -52,7 +52,7 @@
   "database_compatibility": {
     "minimum_migration": 8,
     "maximum_migration": 8,
-    "rollback_safe_through": 4
+    "rollback_safe_through": 8
   },
   "native_artifacts": [],
   "installation": {
@@ -68,5 +68,5 @@
     "signature_filename": "liqi-v1-e5-example.json.sig",
     "signed_payload": "exact-manifest-bytes"
   },
-  "rollback_target_release_id": "liqi-v0-example"
+  "rollback_target_release_id": null
 }

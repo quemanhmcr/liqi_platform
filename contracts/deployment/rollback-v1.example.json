@@ -2,9 +2,9 @@
   "schema_version": "liqi.deployment.rollback/v1",
   "rollback_id": "rollback-example-v1",
   "from_release_id": "liqi-v1-example",
-  "target_release_id": "liqi-v0-example",
-  "target_git_sha": "0000000000000000000000000000000000000000",
-  "target_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "target_release_id": null,
+  "target_git_sha": null,
+  "target_manifest_sha256": null,
   "database_compatibility": "blocked",
   "config_compatibility": "blocked",
   "maximum_duration_seconds": 300,
@@ -19,5 +19,6 @@
       "detail": "No approved live rollback drill has occurred."
     }
   ],
-  "evidence_class": "dry-run"
+  "evidence_class": "dry-run",
+  "recovery_mode": "deactivate-first-release"
 }

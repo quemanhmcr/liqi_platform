@@ -1,5 +1,5 @@
 [Unit]
-Description=LIQI retained V0 Rust runtime slice
+Description=LIQI disabled V0 compatibility runtime slice
 Before=slices.target
 
 [Slice]

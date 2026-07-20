@@ -8,7 +8,7 @@
     "schema_version", "environment", "git_sha", "approval_reference",
     "capacity_profile", "plan_mode", "saved_plan_sha256",
     "pre_apply_readiness_sha256", "linux_release_build_result_sha256",
-    "rollback_target_sha256", "completed_at", "status", "oci_output_sha256",
+    "recovery_target_sha256", "completed_at", "status", "oci_output_sha256",
     "oci_output", "oci_mutation_performed"
   ],
   "properties": {
@@ -21,7 +21,7 @@
     "saved_plan_sha256": {"$ref": "#/$defs/sha256"},
     "pre_apply_readiness_sha256": {"$ref": "#/$defs/sha256"},
     "linux_release_build_result_sha256": {"$ref": "#/$defs/sha256"},
-    "rollback_target_sha256": {"$ref": "#/$defs/sha256"},
+    "recovery_target_sha256": {"$ref": "#/$defs/sha256"},
     "completed_at": {"type": "string", "format": "date-time"},
     "status": {"const": "applied"},
     "oci_output_sha256": {"$ref": "#/$defs/sha256"},

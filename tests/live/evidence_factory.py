@@ -30,15 +30,15 @@ SCENARIOS = [
     "postgresql-restart", "pgbouncer-unavailable", "outbox-backlog", "oban-backlog",
     "realtime-slow-consumers", "reconnect-storm-25pct", "native-artifact-disabled",
     "native-kernel-panic", "telemetry-sink-unavailable", "disk-pressure", "beam-process-crash",
-    "actor-supervisor-restart", "release-activation-failure", "v1-rollback-to-v0", "host-reboot",
+    "actor-supervisor-restart", "release-activation-failure", "first-release-deactivation-recovery", "host-reboot",
 ]
 RECOVERY_STEPS = [
     "select-latest-valid-backup", "restore-isolated-target", "wal-pitr", "verify-migrations",
     "verify-platform-invariants", "elixir-read-only-probe", "cleanup",
 ]
 ROLLBACK_STEPS = [
-    "stop-new-admission", "drain-sessions", "switch-route", "verify-health",
-    "verify-resume", "observe", "cleanup",
+    "stop-new-admission", "drain-sessions", "disable-traffic", "stop-release",
+    "verify-no-public-traffic", "observe", "cleanup",
 ]
 CHECKPOINTS = ["source", "integration", "artifact", "live-staging", "promotion", "cutover", "post-cutover"]
 
@@ -170,9 +170,10 @@ def rollback() -> dict:
         "schema_version": "rollback-result-v1", "evidence_mode": "live", "git_sha": SHA, "release_id": RELEASE_ID,
         "environment": ENVIRONMENT, "exercise_id": "rollback-v1-test", "started_at": START, "completed_at": NOW, "status": "passed",
         "from": {"release_id": RELEASE_ID, "git_sha": SHA, "runtime_generation": "v1-beam"},
-        "to": {"release_id": ROLLBACK_RELEASE_ID, "git_sha": ROLLBACK_SHA, "runtime_generation": "v0-rust", "retained": True},
-        "trigger": "exercise", "steps": [{"name": name, "status": "passed", "duration_ms": 10, "evidence_ref": f"rollback:{name}"} for name in ROLLBACK_STEPS],
-        "resume": {"attempted": 100, "success_ratio": 1.0, "gap_repair_available": True},
+        "recovery_mode": "deactivate-first-release",
+        "to": None,
+        "trigger": "exercise", "steps": [{"name": name, "status": "passed", "duration_ms": 10, "evidence_ref": f"recovery:{name}"} for name in ROLLBACK_STEPS],
+        "resume": None,
         "database": {"schema_compatible": True, "rollback_migration_required": False, "authority_unchanged": True},
         "data_safety": {"durable_event_loss": 0, "duplicate_durable_identity": 0, "event_before_commit": 0},
         "recovered_within_seconds": 60, "observation_seconds": 300, "evidence_refs": ["rollback:test"], "failures": [],
@@ -180,15 +181,15 @@ def rollback() -> dict:
 
 
 def cutover() -> dict:
-    preconditions = ["source", "integration", "artifact", "live-staging", "capacity", "load-floor", "reconnect-storm", "recovery", "security", "rollback", "approved-plan", "exact-release-binding"]
-    bundle = ["platform-probe", "load", "reconnect", "recovery", "security", "rollback", "capacity", "artifact", "oci-plan"]
+    preconditions = ["source", "integration", "artifact", "live-staging", "capacity", "load-floor", "reconnect-storm", "recovery", "security", "release-recovery", "approved-plan", "exact-release-binding"]
+    bundle = ["platform-probe", "load", "reconnect", "recovery", "security", "release-recovery", "capacity", "artifact", "oci-plan"]
     return {
         "schema_version": "cutover-result-v1", "evidence_mode": "live", "git_sha": SHA, "release_id": RELEASE_ID,
         "environment": "production", "cutover_id": "cutover-v1-test", "phase": "v1-default", "previous_phase": "broader-cohort",
         "started_at": START, "completed_at": NOW, "status": "passed",
         "traffic": {"route": "default", "cohort": "all", "percent": 100, "session_drain_used": True, "resume_aware_reconnect": True},
         "preconditions": [{"name": name, "status": "passed", "evidence_ref": f"precondition:{name}"} for name in preconditions],
-        "rollback": {"status": "passed", "target_release_id": ROLLBACK_RELEASE_ID, "result_ref": "rollback:test"},
+        "recovery": {"mode": "deactivate-first-release", "status": "passed", "target_release_id": None, "result_ref": "release-recovery:test"},
         "observation": {"duration_seconds": 1800, "slo_status": "passed", "api_errors": 0, "realtime_latency_p99_ms": 100, "resume_success_ratio": 1.0, "db_pool_wait_p99_ms": 10, "outbox_age_p99_ms": 100, "beam_run_queue_p99": 2, "native_p99_us": 400, "memory_growth_mib": 0, "disk_free_gib": 30, "security_events": 0},
         "correctness_events": zero_correctness(),
         "evidence_bundle": [{"kind": name, "status": "passed", "git_sha": SHA, "release_id": RELEASE_ID, "sha256": "f" * 64, "ref": f"bundle:{name}"} for name in bundle],
@@ -210,4 +211,4 @@ def mutation_log() -> dict:
 
 
 def primary_documents() -> dict[str, dict]:
-    return {"capacity": capacity(), "platform-probe": platform_probe(), "load": load_result(), "reconnect": reconnect(), "recovery": recovery(), "resilience": resilience_suite(), "security": security(), "cutover": cutover(), "rollback": rollback()}
+    return {"capacity": capacity(), "platform-probe": platform_probe(), "load": load_result(), "reconnect": reconnect(), "recovery": recovery(), "resilience": resilience_suite(), "security": security(), "cutover": cutover(), "release-recovery": rollback()}

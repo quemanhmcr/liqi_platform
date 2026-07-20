@@ -55,16 +55,16 @@ EVIDENCE_OWNER = {
     "resilience": "Senior 5",
     "security": "Senior 5",
     "cutover": "Senior 5",
-    "rollback": "Senior 4",
+    "release-recovery": "Senior 4",
 }
 
 PROBE_CHECKS = {"https-health", "runtime-readiness", "websocket-connect", "websocket-auth", "durable-command-commit", "outbox-handoff", "realtime-delivery", "resume-gap-repair", "worker-job", "native-kernel", "native-fallback"}
 RECOVERY_STEPS = {"select-latest-valid-backup", "restore-isolated-target", "wal-pitr", "verify-migrations", "verify-platform-invariants", "elixir-read-only-probe", "cleanup"}
-RESILIENCE_SCENARIOS = {"postgresql-restart", "pgbouncer-unavailable", "outbox-backlog", "oban-backlog", "realtime-slow-consumers", "reconnect-storm-25pct", "native-artifact-disabled", "native-kernel-panic", "telemetry-sink-unavailable", "disk-pressure", "beam-process-crash", "actor-supervisor-restart", "release-activation-failure", "v1-rollback-to-v0", "host-reboot"}
+RESILIENCE_SCENARIOS = {"postgresql-restart", "pgbouncer-unavailable", "outbox-backlog", "oban-backlog", "realtime-slow-consumers", "reconnect-storm-25pct", "native-artifact-disabled", "native-kernel-panic", "telemetry-sink-unavailable", "disk-pressure", "beam-process-crash", "actor-supervisor-restart", "release-activation-failure", "first-release-deactivation-recovery", "host-reboot"}
 SECURITY_CHECKS = {"public-ports", "tls", "secret-scan", "vault-references", "iam-least-privilege", "instance-principal", "private-database", "private-metrics", "systemd-hardening", "dependency-vulnerabilities", "license-policy", "sbom", "provenance", "log-redaction", "session-token-handling", "websocket-origin-auth", "rate-admission-limits", "native-input-bounds", "crash-dump-secret-hygiene"}
-CUTOVER_PRECONDITIONS = {"source", "integration", "artifact", "live-staging", "capacity", "load-floor", "reconnect-storm", "recovery", "security", "rollback", "approved-plan", "exact-release-binding"}
-CUTOVER_BUNDLE = {"platform-probe", "load", "reconnect", "recovery", "security", "rollback", "capacity", "artifact", "oci-plan"}
-ROLLBACK_STEPS = {"stop-new-admission", "drain-sessions", "switch-route", "verify-health", "verify-resume", "observe", "cleanup"}
+CUTOVER_PRECONDITIONS = {"source", "integration", "artifact", "live-staging", "capacity", "load-floor", "reconnect-storm", "recovery", "security", "release-recovery", "approved-plan", "exact-release-binding"}
+CUTOVER_BUNDLE = {"platform-probe", "load", "reconnect", "recovery", "security", "release-recovery", "capacity", "artifact", "oci-plan"}
+ROLLBACK_STEPS = {"stop-new-admission", "drain-sessions", "disable-traffic", "stop-release", "verify-no-public-traffic", "observe", "cleanup"}
 CAPACITY_OWNERS = {"Senior 1", "Senior 2", "Senior 3", "Senior 4"}
 
 def semantic_evidence_errors(kind: str, document: dict[str, Any]) -> list[str]:
@@ -84,8 +84,8 @@ def semantic_evidence_errors(kind: str, document: dict[str, Any]) -> list[str]:
     elif kind == "cutover":
         checks.extend(exact_set((item.get("name", "") for item in document.get("preconditions", [])), CUTOVER_PRECONDITIONS, "cutover preconditions"))
         checks.extend(exact_set((item.get("kind", "") for item in document.get("evidence_bundle", [])), CUTOVER_BUNDLE, "cutover evidence bundle"))
-    elif kind == "rollback":
-        checks.extend(exact_set((item.get("name", "") for item in document.get("steps", [])), ROLLBACK_STEPS, "rollback steps"))
+    elif kind == "release-recovery":
+        checks.extend(exact_set((item.get("name", "") for item in document.get("steps", [])), ROLLBACK_STEPS, "release recovery steps"))
     return checks
 
 CORRECTNESS_OWNER = {
@@ -318,7 +318,7 @@ def main() -> int:
     }
     compatibility_status = "blocked"
     if args.compatibility is None:
-        blockers.append(blocker("Senior 5", "compatibility-result-v1", "COMPATIBILITY_EVIDENCE_MISSING", "blocked", "V0/V1 compatibility evidence is missing", "Compose provider compatibility checks for migrations, realtime, native fallback and configuration."))
+        blockers.append(blocker("Senior 5", "compatibility-result-v1", "COMPATIBILITY_EVIDENCE_MISSING", "blocked", "release compatibility evidence is missing", "Compose provider compatibility checks for migrations, realtime, native fallback and configuration."))
     else:
         path = args.compatibility.resolve()
         try:
@@ -406,14 +406,16 @@ def main() -> int:
     capacity = primary_documents.get("capacity", {})
     host = capacity.get("host", {"shape": "VM.Standard.A1.Flex", "ocpu": 4, "memory_mib": 24576, "combined_storage_gib": 200})
     reserve = capacity.get("reserve", {"ocpu": 1, "memory_mib": 4096, "disk_gib": 20})
-    rollback = primary_documents.get("rollback", {})
-    rollback_to = rollback.get("to", {})
-    rollback_target = {
-        "retained": bool(rollback_to.get("retained", False)),
-        "release_id": str(rollback_to.get("release_id", "liqi-v0-unknown")),
-        "git_sha": str(rollback_to.get("git_sha", "0" * 40)),
-        "runtime_generation": str(rollback_to.get("runtime_generation", "v0-rust")),
-        "evidence_ref": next((entry["evidence_ref"] for entry in evidence_entries if entry["kind"] == "rollback"), "missing:rollback"),
+    release_recovery = primary_documents.get("release-recovery", {})
+    recovery_to = release_recovery.get("to")
+    retained = isinstance(recovery_to, dict) and recovery_to.get("retained") is True
+    recovery_target = {
+        "mode": str(release_recovery.get("recovery_mode", "deactivate-first-release")),
+        "retained_application_release": retained,
+        "release_id": recovery_to.get("release_id") if retained else None,
+        "git_sha": recovery_to.get("git_sha") if retained else None,
+        "runtime_generation": recovery_to.get("runtime_generation") if retained else None,
+        "evidence_ref": next((entry["evidence_ref"] for entry in evidence_entries if entry["kind"] == "release-recovery"), "missing:release-recovery"),
     }
 
     # Staleness blockers added above must affect status even when the document says passed.
@@ -453,7 +455,7 @@ def main() -> int:
         "evidence": evidence_entries,
         "correctness_events": correctness,
         "compatibility": compatibility_values,
-        "rollback_target": rollback_target,
+        "recovery_target": recovery_target,
         "oci_mutations": mutations,
         "blockers": blockers,
     }
