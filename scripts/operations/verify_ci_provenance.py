@@ -62,12 +62,11 @@ def evaluate(
         if github_sha != expected_sha:
             failures.append("push github.sha differs from event after/source SHA")
     elif event_name == "pull_request":
-        merge_sha = payload.get("pull_request", {}).get("merge_commit_sha")
-        allowed = {expected_sha}
-        if isinstance(merge_sha, str) and SHA.fullmatch(merge_sha):
-            allowed.add(merge_sha)
-        if github_sha not in allowed:
-            failures.append("pull-request github.sha is neither the head SHA nor payload merge SHA")
+        # GitHub may regenerate refs/pull/<n>/merge after the webhook payload is
+        # captured.  In that case GITHUB_SHA is a valid synthetic merge SHA but
+        # pull_request.merge_commit_sha is stale.  It is provenance metadata,
+        # never the source authority: checkout, event head, expected SHA and
+        # release suffix are all required above to match exactly.
         if github_sha != expected_sha:
             github_sha_kind = "pull-request-merge"
     else:

@@ -9,6 +9,20 @@ printf '%s\n' "${FAKE_DATABASE_SIZE:-0}"
 FAKE
 chmod +x "$temporary/psql"
 source_sha=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+run_guard(){
+  if [[ $EUID -eq 0 ]]; then
+    env "$@" "$ROOT_DIR/database/bin/backup-capacity-check.sh"
+  else
+    sudo -n env PATH="$PATH" "$@" "$ROOT_DIR/database/bin/backup-capacity-check.sh"
+  fi
+}
+secure_capacity(){
+  if [[ $EUID -eq 0 ]]; then
+    chown root:root "$1" "$1.sha256"
+  else
+    sudo -n chown root:root "$1" "$1.sha256"
+  fi
+}
 write_capacity(){
   local output=$1 available=$2 reserved=$3 observed=${4:-now}
   PYTHONDONTWRITEBYTECODE=1 python - "$output" "$source_sha" "$available" "$reserved" "$observed" <<'PY'
@@ -22,14 +36,24 @@ p=Path(output); p.write_text(json.dumps(doc,indent=2)+'\n',encoding='utf-8'); Pa
 PY
 }
 write_capacity "$temporary/capacity.json" 107374182400 21474836480
-LIQI_SOURCE_GIT_SHA=$source_sha LIQI_DATABASE_BACKUP_CAPACITY_FILE="$temporary/capacity.json" PSQL="$temporary/psql" FAKE_DATABASE_SIZE=1073741824 "$ROOT_DIR/database/bin/backup-capacity-check.sh" > "$temporary/allowed.json"
+if [[ $EUID -ne 0 ]]; then
+  set +e
+  LIQI_SOURCE_GIT_SHA=$source_sha LIQI_DATABASE_BACKUP_CAPACITY_FILE="$temporary/capacity.json" PSQL="$temporary/psql" FAKE_DATABASE_SIZE=1073741824 "$ROOT_DIR/database/bin/backup-capacity-check.sh" > /dev/null 2> "$temporary/unprivileged.err"
+  rc=$?
+  set -e
+  [[ "$rc" -eq 75 ]]
+  grep -Fxq 'capacity evidence must be root-owned' "$temporary/unprivileged.err"
+fi
+secure_capacity "$temporary/capacity.json"
+run_guard LIQI_SOURCE_GIT_SHA=$source_sha LIQI_DATABASE_BACKUP_CAPACITY_FILE="$temporary/capacity.json" PSQL="$temporary/psql" FAKE_DATABASE_SIZE=1073741824 > "$temporary/allowed.json"
 python - "$temporary/allowed.json" <<'PY'
 import json,sys
 v=json.load(open(sys.argv[1],encoding='utf-8')); assert v['allowed'] is True and v['reason']=='within-independent-repository-capacity'
 PY
 write_capacity "$temporary/small.json" 3221225472 2147483648
+secure_capacity "$temporary/small.json"
 set +e
-LIQI_SOURCE_GIT_SHA=$source_sha LIQI_DATABASE_BACKUP_CAPACITY_FILE="$temporary/small.json" PSQL="$temporary/psql" FAKE_DATABASE_SIZE=2147483648 "$ROOT_DIR/database/bin/backup-capacity-check.sh" > "$temporary/blocked.json"
+run_guard LIQI_SOURCE_GIT_SHA=$source_sha LIQI_DATABASE_BACKUP_CAPACITY_FILE="$temporary/small.json" PSQL="$temporary/psql" FAKE_DATABASE_SIZE=2147483648 > "$temporary/blocked.json"
 rc=$?
 set -e
 [[ "$rc" -eq 75 ]]
@@ -38,9 +62,10 @@ import json,sys
 v=json.load(open(sys.argv[1],encoding='utf-8')); assert v['allowed'] is False and v['reason']=='independent-repository-capacity-insufficient'
 PY
 write_capacity "$temporary/stale.json" 107374182400 21474836480 stale
+secure_capacity "$temporary/stale.json"
 set +e
-LIQI_SOURCE_GIT_SHA=$source_sha LIQI_DATABASE_BACKUP_CAPACITY_FILE="$temporary/stale.json" PSQL="$temporary/psql" FAKE_DATABASE_SIZE=1 "$ROOT_DIR/database/bin/backup-capacity-check.sh" >/dev/null 2>&1
+run_guard LIQI_SOURCE_GIT_SHA=$source_sha LIQI_DATABASE_BACKUP_CAPACITY_FILE="$temporary/stale.json" PSQL="$temporary/psql" FAKE_DATABASE_SIZE=1 >/dev/null 2>&1
 rc=$?
 set -e
 [[ "$rc" -ne 0 ]]
-printf '%s\n' '{"validation":"database-backup-capacity-v1","freshEvidenceAccepted":true,"insufficientCapacityBlocked":true,"staleEvidenceRejected":true,"passed":true}'
+printf '%s\n' '{"validation":"database-backup-capacity-v1","rootOwnershipEnforced":true,"freshEvidenceAccepted":true,"insufficientCapacityBlocked":true,"staleEvidenceRejected":true,"passed":true}'

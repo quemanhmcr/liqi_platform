@@ -34,6 +34,21 @@ class VerifyCiProvenanceTests(unittest.TestCase):
         self.assertEqual(failures, [])
         self.assertEqual(details["github_sha_kind"], "pull-request-merge")
 
+    def test_pull_request_accepts_regenerated_merge_ref_with_stale_payload_metadata(self) -> None:
+        regenerated_merge = "b" * 40
+        failures, details = evaluate(
+            actual_sha=HEAD,
+            expected_sha=HEAD,
+            github_sha=regenerated_merge,
+            event_name="pull_request",
+            payload={"pull_request": {"head": {"sha": HEAD}, "merge_commit_sha": MERGE}},
+            release_id=f"liqi-v1-ci-{HEAD}",
+        )
+        self.assertEqual(failures, [])
+        self.assertEqual(details["github_sha"], regenerated_merge)
+        self.assertEqual(details["pull_request_merge_sha"], MERGE)
+        self.assertEqual(details["github_sha_kind"], "pull-request-merge")
+
     def test_mismatched_checkout_event_or_release_fails_closed(self) -> None:
         failures, _details = evaluate(
             actual_sha=MERGE,
