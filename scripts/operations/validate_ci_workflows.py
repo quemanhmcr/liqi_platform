@@ -128,6 +128,10 @@ def main() -> int:
                 "--allow-disposable-database",
                 "tests/load/v1-floor.js",
                 "tests/load/reconnect-storm-v1.js",
+                "postgres:17.10-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+                "Install pinned pgTAP in disposable PostgreSQL service",
+                "postgresql-17-pgtap=1.3.4-1.pgdg12+1",
+                "/usr/share/postgresql/17/extension/pgtap.control",
             ):
                 if required not in text:
                     failures.append(f"{relative}: V1 source workflow is missing stage seam {required}")
