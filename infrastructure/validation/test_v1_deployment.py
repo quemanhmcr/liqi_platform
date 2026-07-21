@@ -158,6 +158,22 @@ class ReleaseBoundaryTests(unittest.TestCase):
                 stage_mix_release.safe_relative(value)
         self.assertEqual(stage_mix_release.safe_relative("lib/liqi/native.so").as_posix(), "lib/liqi/native.so")
 
+    def test_pem_parser_literal_is_not_secret_material(self) -> None:
+        parser_literal = b"-----BEGIN PRIVATE KEY-----"
+        self.assertFalse(any(pattern.search(parser_literal) for pattern in stage_mix_release.FORBIDDEN_CONTENT))
+
+    def test_complete_private_key_pem_is_forbidden(self) -> None:
+        secret = (
+            b"-----BEGIN PRIVATE KEY-----\n"
+            + b"A" * 128
+            + b"\n-----END PRIVATE KEY-----"
+        )
+        self.assertTrue(stage_mix_release.FORBIDDEN_CONTENT[0].search(secret))
+
+    def test_database_url_with_password_is_forbidden(self) -> None:
+        secret = b"DATABASE_URL=postgresql://liqi:do-not-package@db.internal/liqi"
+        self.assertTrue(stage_mix_release.FORBIDDEN_CONTENT[1].search(secret))
+
 
 class FirstReleaseRecoveryProducerTests(unittest.TestCase):
     def test_identifier_hash_is_one_way_and_stable(self) -> None:

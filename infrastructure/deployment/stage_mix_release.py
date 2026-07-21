@@ -30,7 +30,11 @@ IDENT = re.compile(r"^[a-z0-9][a-z0-9._-]{2,95}$")
 CREDENTIAL = re.compile(r"^systemd-credential://([a-z][a-z0-9-]{1,63})$")
 MAX_EXPANDED_BYTES = 2 * 1024 * 1024 * 1024
 FORBIDDEN_CONTENT = (
-    re.compile(rb"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    re.compile(
+        rb"-----BEGIN ([A-Z0-9 ]*PRIVATE KEY)-----\r?\n"
+        rb"(?=[A-Za-z0-9+/=\r\n]{64,25000}-----END )"
+        rb"[A-Za-z0-9+/=\r\n]+-----END \1-----"
+    ),
     re.compile(rb"postgres(?:ql)?://[^\s:/]+:[^\s@/]+@", re.I),
 )
 
