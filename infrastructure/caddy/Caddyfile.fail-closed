@@ -19,3 +19,11 @@
 	}
 	respond "LIQI edge is staged but traffic is not enabled" 503
 }
+
+https://:443 {
+	tls internal
+	log {
+		format json
+	}
+	respond "LIQI edge is staged but traffic is not enabled" 503
+}

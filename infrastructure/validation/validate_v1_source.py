@@ -241,8 +241,13 @@ def validate_static_policy() -> None:
             raise AssertionError(f"V1 state path retains forbidden S3 dependency: {token}")
     caddy_fail = (INFRA / "caddy/Caddyfile.fail-closed").read_text(encoding="utf-8")
     caddy_live = (INFRA / "caddy/Caddyfile.v1-live.tftpl").read_text(encoding="utf-8")
-    if 'respond "LIQI edge is staged but traffic is not enabled" 503' not in caddy_fail:
-        raise AssertionError("staged Caddy configuration is not fail-closed")
+    for token in (
+        'respond "LIQI edge is staged but traffic is not enabled" 503',
+        "https://:443",
+        "tls internal",
+    ):
+        if token not in caddy_fail:
+            raise AssertionError(f"staged Caddy configuration is missing {token}")
     for token in (
         "admin off",
         "${backend_address}",

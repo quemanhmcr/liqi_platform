@@ -43,6 +43,17 @@ def load_host_bundle_installer():
         loader.exec_module(module)
     return module
 
+def load_host_readiness():
+    path = ROOT / "infrastructure/bin/liqi-host-readiness"
+    loader = SourceFileLoader("liqi_host_readiness", str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    if spec is None:
+        raise RuntimeError("cannot load host readiness collector")
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
 def load_database_credential_provider():
     path = ROOT / "infrastructure/bin/liqi-configure-database-credentials"
     loader = SourceFileLoader("liqi_database_credentials", str(path))
@@ -157,6 +168,28 @@ class ReleaseBoundaryTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(RuntimeError):
                 stage_mix_release.safe_relative(value)
         self.assertEqual(stage_mix_release.safe_relative("lib/liqi/native.so").as_posix(), "lib/liqi/native.so")
+
+    def test_host_readiness_resolves_nested_slice_control_group(self) -> None:
+        readiness = load_host_readiness()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cgroup = root / "liqi.slice/liqi-platform.slice"
+            cgroup.mkdir(parents=True)
+            (cgroup / "memory.max").write_text(str(20 * 1024**3), encoding="utf-8")
+            (cgroup / "memory.swap.max").write_text("0", encoding="utf-8")
+            (cgroup / "cpu.max").write_text("300000 100000", encoding="utf-8")
+            with patch.object(readiness, "command", return_value=(0, "/liqi.slice/liqi-platform.slice")):
+                self.assertTrue(readiness.platform_capacity_bound(root))
+            (cgroup / "cpu.max").write_text("200000 100000", encoding="utf-8")
+            with patch.object(readiness, "command", return_value=(0, "/liqi.slice/liqi-platform.slice")):
+                self.assertFalse(readiness.platform_capacity_bound(root))
+
+    def test_fail_closed_edge_listens_on_https_without_routing(self) -> None:
+        caddy = (ROOT / "infrastructure/caddy/Caddyfile.fail-closed").read_text(encoding="utf-8")
+        self.assertIn("https://:443", caddy)
+        self.assertIn("tls internal", caddy)
+        self.assertEqual(2, caddy.count('respond "LIQI edge is staged but traffic is not enabled" 503'))
+        self.assertNotIn("reverse_proxy", caddy)
 
     def test_pem_parser_literal_is_not_secret_material(self) -> None:
         parser_literal = b"-----BEGIN PRIVATE KEY-----"

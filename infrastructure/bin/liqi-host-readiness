@@ -83,6 +83,25 @@ def release_id() -> str | None:
     return value if isinstance(value, str) else None
 
 
+def platform_capacity_bound(cgroup_root: Path = Path("/sys/fs/cgroup")) -> bool:
+    rc, control_group = command(
+        "systemctl", "show", "--property=ControlGroup", "--value", "liqi-platform.slice"
+    )
+    if rc != 0 or not control_group.startswith("/"):
+        return False
+    root = cgroup_root / control_group.lstrip("/")
+    try:
+        memory_max = (root / "memory.max").read_text().strip()
+        memory_swap_max = (root / "memory.swap.max").read_text().strip()
+        cpu_max = (root / "cpu.max").read_text().strip().split()
+        if len(cpu_max) != 2 or cpu_max[0] == "max":
+            return False
+        quota, period = (int(value) for value in cpu_max)
+    except (OSError, ValueError):
+        return False
+    return memory_max == str(20 * 1024**3) and memory_swap_max == "0" and period > 0 and quota == 3 * period
+
+
 def main() -> int:
     args = parse_args()
     checks: list[dict[str, str]] = []
@@ -156,13 +175,7 @@ def main() -> int:
     persistent_plaintext = [str(path) for path in Path("/etc/liqi/secrets").glob("*") if path.is_file() and path.suffix != ".json"]
     failed |= bool(persistent_plaintext)
 
-    reserve_preserved = False
-    try:
-        memory_max = Path("/sys/fs/cgroup/liqi-platform.slice/memory.max").read_text().strip()
-        cpu_max = Path("/sys/fs/cgroup/liqi-platform.slice/cpu.max").read_text().strip().split()
-        reserve_preserved = memory_max == str(20 * 1024**3) and len(cpu_max) == 2
-    except OSError:
-        pass
+    reserve_preserved = platform_capacity_bound()
     checks.append({"name": "platform-capacity-bound", "status": "passed" if reserve_preserved else "failed", "detail": "CPUQuota=300%, MemoryMax=20G, swap=0 required"})
     failed |= not reserve_preserved
 
