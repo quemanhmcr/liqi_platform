@@ -1,0 +1,164 @@
+name: V1 E5 Mix Deployment Authorization
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: Exact production source SHA to authorize.
+        required: true
+        type: string
+      release_id:
+        description: Exact signed release ID.
+        required: true
+        type: string
+      publication_run_id:
+        description: Artifact publication workflow run ID.
+        required: true
+        type: string
+      publication_artifact_name:
+        description: Exact publication artifact name.
+        required: true
+        type: string
+      authorization_reference:
+        description: Production deployment authorization reference.
+        required: true
+        type: string
+
+concurrency:
+  group: v1-e5-mix-authorization-${{ inputs.target_sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  authorize:
+    name: Authorize exact-SHA Mix deployment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: v1-e5-artifact-production
+    env:
+      DEPLOYMENT_KEY_ID: ${{ vars.LIQI_NATIVE_DEPLOYMENT_KEY_ID }}
+      RELEASE_ID: ${{ inputs.release_id }}
+      TARGET_SHA: ${{ inputs.target_sha }}
+      AUTHORIZATION_REFERENCE: ${{ inputs.authorization_reference }}
+    steps:
+      - name: Checkout control inputs
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          path: control
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout exact production source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ inputs.target_sha }}
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Configure Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.11"
+
+      - name: Install pinned deployment dependencies
+        working-directory: source
+        run: python -m pip install -r operations/ci/requirements-v0.txt
+
+      - name: Download exact signed publication
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ inputs.publication_artifact_name }}
+          path: publication
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.publication_run_id }}
+
+      - name: Validate immutable identities and inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_ID" =~ ^liqi-v1-[a-z0-9][a-z0-9._-]{2,95}$ ]]
+          [[ "$AUTHORIZATION_REFERENCE" =~ ^[A-Za-z0-9][A-Za-z0-9._:/-]{2,127}$ ]]
+          [[ "$DEPLOYMENT_KEY_ID" =~ ^[a-z0-9][a-z0-9._-]{2,63}$ ]]
+          [[ "$(git -C source rev-parse HEAD)" == "$TARGET_SHA" ]]
+          test -z "$(git -C source status --porcelain --untracked-files=all)"
+          test -f "publication/release/${RELEASE_ID}.json"
+          test -f "publication/native/native-artifact-${RELEASE_ID}.json"
+          test -f "control/.liqi-control-inputs/runtime-config-v1.json"
+          test -f "control/.liqi-control-inputs/database-runtime-v1.json"
+          test -f "control/.liqi-control-inputs/migration-readiness-v1.json"
+          (cd publication && sha256sum --check --strict SHA256SUMS)
+
+      - name: Materialize protected deployment authority
+        shell: bash
+        env:
+          NATIVE_PRIVATE_KEY: ${{ secrets.LIQI_NATIVE_DEPLOYMENT_ED25519_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$NATIVE_PRIVATE_KEY"
+          install -d -m 0700 "$RUNNER_TEMP/liqi-authority" "$RUNNER_TEMP/liqi-public-trust/native"
+          printf '%s\n' "$NATIVE_PRIVATE_KEY" > "$RUNNER_TEMP/liqi-authority/native.pem"
+          openssl pkey -in "$RUNNER_TEMP/liqi-authority/native.pem" -pubout \
+            -out "$RUNNER_TEMP/liqi-public-trust/native/${DEPLOYMENT_KEY_ID}.pem"
+
+      - name: Prepare and independently verify deployment wrapper
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 0750 deployment
+          python source/infrastructure/deployment/prepare_mix_deployment.py \
+            --provider-manifest "publication/release/${RELEASE_ID}.json" \
+            --provider-trust-dir publication/trust/release \
+            --runtime-config control/.liqi-control-inputs/runtime-config-v1.json \
+            --database-contract control/.liqi-control-inputs/database-runtime-v1.json \
+            --migration-readiness control/.liqi-control-inputs/migration-readiness-v1.json \
+            --native-manifest "publication/native/native-artifact-${RELEASE_ID}.json" \
+            --deployment-key-id "$DEPLOYMENT_KEY_ID" \
+            --deployment-signing-key "$RUNNER_TEMP/liqi-authority/native.pem" \
+            --output-dir deployment \
+            | tee deployment/mix-deployment-preparation-result-v1.json
+          wrapper="deployment/${RELEASE_ID}.mix-deployment-v1.json"
+          signature="${wrapper}.sig"
+          openssl pkeyutl -verify -rawin -pubin \
+            -inkey "$RUNNER_TEMP/liqi-public-trust/native/${DEPLOYMENT_KEY_ID}.pem" \
+            -in "$wrapper" -sigfile "$signature"
+          install -d -m 0750 deployment/trust/native
+          install -m 0640 "$RUNNER_TEMP/liqi-public-trust/native/${DEPLOYMENT_KEY_ID}.pem" deployment/trust/native/
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          out=Path('deployment/deployment-authorization-v1.json')
+          out.write_text(json.dumps({
+            'schema_version':'liqi.deployment.authorization/v1',
+            'status':'authorized',
+            'target_sha':os.environ['TARGET_SHA'],
+            'release_id':os.environ['RELEASE_ID'],
+            'authorization_reference':os.environ['AUTHORIZATION_REFERENCE'],
+            'observed_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
+            'private_key_exported':False,
+          },indent=2,sort_keys=True)+'\n',encoding='utf-8')
+          PY
+          if grep -R -E --binary-files=without-match 'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' deployment; then
+            echo 'private key material detected in deployment artifact' >&2
+            exit 1
+          fi
+          (cd deployment && find . -type f ! -name SHA256SUMS -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+
+      - name: Upload signed deployment package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: liqi-v1-e5-mix-deployment-${{ inputs.target_sha }}
+          path: deployment
+          if-no-files-found: error
+          retention-days: 30
