@@ -1,0 +1,64 @@
+{
+  "actors": {
+    "idleTtlMs": 60000,
+    "mailboxReject": 128,
+    "mailboxWarning": 64,
+    "partitions": 4
+  },
+  "database": {
+    "admissionConcurrency": 24,
+    "credentialFormat": "role-url-bundle-v1",
+    "requiredMigrationVersion": 8,
+    "secretRef": "systemd-credential://database-role-urls"
+  },
+  "environment": "production",
+  "features": {
+    "outboxWorker": true,
+    "persistence": true,
+    "realtimeDispatcher": true
+  },
+  "http": {
+    "port": 4100,
+    "secretRef": "systemd-credential://phoenix-secret-key-base",
+    "websocketPath": "/platform/v1/socket"
+  },
+  "native": {
+    "concurrency": 2,
+    "mode": "optional"
+  },
+  "oban": {
+    "concurrency": 6,
+    "enabled": false
+  },
+  "realtime": {
+    "handoffBatchSize": 64,
+    "handoffPollIntervalMs": 50,
+    "maxMessageBytes": 65536
+  },
+  "releaseId": "liqi-v1-e5-33e7a093005f",
+  "requests": {
+    "bodyBytes": 1048576,
+    "boundedTasks": 32,
+    "endpointConcurrency": 256,
+    "timeoutMs": 5000
+  },
+  "schemaVersion": "1",
+  "security": {
+    "probeTokenRef": "systemd-credential://platform-probe-token"
+  },
+  "serviceIdentity": "liqi-platform",
+  "sessions": {
+    "queueCapacity": 128,
+    "queueMaxAgeMs": 30000,
+    "queueMaxBytes": 1048576,
+    "reconnectConcurrency": 64,
+    "resumeWindowMs": 300000
+  },
+  "shutdown": {
+    "deadlineMs": 20000,
+    "drainTokenRef": "systemd-credential://drain-token"
+  },
+  "telemetry": {
+    "endpoint": "http://127.0.0.1:4318"
+  }
+}

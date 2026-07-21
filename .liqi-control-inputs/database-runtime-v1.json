@@ -1,0 +1,284 @@
+{
+  "$schema": "./database-runtime-v1.schema.json",
+  "authority": "postgresql-only-durable-authority",
+  "callableSeams": {
+    "applyProbeEffect": {
+      "result": "status-text",
+      "roles": [
+        "liqi_worker"
+      ],
+      "signature": "platform.apply_probe_effect_and_ack_v1(uuid,uuid,text)"
+    },
+    "claimOutbox": {
+      "resultColumns": [
+        "event_id",
+        "claim_token",
+        "attempt_no",
+        "protocol_version",
+        "message_id",
+        "correlation_id",
+        "causation_id",
+        "trace_context",
+        "deadline_at",
+        "actor_key",
+        "aggregate_key",
+        "priority",
+        "payload_type",
+        "event_type",
+        "payload_version",
+        "event_version",
+        "ordering_key",
+        "occurred_at",
+        "producer",
+        "payload",
+        "metadata",
+        "lease_expires_at"
+      ],
+      "roles": [
+        "liqi_worker"
+      ],
+      "signature": "platform.claim_outbox_v1(text,integer,integer)"
+    },
+    "failOutbox": {
+      "result": "status-text",
+      "roles": [
+        "liqi_worker"
+      ],
+      "signature": "platform.fail_outbox_v1(uuid,uuid,text,text,timestamptz)"
+    },
+    "observeProbe": {
+      "errors": {
+        "identityMismatch": "LQ003",
+        "notFound": "empty-result"
+      },
+      "resultColumns": [
+        "probe_id",
+        "event_id",
+        "aggregate_version",
+        "probe_status",
+        "outbox_state",
+        "effect_applied",
+        "handoff_cursor",
+        "terminal",
+        "observed_at"
+      ],
+      "roles": [
+        "liqi_api",
+        "liqi_readonly",
+        "liqi_monitor",
+        "liqi_backup"
+      ],
+      "signature": "platform.observe_probe_v1(uuid,uuid)"
+    },
+    "readHandoff": {
+      "errors": {
+        "cursorGap": "LQ004"
+      },
+      "resultColumns": [
+        "handoff_id",
+        "event_id",
+        "protocol_version",
+        "message_id",
+        "correlation_id",
+        "causation_id",
+        "trace_context",
+        "deadline_at",
+        "actor_key",
+        "aggregate_key",
+        "priority",
+        "payload_type",
+        "event_type",
+        "payload_version",
+        "event_version",
+        "ordering_key",
+        "occurred_at",
+        "producer",
+        "payload",
+        "metadata",
+        "recorded_at"
+      ],
+      "roles": [
+        "liqi_realtime"
+      ],
+      "signature": "platform.read_realtime_handoff_v1(bigint,integer)"
+    },
+    "readiness": {
+      "resultColumns": [
+        "ready",
+        "write_ready",
+        "reason",
+        "current_version",
+        "expected_version",
+        "oban_migration_version",
+        "expected_oban_migration_version",
+        "in_recovery"
+      ],
+      "roles": [
+        "liqi_api",
+        "liqi_realtime",
+        "liqi_worker",
+        "liqi_readonly",
+        "liqi_monitor",
+        "liqi_backup"
+      ],
+      "signature": "platform.database_readiness_v1(bigint,integer)"
+    },
+    "requestProbe": {
+      "errors": {
+        "idempotencyConflict": "LQ001",
+        "staleAggregateVersion": "LQ002"
+      },
+      "resultColumns": [
+        "probe_id",
+        "event_id",
+        "aggregate_version",
+        "handoff_cursor",
+        "duplicate",
+        "status",
+        "outcome"
+      ],
+      "roles": [
+        "liqi_api"
+      ],
+      "signature": "platform.request_probe_v1(uuid,uuid,text,text,text,bigint,timestamptz,uuid,uuid,jsonb,timestamptz,jsonb)"
+    }
+  },
+  "capacity": {
+    "backupTransientDiskGiB": 32,
+    "backupTransientMemoryMiB": 1536,
+    "hardDiskGiB": 130.2,
+    "hardMemoryMiB": 7936,
+    "hardOcpu": 1.2,
+    "outboxRetentionDays": 30,
+    "pgbouncerMemoryMiB": 128,
+    "postgresMemoryMiB": 5632,
+    "realtimeRetentionDays": 7,
+    "walMaxGiB": 8
+  },
+  "compatibility": {
+    "decimal": ">=3.0,<4.0",
+    "ectoSql": ">=3.14,<3.15",
+    "oban": ">=2.23,<2.24",
+    "pgbouncerMode": "transaction",
+    "postgresqlMajor": 17,
+    "postgrex": ">=0.22.3,<0.23",
+    "v0ReadCompatibility": true
+  },
+  "connectionBudget": {
+    "directReservation": 10,
+    "ectoPools": {
+      "command": 12,
+      "jobs": 6,
+      "realtime": 4
+    },
+    "pgbouncerServerCapacity": 40,
+    "poolRoleCaps": {
+      "liqi_api": 20,
+      "liqi_realtime": 5,
+      "liqi_worker": 10
+    },
+    "postgresMaxConnections": 80,
+    "reservedHeadroom": 30
+  },
+  "consumerIntegration": {
+    "callbacks": [
+      "readiness/1",
+      "request_probe/1",
+      "observe_probe/2",
+      "claim_probe_events/2",
+      "apply_probe_effect/3",
+      "fail_event/5",
+      "read_handoff/2"
+    ],
+    "commandIdentity": "consumer-module-event_id/1",
+    "module": "LiqiPersistence.RuntimeAdapter",
+    "providerStartupDefault": "disabled-until-runtime-owner-configures-supervision",
+    "repoOwnership": "runtime-configured-single-pool-set"
+  },
+  "contractVersion": "database-runtime-v1",
+  "migrationPolicy": {
+    "direction": "forward-only",
+    "downMigrations": false,
+    "lock": "direct-session-advisory-lock",
+    "registry": "platform.schema_migrations",
+    "runtimeStartupMigration": false,
+    "strategy": "expand-migrate-contract"
+  },
+  "repoSemantics": {
+    "listenNotify": "forbidden-through-runtime-pool",
+    "migrationEndpoint": "direct-postgresql",
+    "prepare": "unnamed",
+    "queryLogging": "disabled-by-provider",
+    "runtimeEndpoint": "pgbouncer",
+    "sessionState": "forbidden",
+    "telemetry": "ecto-repo-events-enabled"
+  },
+  "requiredMigration": 8,
+  "roles": [
+    {
+      "login": false,
+      "name": "liqi_owner",
+      "purpose": "Own durable schemas and functions.",
+      "superuser": false
+    },
+    {
+      "login": true,
+      "name": "liqi_migrator",
+      "purpose": "Apply forward migrations through direct PostgreSQL.",
+      "superuser": false
+    },
+    {
+      "login": true,
+      "name": "liqi_api",
+      "purpose": "Execute command functions through PgBouncer.",
+      "superuser": false
+    },
+    {
+      "login": true,
+      "name": "liqi_realtime",
+      "purpose": "Read committed handoff functions through PgBouncer.",
+      "superuser": false
+    },
+    {
+      "login": true,
+      "name": "liqi_worker",
+      "purpose": "Claim outbox and execute Oban persistence.",
+      "superuser": false
+    },
+    {
+      "login": true,
+      "name": "liqi_readonly",
+      "purpose": "Observe approved projections.",
+      "superuser": false
+    },
+    {
+      "login": true,
+      "name": "liqi_monitor",
+      "purpose": "Read health and metrics.",
+      "superuser": false
+    },
+    {
+      "login": true,
+      "name": "liqi_backup",
+      "purpose": "Create and verify recovery evidence.",
+      "superuser": false
+    }
+  ],
+  "status": "accepted",
+  "timeoutPolicy": {
+    "commandStatementMs": 5000,
+    "idleTransactionMs": 15000,
+    "lockMs": 2000,
+    "poolQueueIntervalMs": 1000,
+    "poolQueueTargetMs": 50,
+    "realtimeStatementMs": 3000,
+    "workerStatementMs": 30000
+  },
+  "transactionPolicy": {
+    "aggregateVersion": "expected-version-compare-and-increment",
+    "commandIsolation": "read-committed-with-row-and-transaction-advisory-locks",
+    "defaultIsolation": "read-committed",
+    "dualWrite": false,
+    "idempotencyLock": "pg_advisory_xact_lock"
+  }
+}
