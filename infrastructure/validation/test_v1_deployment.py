@@ -578,6 +578,8 @@ class HostBundleTests(unittest.TestCase):
         self.assertIn('run(["/usr/bin/systemctl", "is-active", "--quiet", "caddy.service", "otelcol.service"]', installer)
         self.assertNotIn('"restart", "postgresql-17.service"', installer)
         self.assertNotIn('"restart", "pgbouncer.service"', installer)
+        self.assertIn('run(["/usr/sbin/restorecon", "-RF"', installer)
+        self.assertNotIn('/usr/bin/restorecon', installer)
         self.assertIn("def install_host_readiness_override", installer)
         self.assertIn("99-liqi-signed.conf", installer)
         self.assertIn("install_host_readiness_override(manifest)", installer)

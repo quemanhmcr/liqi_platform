@@ -200,6 +200,8 @@ def validate_static_policy() -> None:
     for forbidden in ('"restart", "postgresql-17.service"', '"restart", "pgbouncer.service"'):
         if forbidden in host_installer:
             raise AssertionError(f"host installer must preserve active database services: {forbidden}")
+    if 'run(["/usr/sbin/restorecon", "-RF"' not in host_installer or "/usr/bin/restorecon" in host_installer:
+        raise AssertionError("host installer must use the Enterprise Linux 9 restorecon path")
     package_installer = (INFRA / "bin/liqi-install-runtime-packages").read_text(encoding="utf-8")
     if "stderr=subprocess.DEVNULL" not in package_installer:
         raise AssertionError("host package version evidence must not merge warning stderr into version stdout")

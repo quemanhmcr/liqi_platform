@@ -359,7 +359,7 @@ def main() -> int:
         run(["/usr/bin/systemd-analyze", "verify", *units], timeout=60, capture=True)
         run(["/usr/bin/caddy", "validate", "--config", "/etc/caddy/Caddyfile"], timeout=30, capture=True)
         run(["/usr/bin/otelcol", "validate", "--config", "/etc/otelcol/config.yaml"], timeout=30, capture=True)
-        run(["/usr/bin/restorecon", "-RF", "/usr/local/libexec", "/usr/local/share/liqi", "/etc/caddy", "/etc/otelcol", "/etc/systemd/system"], timeout=60)
+        run(["/usr/sbin/restorecon", "-RF", "/usr/local/libexec", "/usr/local/share/liqi", "/etc/caddy", "/etc/otelcol", "/etc/systemd/system"], timeout=60)
         run(["/usr/bin/systemctl", "daemon-reload"], timeout=60)
         run(["/usr/bin/systemctl", "enable", "caddy.service", "otelcol.service"], timeout=60)
         run(["/usr/bin/systemctl", "restart", "caddy.service", "otelcol.service"], timeout=60)
