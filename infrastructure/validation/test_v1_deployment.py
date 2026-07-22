@@ -406,21 +406,61 @@ class HostBundleTests(unittest.TestCase):
 
         installer = (ROOT / "infrastructure/bin/liqi-install-host-bundle").read_text(encoding="utf-8")
         for token in (
-            "def install_preactivation_tls()",
+            'def install_preactivation_tls(caddy_root: Path = Path("/etc/caddy"))',
             '"rsa:2048"',
             '"-days", "30"',
-            "DNS:preactivation.invalid,DNS:localhost,IP:127.0.0.1",
-            "preactivation TLS certificate and private key do not match",
-            "os.chmod(staged_key, 0o640)",
-            "os.replace(staged_key, key_path)",
+            '"-subj", "/CN=liqi-preactivation"',
+            "preactivation TLS certificate and key do not match",
+            "os.chmod(staged_tls_key, 0o640)",
+            "os.replace(staged_tls_key, tls_key)",
             "install_preactivation_tls()",
         ):
             self.assertIn(token, installer)
-        self.assertNotIn("private_key =", installer)
+        for forbidden in ("private_key =", "subjectAltName=", "DNS:localhost", "IP:127.0.0.1"):
+            self.assertNotIn(forbidden, installer)
 
         stage = (ROOT / "infrastructure/deployment/stage_mix_release.py").read_text(encoding="utf-8")
         self.assertIn('atomic_write(runtime_install, runtime_path.read_bytes(), group="liqi")', stage)
         self.assertIn("os.chown(temporary, 0, grp.getgrnam(group).gr_gid)", stage)
+
+    def test_preactivation_certificate_command_and_file_metadata_are_bounded(self) -> None:
+        installer = load_host_bundle_installer()
+        commands: list[list[str]] = []
+
+        def fake_run(argv: list[str], **_kwargs) -> str:
+            commands.append(argv)
+            if argv[1:4] == ["req", "-x509", "-newkey"]:
+                Path(argv[argv.index("-keyout") + 1]).write_text("test-key", encoding="utf-8")
+                Path(argv[argv.index("-out") + 1]).write_text("test-certificate", encoding="utf-8")
+            if "-pubout" in argv or "-pubkey" in argv:
+                return "matching-public-key"
+            return ""
+
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(installer, "run", side_effect=fake_run),
+            patch.object(installer.pwd, "getpwnam", return_value=types.SimpleNamespace(pw_uid=0), create=True),
+            patch.object(installer.grp, "getgrnam", return_value=types.SimpleNamespace(gr_gid=991), create=True),
+            patch.object(installer.os, "chmod") as chmod,
+            patch.object(installer.os, "chown", create=True) as chown,
+        ):
+            caddy_root = Path(directory)
+            installer.install_preactivation_tls(caddy_root)
+            certificate = caddy_root / "preactivation.crt"
+            tls_key = caddy_root / "preactivation.key"
+            self.assertTrue(certificate.is_file())
+            self.assertTrue(tls_key.is_file())
+            self.assertEqual([0o644, 0o640], [call.args[1] for call in chmod.call_args_list])
+            self.assertEqual([0, 0], [call.args[1] for call in chown.call_args_list])
+            self.assertEqual([991, 991], [call.args[2] for call in chown.call_args_list])
+            self.assertEqual(["preactivation.crt", "preactivation.key"], [call.args[0].name for call in chown.call_args_list])
+
+        request = next(argv for argv in commands if argv[1:4] == ["req", "-x509", "-newkey"])
+        for expected in ("rsa:2048", "-sha256", "-nodes", "30", "/CN=liqi-preactivation"):
+            self.assertIn(expected, request)
+        self.assertNotIn("-addext", request)
+        self.assertNotIn("localhost", " ".join(request))
+        self.assertNotIn("127.0.0.1", " ".join(request))
 
     def test_inventory_is_bounded_and_has_unique_targets(self) -> None:
         targets = [record[1] for record in build_host_bundle.FILES]

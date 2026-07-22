@@ -172,59 +172,57 @@ def apply_ownership(manifest: dict[str, object]) -> None:
         os.chmod(target, int(str(record["mode"]), 8))
 
 
-def install_preactivation_tls() -> None:
-    caddy_root = Path("/etc/caddy")
-    certificate = caddy_root / "preactivation.crt"
-    key_path = caddy_root / "preactivation.key"
-    if certificate.is_symlink() or key_path.is_symlink():
+def install_preactivation_tls(caddy_root: Path = Path("/etc/caddy")) -> None:
+    tls_certificate = caddy_root / "preactivation.crt"
+    tls_key = caddy_root / "preactivation.key"
+    if tls_certificate.is_symlink() or tls_key.is_symlink():
         raise RuntimeError("preactivation TLS paths must not be symbolic links")
 
     caddy_root.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".liqi-preactivation-tls-", dir=caddy_root) as directory:
         workspace = Path(directory)
-        staged_certificate = workspace / certificate.name
-        staged_key = workspace / key_path.name
+        staged_tls_certificate = workspace / tls_certificate.name
+        staged_tls_key = workspace / tls_key.name
         run(
             [
                 "/usr/bin/openssl", "req", "-x509", "-newkey", "rsa:2048",
                 "-sha256", "-nodes", "-days", "30",
-                "-subj", "/CN=preactivation.invalid",
-                "-addext", "subjectAltName=DNS:preactivation.invalid,DNS:localhost,IP:127.0.0.1",
-                "-keyout", str(staged_key),
-                "-out", str(staged_certificate),
+                "-subj", "/CN=liqi-preactivation",
+                "-keyout", str(staged_tls_key),
+                "-out", str(staged_tls_certificate),
             ],
             timeout=60,
             capture=True,
         )
         run(
             [
-                "/usr/bin/openssl", "x509", "-in", str(staged_certificate),
+                "/usr/bin/openssl", "x509", "-in", str(staged_tls_certificate),
                 "-noout", "-checkend", "86400",
             ],
             timeout=30,
             capture=True,
         )
-        key_public = run(
-            ["/usr/bin/openssl", "pkey", "-in", str(staged_key), "-pubout"],
+        tls_key_public = run(
+            ["/usr/bin/openssl", "pkey", "-in", str(staged_tls_key), "-pubout"],
             timeout=30,
             capture=True,
         )
         certificate_public = run(
-            ["/usr/bin/openssl", "x509", "-in", str(staged_certificate), "-pubkey", "-noout"],
+            ["/usr/bin/openssl", "x509", "-in", str(staged_tls_certificate), "-pubkey", "-noout"],
             timeout=30,
             capture=True,
         )
-        if key_public != certificate_public:
-            raise RuntimeError("preactivation TLS certificate and private key do not match")
+        if tls_key_public != certificate_public:
+            raise RuntimeError("preactivation TLS certificate and key do not match")
 
         root_uid = pwd.getpwnam("root").pw_uid
         caddy_gid = grp.getgrnam("caddy").gr_gid
-        os.chmod(staged_certificate, 0o644)
-        os.chmod(staged_key, 0o640)
-        os.chown(staged_certificate, root_uid, caddy_gid)
-        os.chown(staged_key, root_uid, caddy_gid)
-        os.replace(staged_certificate, certificate)
-        os.replace(staged_key, key_path)
+        os.chmod(staged_tls_certificate, 0o644)
+        os.chmod(staged_tls_key, 0o640)
+        os.chown(staged_tls_certificate, root_uid, caddy_gid)
+        os.chown(staged_tls_key, root_uid, caddy_gid)
+        os.replace(staged_tls_certificate, tls_certificate)
+        os.replace(staged_tls_key, tls_key)
 
 
 def write_evidence(args: argparse.Namespace, manifest: dict[str, object], manifest_path: Path, signature_path: Path) -> None:
