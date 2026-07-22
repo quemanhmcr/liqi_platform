@@ -1,1 +1,1 @@
-Migration readiness and runtime/database inputs are populated only after live database gates pass.
+Production control inputs for exact source 6dc51867cdae6dbc4e51901eac07b2feb48254c9 and release liqi-v1-e5-ol9-6dc51867cdae. Migration readiness is live read-only evidence; no private signing material is stored here.

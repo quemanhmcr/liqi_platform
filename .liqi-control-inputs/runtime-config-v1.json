@@ -35,7 +35,7 @@
     "handoffPollIntervalMs": 50,
     "maxMessageBytes": 65536
   },
-  "releaseId": "liqi-v1-e5-33e7a093005f",
+  "releaseId": "liqi-v1-e5-ol9-6dc51867cdae",
   "requests": {
     "bodyBytes": 1048576,
     "boundedTasks": 32,
