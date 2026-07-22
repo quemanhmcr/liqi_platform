@@ -50,7 +50,8 @@ class SafetyGateTest(unittest.TestCase):
         upload = workflow.split("- name: Upload native safety evidence", 1)[1].split(
             "- name: Build exact x86_64 native artifact", 1
         )[0]
-        self.assertIn("if: always()", upload)
+        self.assertIn("always()", upload)
+        self.assertIn("steps.native_safety.outcome != 'skipped'", upload)
         self.assertIn("path: .artifacts/e5/**", upload)
         self.assertIn("${{ github.run_attempt }}", upload)
 
