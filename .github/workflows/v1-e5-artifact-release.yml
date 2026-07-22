@@ -140,6 +140,7 @@ jobs:
           printf '%s  %s\n' "$RUSTUP_INIT_SHA256" "$RUNNER_TEMP/rustup-init" | sha256sum --check --strict
           chmod 0755 "$RUNNER_TEMP/rustup-init"
           "$RUNNER_TEMP/rustup-init" -y --no-modify-path --profile minimal --default-toolchain none
+          printf 'RUSTUP_HOME=%s\nCARGO_HOME=%s\n' "$RUSTUP_HOME" "$CARGO_HOME" >> "$GITHUB_ENV"
           echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
           export PATH="$CARGO_HOME/bin:$PATH"
           rustup toolchain install 1.97.1 --profile minimal --component rustfmt,clippy --target x86_64-unknown-linux-gnu
@@ -149,6 +150,16 @@ jobs:
           cargo +1.97.1 install cargo-fuzz --version "$CARGO_FUZZ_VERSION" --locked
           rustc +1.97.1 -vV
           cargo +"$LIQI_FUZZ_TOOLCHAIN" fuzz --help >/dev/null
+
+      - name: Verify pinned Rust toolchain persistence
+        run: |
+          set -euo pipefail
+          [[ "$RUSTUP_HOME" == "$RUNNER_TEMP/rustup" ]]
+          [[ "$CARGO_HOME" == "$RUNNER_TEMP/cargo" ]]
+          rustup target list --installed --toolchain 1.97.1 | grep -Fx 'aarch64-unknown-linux-gnu'
+          rustup component list --installed --toolchain 1.97.1 | grep -E '^rustfmt-.* \(installed\)$'
+          rustup component list --installed --toolchain 1.97.1 | grep -E '^clippy-.* \(installed\)$'
+          cargo +1.97.1 --version
 
       - name: Install checksum-pinned cosign
         run: |
