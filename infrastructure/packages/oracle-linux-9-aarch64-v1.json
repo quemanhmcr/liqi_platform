@@ -7,14 +7,16 @@
     {
       "name": "PostgreSQL",
       "major_version": "17",
-      "source": "https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-aarch64/pgdg-redhat-repo-42.0-64.rhel9PGDG.noarch.rpm",
+      "source": "https://download.postgresql.org/pub/repos/yum/common/redhat/rhel-9-aarch64/pgdg-redhat-repo-42.0-64.rhel9PGDG.noarch.rpm",
       "install_names": [
         "postgresql17-17.10",
         "postgresql17-server-17.10",
         "postgresql17-contrib-17.10"
       ],
-      "verification": "PGDG RPM signature, exact reviewed minor version, and installed NEVRA evidence",
-      "version": "17.10"
+      "verification": "Exact SHA256, PGDG RPM integrity, reviewed repo NEVRA, exact PostgreSQL minor version, and installed NEVRA evidence",
+      "version": "17.10",
+      "sha256": "c7e6facc5a87018fe138990f3db11e3200f878dd23ffb0d0827b387bc93944ef",
+      "repo_nevra": "pgdg-redhat-repo-42.0-64.rhel9PGDG.noarch"
     },
     {
       "name": "PgBouncer",

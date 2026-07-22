@@ -9,14 +9,16 @@ from pathlib import Path
 
 ARCHITECTURES = {
     "aarch64": {
-        "pgdg": "EL-9-aarch64",
+        "pgdg": "common/redhat/rhel-9-aarch64",
+        "pgdg_sha256": "c7e6facc5a87018fe138990f3db11e3200f878dd23ffb0d0827b387bc93944ef",
         "caddy": "linux_arm64",
         "otel": "linux_arm64",
         "cosign": "linux-arm64",
         "target_triple": "aarch64-unknown-linux-gnu",
     },
     "x86_64": {
-        "pgdg": "EL-9-x86_64",
+        "pgdg": "common/redhat/rhel-9-x86_64",
+        "pgdg_sha256": "02b8767ad537a0003bffb1ff92707d8c30c3bcecab553bb36ebbae22cb83940d",
         "caddy": "linux_amd64",
         "otel": "linux_amd64",
         "cosign": "linux-amd64",
@@ -73,14 +75,18 @@ def settings(document: dict[str, object], machine: str) -> list[str]:
     if caddy.get("version") != "2.11.3" or otel.get("version") != "0.156.0" or cosign.get("version") != "3.1.2":
         raise ValueError("binary package version pin changed")
 
-    pgdg_url = exact_text(postgres, "source", rf"https://download\.postgresql\.org/pub/repos/yum/reporpms/{architecture['pgdg']}/pgdg-redhat-repo-42\.0-64\.rhel9PGDG\.noarch\.rpm")
+    pgdg_url = exact_text(postgres, "source", rf"https://download\.postgresql\.org/pub/repos/yum/{architecture['pgdg']}/pgdg-redhat-repo-42\.0-64\.rhel9PGDG\.noarch\.rpm")
+    pgdg_sha256 = exact_text(postgres, "sha256", r"[0-9a-f]{64}")
+    if pgdg_sha256 != architecture["pgdg_sha256"]:
+        raise ValueError("PGDG repository checksum pin changed")
+    pgdg_nevra = exact_text(postgres, "repo_nevra", r"pgdg-redhat-repo-42\.0-64\.rhel9PGDG\.noarch")
     caddy_url = exact_text(caddy, "source", rf"https://github\.com/caddyserver/caddy/releases/download/v2\.11\.3/caddy_2\.11\.3_{architecture['caddy']}\.tar\.gz")
     otel_url = exact_text(otel, "source", rf"https://github\.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0\.156\.0/otelcol_0\.156\.0_{architecture['otel']}\.rpm")
     cosign_url = exact_text(cosign, "source", rf"https://github\.com/sigstore/cosign/releases/download/v3\.1\.2/cosign-{architecture['cosign']}")
     return [
         machine,
         architecture["target_triple"],
-        pgdg_url,
+        pgdg_url, pgdg_sha256, pgdg_nevra,
         str(caddy["version"]), caddy_url, exact_text(caddy, "sha512", r"[0-9a-f]{128}"),
         str(otel["version"]), otel_url, exact_text(otel, "sha256", r"[0-9a-f]{64}"),
         str(cosign["version"]), cosign_url, exact_text(cosign, "sha256", r"[0-9a-f]{64}"),

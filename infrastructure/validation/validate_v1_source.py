@@ -345,12 +345,14 @@ def validate_static_policy() -> None:
             "caddy_sha512": "bd06996e1612cf5e9770dc7134313067ef3fdfde43b1a2196004906006de779372dcf7a0e7c7fb0890c23791179f12be4625f1b6e666a2abf37e8aff4c3a1826",
             "otel_sha256": "c32b61c2ab0819312483425bf4a937c18bd1849704c89da909bc9bcd2cdf4c63",
             "cosign_sha256": "90e7ae0b5dfd60f20816b52c012addf7fc055ebcc7bea4ce81c428ca8518c302",
+            "pgdg_sha256": "c7e6facc5a87018fe138990f3db11e3200f878dd23ffb0d0827b387bc93944ef",
         },
         "x86_64": {
             "path": "oracle-linux-9-x86_64-v1.json",
             "caddy_sha512": "ee886eceda0ff9f30610d3be9b5b594026591e19add6b3961a341c72abe468e5eac9d7c2c2450bbb8420db1f827b954521f9336be4872f81090b8618adf8815a",
             "otel_sha256": "544e5a31d3171f74d698cb5696a6a3546eb9e86063bda9bfacd5325dbabda7ca",
             "cosign_sha256": "f7622ed3cf22e55e1ae6377c080979ff77a22da9981c11df222a2e444991e7cf",
+            "pgdg_sha256": "02b8767ad537a0003bffb1ff92707d8c30c3bcecab553bb36ebbae22cb83940d",
         },
     }
     for architecture, expected in package_expectations.items():
@@ -360,6 +362,12 @@ def validate_static_policy() -> None:
         packages = {item["name"]: item for item in package_manifest["packages"]}
         if packages.get("PostgreSQL", {}).get("version") != "17.10" or packages.get("PgBouncer", {}).get("version") != "1.25.2" or packages.get("pgBackRest", {}).get("version") != "2.58.0":
             raise AssertionError(f"database package pin changed for {architecture}")
+        if packages.get("PostgreSQL", {}).get("sha256") != expected["pgdg_sha256"]:
+            raise AssertionError(f"PGDG checksum pin changed for {architecture}")
+        if packages.get("PostgreSQL", {}).get("repo_nevra") != "pgdg-redhat-repo-42.0-64.rhel9PGDG.noarch":
+            raise AssertionError(f"PGDG repository NEVRA changed for {architecture}")
+        if "/pub/repos/yum/common/redhat/rhel-9-" not in packages.get("PostgreSQL", {}).get("source", ""):
+            raise AssertionError(f"PGDG repository source is not the fetchable primary path for {architecture}")
         if packages.get("Caddy", {}).get("sha512") != expected["caddy_sha512"]:
             raise AssertionError(f"Caddy checksum pin changed for {architecture}")
         if packages.get("OpenTelemetry Collector", {}).get("sha256") != expected["otel_sha256"]:
@@ -368,10 +376,10 @@ def validate_static_policy() -> None:
             raise AssertionError(f"cosign checksum pin changed for {architecture}")
     package_parser = (INFRA / "deployment/host_package_manifest.py").read_text(encoding="utf-8")
     installer = (INFRA / "bin/liqi-install-runtime-packages").read_text(encoding="utf-8")
-    for token in ("host package manifest architecture mismatch", "x86_64-unknown-linux-gnu", "EL-9-x86_64", "linux_amd64"):
+    for token in ("host package manifest architecture mismatch", "x86_64-unknown-linux-gnu", "common/redhat/rhel-9-x86_64", "linux_amd64", "PGDG repository checksum pin changed"):
         if token not in package_parser:
             raise AssertionError(f"architecture-aware package manifest parser is missing {token}")
-    for token in ("liqi-host-package-settings", "PACKAGE_INSTALL_NAMES", "package_manifest_sha256", "HOST_TARGET_TRIPLE"):
+    for token in ("liqi-host-package-settings", "PACKAGE_INSTALL_NAMES", "package_manifest_sha256", "HOST_TARGET_TRIPLE", "PGDG_REPO_SHA256", "PGDG_REPO_NEVRA", "active PostgreSQL was not preserved", "active PgBouncer was not preserved"):
         if token not in installer:
             raise AssertionError(f"architecture-aware package installer is missing {token}")
     beam_unit = (systemd / "liqi-beam.service").read_text(encoding="utf-8")

@@ -487,17 +487,29 @@ class HostBundleTests(unittest.TestCase):
 
     def test_host_package_manifests_bind_architecture_and_urls(self) -> None:
         cases = [
-            ("aarch64", "infrastructure/packages/oracle-linux-9-aarch64-v1.json", "aarch64-unknown-linux-gnu", "linux_arm64"),
-            ("x86_64", "infrastructure/packages/oracle-linux-9-x86_64-v1.json", "x86_64-unknown-linux-gnu", "linux_amd64"),
+            ("aarch64", "infrastructure/packages/oracle-linux-9-aarch64-v1.json", "aarch64-unknown-linux-gnu", "linux_arm64", "c7e6facc5a87018fe138990f3db11e3200f878dd23ffb0d0827b387bc93944ef"),
+            ("x86_64", "infrastructure/packages/oracle-linux-9-x86_64-v1.json", "x86_64-unknown-linux-gnu", "linux_amd64", "02b8767ad537a0003bffb1ff92707d8c30c3bcecab553bb36ebbae22cb83940d"),
         ]
-        for architecture, relative, target, url_token in cases:
+        for architecture, relative, target, url_token, pgdg_sha256 in cases:
             document = json.loads((ROOT / relative).read_text(encoding="utf-8"))
             values = host_package_manifest.settings(document, architecture)
             self.assertEqual([architecture, target], values[:2])
             self.assertTrue(any(url_token in value for value in values))
+            self.assertIn(pgdg_sha256, values)
+            self.assertIn("pgdg-redhat-repo-42.0-64.rhel9PGDG.noarch", values)
+            self.assertIn("/pub/repos/yum/common/redhat/rhel-9-", values[2])
             other = "x86_64" if architecture == "aarch64" else "aarch64"
             with self.assertRaisesRegex(ValueError, "architecture"):
                 host_package_manifest.settings(document, other)
+
+        installer = (ROOT / "infrastructure/bin/liqi-install-runtime-packages").read_text(encoding="utf-8")
+        for token in (
+            "PGDG_REPO_SHA256", "PGDG_REPO_NEVRA", "database_was_active", "pgbouncer_was_active",
+            "active PostgreSQL was not preserved", "active PgBouncer was not preserved",
+            "PostgreSQL started unexpectedly during package installation",
+        ):
+            self.assertIn(token, installer)
+        self.assertNotIn("systemctl disable --now postgresql-17.service pgbouncer.service", installer)
 
     def test_host_bundle_target_must_match_host_architecture(self) -> None:
         installer = load_host_bundle_installer()
