@@ -51,6 +51,9 @@ class SafetyGateTest(unittest.TestCase):
         self.assertIn("RUSTUP_HOME=%s\\nCARGO_HOME=%s", workflow)
         self.assertIn("Verify pinned Rust toolchain persistence", workflow)
         self.assertIn("rustup target list --installed --toolchain 1.97.1", workflow)
+        self.assertIn("rustfmt-x86_64-unknown-linux-gnu", workflow)
+        self.assertIn("clippy-x86_64-unknown-linux-gnu", workflow)
+        self.assertNotIn("(installed)$", workflow)
         upload = workflow.split("- name: Upload native safety evidence", 1)[1].split(
             "- name: Build exact x86_64 native artifact", 1
         )[0]

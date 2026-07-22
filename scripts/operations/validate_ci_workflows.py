@@ -184,6 +184,8 @@ def main() -> int:
                 '>> "$GITHUB_ENV"',
                 "Verify pinned Rust toolchain persistence",
                 "rustup target list --installed --toolchain 1.97.1",
+                "rustfmt-x86_64-unknown-linux-gnu",
+                "clippy-x86_64-unknown-linux-gnu",
                 "20a06e644b0d9bd2fbdbfd52d42540bdde820ea7df86e92e533c073da0cdd43c",
                 "nightly-2026-07-01",
                 'CARGO_FUZZ_VERSION: "0.13.2"',
