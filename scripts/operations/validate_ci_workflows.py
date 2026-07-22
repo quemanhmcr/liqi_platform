@@ -173,6 +173,10 @@ def main() -> int:
                 "container:",
                 "oraclelinux:9@sha256:24b2d51e33d781a48b380fc409146d13c5249113518297e8292c7f3aefa11212",
                 "Bootstrap pinned Oracle Linux 9 build container",
+                "Trust exact container workspace",
+                'git config --global --add safe.directory "$GITHUB_WORKSPACE"',
+                "id: native_safety",
+                "steps.native_safety.outcome != 'skipped'",
                 "shell: bash",
                 "scripts/release/install_ol9_beam_toolchain.sh",
                 "rustup/archive/${RUSTUP_VERSION}/x86_64-unknown-linux-gnu/rustup-init",
@@ -207,8 +211,15 @@ def main() -> int:
                 failures.append(f"{relative}: private signing keys must remain under RUNNER_TEMP")
             step_by_name = {step.get("name"): step for step in iter_steps(workflow) if step.get("name")}
             safety_upload = step_by_name.get("Upload native safety evidence")
-            if not isinstance(safety_upload, dict) or safety_upload.get("if") != "always()":
-                failures.append(f"{relative}: native safety evidence must upload with if: always()")
+            safety_condition = safety_upload.get("if", "") if isinstance(safety_upload, dict) else ""
+            if (
+                not isinstance(safety_condition, str)
+                or "always()" not in safety_condition
+                or "steps.native_safety.outcome != 'skipped'" not in safety_condition
+            ):
+                failures.append(
+                    f"{relative}: native safety evidence must upload after an attempted gate but not after a skipped gate"
+                )
             safety_upload_with = safety_upload.get("with", {}) if isinstance(safety_upload, dict) else {}
             safety_path = safety_upload_with.get("path", "") if isinstance(safety_upload_with, dict) else ""
             if ".artifacts/e5/**" not in safety_path:

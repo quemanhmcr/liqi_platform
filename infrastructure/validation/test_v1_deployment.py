@@ -716,6 +716,10 @@ class PlanValidationTests(unittest.TestCase):
         self.assertIn("LC_ALL=C sort -z", workflow)
         self.assertIn("sha256sum --check --strict SHA256SUMS", workflow)
         self.assertNotIn('find "$publication" -type f -print0', workflow)
+        self.assertIn("Trust exact container workspace", workflow)
+        self.assertIn('git config --global --add safe.directory "$GITHUB_WORKSPACE"', workflow)
+        self.assertIn("id: native_safety", workflow)
+        self.assertIn("steps.native_safety.outcome != 'skipped'", workflow)
 
     def test_initial_plan_action_counts_are_exact(self) -> None:
         changes = []

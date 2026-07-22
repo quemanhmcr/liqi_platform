@@ -76,6 +76,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Trust exact container workspace
+        run: |
+          set -euo pipefail
+          [[ -n "$GITHUB_WORKSPACE" && "$GITHUB_WORKSPACE" == /__w/*/* ]]
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          [[ "$(git config --global --get-all safe.directory | tail -n 1)" == "$GITHUB_WORKSPACE" ]]
+
       - name: Validate protected inputs and exact source
         env:
           RELEASE_ID: ${{ inputs.release_id }}
@@ -185,6 +192,7 @@ jobs:
           mix format --check-formatted
 
       - name: Run exact-SHA native safety gates
+        id: native_safety
         env:
           LIQI_FUZZ_SECONDS: ${{ inputs.fuzz_seconds }}
         run: |
@@ -192,7 +200,7 @@ jobs:
           python native/scripts/run_v1_safety_gates.py --output .artifacts/e5/native-safety-result-v1.json
 
       - name: Upload native safety evidence
-        if: always()
+        if: ${{ always() && steps.native_safety.outcome != 'skipped' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: liqi-v1-e5-native-safety-${{ github.sha }}-${{ github.run_attempt }}
