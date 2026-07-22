@@ -189,6 +189,32 @@ def remove_legacy_systemd_units(systemd_root: Path = Path("/etc/systemd/system")
             path.unlink()
 
 
+def install_host_readiness_override(
+    manifest: dict[str, object],
+    systemd_root: Path = Path("/etc/systemd/system"),
+) -> None:
+    git_sha = str(manifest.get("git_sha", ""))
+    if not re.fullmatch(r"[0-9a-f]{40}", git_sha):
+        raise RuntimeError("signed host readiness override requires exact Git SHA")
+    dropin_root = systemd_root / "liqi-host-readiness.service.d"
+    target = dropin_root / "99-liqi-signed.conf"
+    if target.is_symlink():
+        raise RuntimeError("signed host readiness override must not be a symbolic link")
+    content = (
+        "[Service]\n"
+        f"Environment=LIQI_INFRASTRUCTURE_GIT_SHA={git_sha}\n"
+        "ExecStart=\n"
+        "ExecStart=/usr/local/libexec/liqi-host-readiness --output /run/liqi/host-runtime-v1.json\n"
+    ).encode("utf-8")
+    dropin_root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".liqi-signed-readiness-", dir=dropin_root) as directory:
+        staged = Path(directory) / target.name
+        staged.write_bytes(content)
+        os.chmod(staged, 0o644)
+        os.chown(staged, pwd.getpwnam("root").pw_uid, grp.getgrnam("root").gr_gid)
+        os.replace(staged, target)
+
+
 def install_preactivation_tls(caddy_root: Path = Path("/etc/caddy")) -> None:
     tls_certificate = caddy_root / "preactivation.crt"
     tls_key = caddy_root / "preactivation.key"
@@ -312,6 +338,7 @@ def main() -> int:
         apply_ownership(manifest)
         remove_legacy_systemd_units()
         install_preactivation_tls()
+        install_host_readiness_override(manifest)
         units = [
             "/etc/systemd/system/liqi-platform.slice",
             "/etc/systemd/system/liqi-platform-beam.slice",
@@ -334,7 +361,9 @@ def main() -> int:
         run(["/usr/bin/otelcol", "validate", "--config", "/etc/otelcol/config.yaml"], timeout=30, capture=True)
         run(["/usr/bin/restorecon", "-RF", "/usr/local/libexec", "/usr/local/share/liqi", "/etc/caddy", "/etc/otelcol", "/etc/systemd/system"], timeout=60)
         run(["/usr/bin/systemctl", "daemon-reload"], timeout=60)
-        run(["/usr/bin/systemctl", "enable", "--now", "caddy.service", "otelcol.service"], timeout=60)
+        run(["/usr/bin/systemctl", "enable", "caddy.service", "otelcol.service"], timeout=60)
+        run(["/usr/bin/systemctl", "restart", "caddy.service", "otelcol.service"], timeout=60)
+        run(["/usr/bin/systemctl", "is-active", "--quiet", "caddy.service", "otelcol.service"], timeout=30)
         write_evidence(args, manifest, manifest_path, signature_path)
 
     print(json.dumps({"status": "staged", "bundle_id": args.bundle_id, "release_activated": False}))

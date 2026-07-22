@@ -184,9 +184,25 @@ def validate_static_policy() -> None:
         '"liqi-edge.slice"',
         '"liqi-telemetry.slice"',
         "remove_legacy_systemd_units()",
+        "def install_host_readiness_override(",
+        "99-liqi-signed.conf",
+        "LIQI_INFRASTRUCTURE_GIT_SHA",
+        "install_host_readiness_override(manifest)",
     ):
         if token not in host_installer:
             raise AssertionError(f"host installer missing bounded legacy systemd cleanup: {token}")
+    for token in (
+        'run(["/usr/bin/systemctl", "restart", "caddy.service", "otelcol.service"]',
+        'run(["/usr/bin/systemctl", "is-active", "--quiet", "caddy.service", "otelcol.service"]',
+    ):
+        if token not in host_installer:
+            raise AssertionError(f"host installer must activate and confirm signed edge/telemetry config: {token}")
+    for forbidden in ('"restart", "postgresql-17.service"', '"restart", "pgbouncer.service"'):
+        if forbidden in host_installer:
+            raise AssertionError(f"host installer must preserve active database services: {forbidden}")
+    package_installer = (INFRA / "bin/liqi-install-runtime-packages").read_text(encoding="utf-8")
+    if "stderr=subprocess.DEVNULL" not in package_installer:
+        raise AssertionError("host package version evidence must not merge warning stderr into version stdout")
     beam = (systemd / "liqi-beam.service").read_text(encoding="utf-8")
     if "MemoryDenyWriteExecute" in beam or "User=liqi-beam" not in beam or "NoNewPrivileges=yes" not in beam:
         raise AssertionError("BEAM unit hardening/JIT compatibility changed")

@@ -503,6 +503,36 @@ class HostBundleTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 installer.remove_legacy_systemd_units(root)
 
+    def test_signed_readiness_override_supersedes_temporary_remediation(self) -> None:
+        installer = load_host_bundle_installer()
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(installer.pwd, "getpwnam", return_value=types.SimpleNamespace(pw_uid=0), create=True),
+            patch.object(installer.grp, "getgrnam", return_value=types.SimpleNamespace(gr_gid=0), create=True),
+            patch.object(installer.os, "chown", create=True) as chown,
+        ):
+            root = Path(directory)
+            dropins = root / "liqi-host-readiness.service.d"
+            dropins.mkdir()
+            (dropins / "95-cgroupfix.conf").write_text("[Service]\nExecStart=/temporary-remediation\n", encoding="utf-8")
+            installer.install_host_readiness_override({"git_sha": "a" * 40}, root)
+            signed = dropins / "99-liqi-signed.conf"
+            self.assertEqual(
+                "[Service]\n"
+                f"Environment=LIQI_INFRASTRUCTURE_GIT_SHA={'a' * 40}\n"
+                "ExecStart=\n"
+                "ExecStart=/usr/local/libexec/liqi-host-readiness --output /run/liqi/host-runtime-v1.json\n",
+                signed.read_text(encoding="utf-8"),
+            )
+            self.assertTrue((dropins / "95-cgroupfix.conf").is_file())
+            self.assertEqual((signed, 0, 0), chown.call_args.args)
+            signed.unlink()
+            signed.symlink_to(dropins / "95-cgroupfix.conf")
+            with self.assertRaisesRegex(RuntimeError, "symbolic link"):
+                installer.install_host_readiness_override({"git_sha": "b" * 40}, root)
+            with self.assertRaisesRegex(RuntimeError, "exact Git SHA"):
+                installer.install_host_readiness_override({"git_sha": "not-a-sha"}, root)
+
     def test_systemd_topology_uses_name_derived_slice_hierarchy(self) -> None:
         systemd = ROOT / "infrastructure/systemd"
         child_slices = (
@@ -541,6 +571,15 @@ class HostBundleTests(unittest.TestCase):
             installer.index('run(["/usr/bin/systemd-analyze", "verify", *units]'),
             installer.index('run(["/usr/bin/systemctl", "daemon-reload"]'),
         )
+        self.assertIn('run(["/usr/bin/systemctl", "restart", "caddy.service", "otelcol.service"]', installer)
+        self.assertIn('run(["/usr/bin/systemctl", "is-active", "--quiet", "caddy.service", "otelcol.service"]', installer)
+        self.assertNotIn('"restart", "postgresql-17.service"', installer)
+        self.assertNotIn('"restart", "pgbouncer.service"', installer)
+        self.assertIn("def install_host_readiness_override", installer)
+        self.assertIn("99-liqi-signed.conf", installer)
+        self.assertIn("install_host_readiness_override(manifest)", installer)
+        package_installer = (ROOT / "infrastructure/bin/liqi-install-runtime-packages").read_text(encoding="utf-8")
+        self.assertIn("stderr=subprocess.DEVNULL", package_installer)
 
     def test_inventory_is_bounded_and_has_unique_targets(self) -> None:
         targets = [record[1] for record in build_host_bundle.FILES]
