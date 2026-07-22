@@ -53,6 +53,8 @@ class LinuxReleaseBuilderTests(unittest.TestCase):
             "artifact and manifest signing key IDs must be distinct",
             "artifact and manifest signing public keys must be distinct",
             "self-verification did not pass",
+            "EL9 ABI compatibility failed",
+            "Enterprise Linux 9 userspace",
             "BUILD_RESULT_SCHEMA",
             "build_result.write_text",
             "os.replace(staged_output, final_output)",

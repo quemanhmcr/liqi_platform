@@ -19,3 +19,12 @@
 	}
 	respond "LIQI edge is staged but traffic is not enabled" 503
 }
+
+:443 {
+	bind 0.0.0.0 ::
+	tls /etc/caddy/preactivation.crt /etc/caddy/preactivation.key
+	log {
+		format json
+	}
+	respond "LIQI edge is staged but traffic is not enabled" 503
+}

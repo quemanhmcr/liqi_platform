@@ -72,6 +72,7 @@ BASE_FILES: tuple[tuple[str, str, int, str, str], ...] = (
     ("contracts/infrastructure/host-runtime-v1.schema.json", "/usr/local/share/liqi/contracts/infrastructure/host-runtime-v1.schema.json", 0o644, "root", "root"),
     ("contracts/infrastructure/secret-mapping-v1.schema.json", "/usr/local/share/liqi/contracts/infrastructure/secret-mapping-v1.schema.json", 0o644, "root", "root"),
     ("contracts/infrastructure/database-credentials-v1.schema.json", "/usr/local/share/liqi/contracts/infrastructure/database-credentials-v1.schema.json", 0o644, "root", "root"),
+    ("contracts/infrastructure/first-release-recovery-v1.schema.json", "/usr/local/share/liqi/contracts/infrastructure/first-release-recovery-v1.schema.json", 0o644, "root", "root"),
     ("contracts/deployment/mix-release-v1.schema.json", "/usr/local/share/liqi/contracts/deployment/mix-release-v1.schema.json", 0o644, "root", "root"),
     ("contracts/deployment/mix-deployment-v1.schema.json", "/usr/local/share/liqi/contracts/deployment/mix-deployment-v1.schema.json", 0o644, "root", "root"),
     ("contracts/deployment/v0-rollback-compatibility-v1.schema.json", "/usr/local/share/liqi/contracts/deployment/v0-rollback-compatibility-v1.schema.json", 0o644, "root", "root"),

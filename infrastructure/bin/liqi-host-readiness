@@ -157,11 +157,24 @@ def main() -> int:
     failed |= bool(persistent_plaintext)
 
     reserve_preserved = False
+    control_group_rc, control_group = command(
+        "systemctl", "show", "--property=ControlGroup", "--value", "liqi-platform.slice"
+    )
     try:
-        memory_max = Path("/sys/fs/cgroup/liqi-platform.slice/memory.max").read_text().strip()
-        cpu_max = Path("/sys/fs/cgroup/liqi-platform.slice/cpu.max").read_text().strip().split()
-        reserve_preserved = memory_max == str(20 * 1024**3) and len(cpu_max) == 2
-    except OSError:
+        if control_group_rc != 0 or not control_group.startswith("/") or ".." in Path(control_group).parts:
+            raise OSError("invalid liqi-platform.slice control group")
+        cgroup_root = Path("/sys/fs/cgroup").resolve(strict=True)
+        cgroup_path = (cgroup_root / control_group.lstrip("/")).resolve(strict=True)
+        cgroup_path.relative_to(cgroup_root)
+        memory_max = (cgroup_path / "memory.max").read_text().strip()
+        cpu_max = (cgroup_path / "cpu.max").read_text().strip().split()
+        swap_max = (cgroup_path / "memory.swap.max").read_text().strip()
+        reserve_preserved = (
+            memory_max == str(20 * 1024**3)
+            and cpu_max == ["300000", "100000"]
+            and swap_max == "0"
+        )
+    except (OSError, ValueError):
         pass
     checks.append({"name": "platform-capacity-bound", "status": "passed" if reserve_preserved else "failed", "detail": "CPUQuota=300%, MemoryMax=20G, swap=0 required"})
     failed |= not reserve_preserved

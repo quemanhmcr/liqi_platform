@@ -55,6 +55,18 @@ def load_database_credential_provider():
 
 
 class ReleaseBoundaryTests(unittest.TestCase):
+    def test_invalid_deployment_id_fails_before_state_inspection(self) -> None:
+        from argparse import Namespace
+
+        args = Namespace(maximum_duration_seconds=300, deployment_id="deploy-20260722T012508Z")
+        with (
+            patch("infrastructure.deployment.release_control.parse", return_value=args),
+            patch("infrastructure.deployment.release_control.current_release_id") as current,
+        ):
+            with self.assertRaisesRegex(SystemExit, "stable lowercase identifier"):
+                release_control.main()
+        current.assert_not_called()
+
     def test_database_readiness_uses_provider_schema_version(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "database.json"
@@ -92,6 +104,13 @@ class ReleaseBoundaryTests(unittest.TestCase):
         result["artifact_sha256"] = "c" * 64
         with self.assertRaises(RuntimeError):
             stage_mix_release.verify_runtime_result(result, provider, "liqi-v1-example", "b" * 40)
+
+    def test_staged_runtime_config_is_group_readable_by_beam(self) -> None:
+        source = (ROOT / "infrastructure/deployment/stage_mix_release.py").read_text(encoding="utf-8")
+        self.assertIn('def atomic_write(path: Path, data: bytes, mode: int = 0o440, group: str | None = None)', source)
+        self.assertIn('os.chown(temporary, 0, grp.getgrnam(group).gr_gid)', source)
+        self.assertIn('atomic_write(runtime_install, runtime_path.read_bytes(), group="liqi")', source)
+        self.assertNotIn('atomic_write(runtime_install, runtime_path.read_bytes())', source)
 
     def test_database_readiness_accepts_committed_v1_contract(self) -> None:
         document = json.loads((ROOT / "contracts/database/migration-readiness-v1.example.json").read_text(encoding="utf-8"))
@@ -364,6 +383,44 @@ class HostBundleTests(unittest.TestCase):
             source = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn(marker, source)
             self.assertNotIn("/etc/liqi/compat/enable-v0-runtime", (ROOT / "infrastructure/cloud-init/host-bootstrap.yaml.tftpl").read_text(encoding="utf-8"))
+
+    def test_host_bundle_contains_recovery_schema_dynamic_cgroup_and_fail_closed_tls(self) -> None:
+        targets = {record[1] for record in build_host_bundle.FILES}
+        self.assertIn(
+            "/usr/local/share/liqi/contracts/infrastructure/first-release-recovery-v1.schema.json",
+            targets,
+        )
+
+        readiness = (ROOT / "infrastructure/bin/liqi-host-readiness").read_text(encoding="utf-8")
+        self.assertIn('"--property=ControlGroup"', readiness)
+        self.assertIn('cpu_max == ["300000", "100000"]', readiness)
+        self.assertIn('swap_max == "0"', readiness)
+        self.assertNotIn('/sys/fs/cgroup/liqi-platform.slice/memory.max', readiness)
+
+        caddy = (ROOT / "infrastructure/caddy/Caddyfile.fail-closed").read_text(encoding="utf-8")
+        self.assertIn("\n:443 {\n", caddy)
+        self.assertNotIn("preactivation.invalid:443", caddy)
+        self.assertIn("tls /etc/caddy/preactivation.crt /etc/caddy/preactivation.key", caddy)
+        self.assertEqual(2, caddy.count('respond "LIQI edge is staged but traffic is not enabled" 503'))
+        self.assertNotIn("BEGIN PRIVATE KEY", caddy)
+
+        installer = (ROOT / "infrastructure/bin/liqi-install-host-bundle").read_text(encoding="utf-8")
+        for token in (
+            "def install_preactivation_tls()",
+            '"rsa:2048"',
+            '"-days", "30"',
+            "DNS:preactivation.invalid,DNS:localhost,IP:127.0.0.1",
+            "preactivation TLS certificate and private key do not match",
+            "os.chmod(staged_key, 0o640)",
+            "os.replace(staged_key, key_path)",
+            "install_preactivation_tls()",
+        ):
+            self.assertIn(token, installer)
+        self.assertNotIn("private_key =", installer)
+
+        stage = (ROOT / "infrastructure/deployment/stage_mix_release.py").read_text(encoding="utf-8")
+        self.assertIn('atomic_write(runtime_install, runtime_path.read_bytes(), group="liqi")', stage)
+        self.assertIn("os.chown(temporary, 0, grp.getgrnam(group).gr_gid)", stage)
 
     def test_inventory_is_bounded_and_has_unique_targets(self) -> None:
         targets = [record[1] for record in build_host_bundle.FILES]

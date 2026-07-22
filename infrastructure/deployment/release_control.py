@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -15,6 +16,7 @@ from typing import Any
 from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[2]
+IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{2,95}$")
 CONTRACT_ROOTS = {
     "deployment": (ROOT / "contracts/deployment", Path("/usr/local/share/liqi/contracts/deployment")),
     "infrastructure": (ROOT / "contracts/infrastructure", Path("/usr/local/share/liqi/contracts/infrastructure")),
@@ -253,6 +255,9 @@ def main() -> int:
     checks: list[dict[str, Any]] = []
     if not 1 <= args.maximum_duration_seconds <= 900:
         raise SystemExit("maximum duration must be 1..900 seconds")
+
+    if not IDENTIFIER.fullmatch(args.deployment_id):
+        raise SystemExit("deployment ID must be a stable lowercase identifier")
 
     current_id = current_release_id(args.current_link)
     current = descriptor(args.descriptor_dir / f"{current_id}.json") if current_id else None

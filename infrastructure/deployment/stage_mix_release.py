@@ -264,10 +264,17 @@ def immutable_tree(path: Path) -> None:
     os.chown(path, 0, gid); os.chmod(path, 0o550)
 
 
-def atomic_write(path: Path, data: bytes, mode: int = 0o440) -> None:
+def atomic_write(path: Path, data: bytes, mode: int = 0o440, group: str | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.new.{os.getpid()}")
-    temporary.write_bytes(data); os.chmod(temporary, mode); os.replace(temporary, path)
+    temporary.unlink(missing_ok=True)
+    temporary.write_bytes(data)
+    os.chmod(temporary, mode)
+    if group is not None:
+        import grp
+
+        os.chown(temporary, 0, grp.getgrnam(group).gr_gid)
+    os.replace(temporary, path)
 
 
 def main() -> int:
@@ -397,7 +404,7 @@ def main() -> int:
             temporary = args.release_root / f".{release_id}.staging.{os.getpid()}"
             if temporary.exists(): shutil.rmtree(temporary)
             shutil.copytree(staged, temporary, copy_function=shutil.copy2); immutable_tree(temporary); os.replace(temporary, release_path)
-            atomic_write(runtime_install, runtime_path.read_bytes())
+            atomic_write(runtime_install, runtime_path.read_bytes(), group="liqi")
             for source, target in ((provider_path, retained_provider), (args.deployment_wrapper, retained_wrapper), (runtime_path, retained_runtime), (database_path, retained_database), (readiness_path, retained_readiness)):
                 atomic_write(target, source.read_bytes())
             atomic_write(descriptor_path, descriptor_bytes)

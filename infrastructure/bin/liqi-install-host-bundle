@@ -172,6 +172,61 @@ def apply_ownership(manifest: dict[str, object]) -> None:
         os.chmod(target, int(str(record["mode"]), 8))
 
 
+def install_preactivation_tls() -> None:
+    caddy_root = Path("/etc/caddy")
+    certificate = caddy_root / "preactivation.crt"
+    key_path = caddy_root / "preactivation.key"
+    if certificate.is_symlink() or key_path.is_symlink():
+        raise RuntimeError("preactivation TLS paths must not be symbolic links")
+
+    caddy_root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".liqi-preactivation-tls-", dir=caddy_root) as directory:
+        workspace = Path(directory)
+        staged_certificate = workspace / certificate.name
+        staged_key = workspace / key_path.name
+        run(
+            [
+                "/usr/bin/openssl", "req", "-x509", "-newkey", "rsa:2048",
+                "-sha256", "-nodes", "-days", "30",
+                "-subj", "/CN=preactivation.invalid",
+                "-addext", "subjectAltName=DNS:preactivation.invalid,DNS:localhost,IP:127.0.0.1",
+                "-keyout", str(staged_key),
+                "-out", str(staged_certificate),
+            ],
+            timeout=60,
+            capture=True,
+        )
+        run(
+            [
+                "/usr/bin/openssl", "x509", "-in", str(staged_certificate),
+                "-noout", "-checkend", "86400",
+            ],
+            timeout=30,
+            capture=True,
+        )
+        key_public = run(
+            ["/usr/bin/openssl", "pkey", "-in", str(staged_key), "-pubout"],
+            timeout=30,
+            capture=True,
+        )
+        certificate_public = run(
+            ["/usr/bin/openssl", "x509", "-in", str(staged_certificate), "-pubkey", "-noout"],
+            timeout=30,
+            capture=True,
+        )
+        if key_public != certificate_public:
+            raise RuntimeError("preactivation TLS certificate and private key do not match")
+
+        root_uid = pwd.getpwnam("root").pw_uid
+        caddy_gid = grp.getgrnam("caddy").gr_gid
+        os.chmod(staged_certificate, 0o644)
+        os.chmod(staged_key, 0o640)
+        os.chown(staged_certificate, root_uid, caddy_gid)
+        os.chown(staged_key, root_uid, caddy_gid)
+        os.replace(staged_certificate, certificate)
+        os.replace(staged_key, key_path)
+
+
 def write_evidence(args: argparse.Namespace, manifest: dict[str, object], manifest_path: Path, signature_path: Path) -> None:
     evidence = {
         "schema_version": "liqi.infrastructure.host-bundle-install-result/v1",
@@ -240,6 +295,7 @@ def main() -> int:
         # signed bundle so the exact manifest remains the final host source of truth.
         install_files(staging, manifest)
         apply_ownership(manifest)
+        install_preactivation_tls()
         run(["/usr/bin/systemctl", "daemon-reload"])
         units = [
             "/etc/systemd/system/liqi-beam.service",

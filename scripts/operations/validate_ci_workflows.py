@@ -170,6 +170,13 @@ def main() -> int:
             for required in (
                 "environment: v1-e5-artifact-production",
                 "runs-on: ubuntu-24.04",
+                "container:",
+                "oraclelinux:9@sha256:24b2d51e33d781a48b380fc409146d13c5249113518297e8292c7f3aefa11212",
+                "Bootstrap pinned Oracle Linux 9 build container",
+                "shell: bash",
+                "scripts/release/install_ol9_beam_toolchain.sh",
+                "rustup/archive/${RUSTUP_VERSION}/x86_64-unknown-linux-gnu/rustup-init",
+                "20a06e644b0d9bd2fbdbfd52d42540bdde820ea7df86e92e533c073da0cdd43c",
                 "nightly-2026-07-01",
                 'CARGO_FUZZ_VERSION: "0.13.2"',
                 'COSIGN_VERSION: "3.1.2"',
@@ -192,6 +199,8 @@ def main() -> int:
             ):
                 if required not in text:
                     failures.append(f"{relative}: E5 artifact workflow is missing protected seam {required}")
+            if "erlef/setup-beam@" in text or "sudo apt-get" in text or "https://sh.rustup.rs" in text:
+                failures.append(f"{relative}: E5 release bytes must be built inside the pinned EL9 container")
             if "--allow-blocked" in text or "--allow-not-ready" in text or "mock:" in text:
                 failures.append(f"{relative}: E5 artifact publication cannot tolerate blocked, not-ready, or mock evidence")
             if "$GITHUB_WORKSPACE/liqi-signing-private" in text or ".artifacts/liqi-signing-private" in text:

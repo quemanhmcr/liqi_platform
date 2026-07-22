@@ -22,6 +22,10 @@ from typing import Any
 from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from beam.elf_abi import scan_elf_abi
 MIX_SCHEMA = ROOT / "contracts/deployment/mix-release-v1.schema.json"
 BUILD_RESULT_SCHEMA = ROOT / "contracts/runtime/linux-release-build-result-v1.schema.json"
 NATIVE_SCHEMA = ROOT / "contracts/native/native-artifact-v1.schema.json"
@@ -96,6 +100,9 @@ def verify_toolchain(target_triple: str) -> None:
     expected = TARGETS[target_triple]
     if platform.system() != "Linux" or platform.machine() != expected["architecture"]:
         raise RuntimeError(f"release target {target_triple} requires Linux {expected['architecture']} builder")
+    os_release = Path("/etc/os-release").read_text(encoding="utf-8")
+    if 'PLATFORM_ID="platform:el9"' not in os_release:
+        raise RuntimeError("release builder requires an Enterprise Linux 9 userspace")
     otp = run(["erl", "-noshell", "-eval", 'io:format("~s", [erlang:system_info(otp_release)]), halt().'], capture=True)
     elixir = run(["elixir", "--short-version"], capture=True)
     if otp != "28" or elixir != "1.20.2":
@@ -386,6 +393,14 @@ def main() -> int:
         build_workspace = root / "build"
         build_workspace.mkdir()
         release = build_release(git_sha, args.target_triple, native_artifact, build_workspace, args.build_jobs)
+        abi_report = scan_elf_abi(
+            (path.relative_to(release).as_posix(), path)
+            for path in sorted(release.rglob("*"))
+        )
+        if abi_report["violations"]:
+            raise RuntimeError(
+                "EL9 ABI compatibility failed: " + "; ".join(abi_report["violations"][:16])
+            )
 
         archive_name = f"{args.release_id}.tar.gz"
         archive = staged_output / archive_name

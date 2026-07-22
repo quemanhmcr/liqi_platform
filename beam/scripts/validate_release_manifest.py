@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import tarfile
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,10 @@ from typing import Any
 from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in os.sys.path:
+    os.sys.path.insert(0, str(ROOT))
+
+from beam.elf_abi import scan_elf_abi
 SCHEMA = ROOT / "contracts/deployment/mix-release-v1.schema.json"
 RESULT_SCHEMA = ROOT / "contracts/runtime/runtime-artifact-result-v1.schema.json"
 REQUIRED = {"bin/liqi_platform", "bin/liqi-health", "bin/liqi-drain", "releases/start_erl.data"}
@@ -206,6 +211,37 @@ def archive_checks(
                 "target-elf",
                 "passed" if target_elf else "failed",
                 f"ERTS beam.smp is not an ELF64 little-endian {target['elf_name']} binary for {target_triple}",
+            )
+            try:
+                with tempfile.TemporaryDirectory(prefix="liqi-archive-abi-") as directory:
+                    abi_root = Path(directory)
+                    abi_files: list[tuple[str, Path]] = []
+                    for index, member in enumerate(members):
+                        if not member.isfile():
+                            continue
+                        stream = archive.extractfile(member)
+                        if stream is None:
+                            continue
+                        header = stream.read(4)
+                        if header != b"\x7fELF":
+                            continue
+                        extracted = abi_root / f"{index}.elf"
+                        with extracted.open("wb") as output:
+                            output.write(header)
+                            shutil.copyfileobj(stream, output)
+                        abi_files.append((member.name.lstrip("./"), extracted))
+                    abi_report = scan_elf_abi(abi_files)
+                abi_ok = not abi_report["violations"]
+                abi_detail = "; ".join(abi_report["violations"][:16]) if not abi_ok else None
+            except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+                abi_ok = False
+                abi_detail = f"EL9 ABI inspection failed: {error}"
+            add_check(
+                checks,
+                blockers,
+                "el9-abi-compatibility",
+                "passed" if abi_ok else "failed",
+                abi_detail,
             )
             elixir_ok = any("/lib/elixir-1.20.2/" in "/" + name for name in names)
             add_check(checks, blockers, "elixir-runtime", "passed" if elixir_ok else "failed", "release does not contain Elixir 1.20.2")
