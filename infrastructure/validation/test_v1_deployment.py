@@ -480,6 +480,68 @@ class HostBundleTests(unittest.TestCase):
             prometheus,
         )
 
+    def test_legacy_systemd_slice_cleanup_is_exact_and_fail_closed(self) -> None:
+        installer = load_host_bundle_installer()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            legacy = (
+                "liqi-beam.slice",
+                "liqi-database.slice",
+                "liqi-edge.slice",
+                "liqi-telemetry.slice",
+            )
+            for name in legacy:
+                (root / name).write_text("legacy\n", encoding="utf-8")
+            preserved = root / "liqi-platform-database.slice"
+            preserved.write_text("current\n", encoding="utf-8")
+            installer.remove_legacy_systemd_units(root)
+            self.assertTrue(preserved.is_file())
+            self.assertFalse(any((root / name).exists() for name in legacy))
+
+            target = root / "liqi-database.slice"
+            target.symlink_to(preserved)
+            with self.assertRaises(RuntimeError):
+                installer.remove_legacy_systemd_units(root)
+
+    def test_systemd_topology_uses_name_derived_slice_hierarchy(self) -> None:
+        systemd = ROOT / "infrastructure/systemd"
+        child_slices = (
+            "liqi-platform-beam.slice",
+            "liqi-platform-runtime.slice",
+            "liqi-platform-database.slice",
+            "liqi-platform-edge.slice",
+            "liqi-platform-telemetry.slice",
+        )
+        for name in child_slices:
+            content = (systemd / name).read_text(encoding="utf-8")
+            self.assertNotIn("\nSlice=", "\n" + content)
+
+        references = {
+            "liqi-beam.service": "Slice=liqi-platform-beam.slice",
+            "caddy.service": "Slice=liqi-platform-edge.slice",
+            "otelcol.service.d-liqi.conf": "Slice=liqi-platform-telemetry.slice",
+            "pgbouncer.service.d-liqi.conf": "Slice=liqi-platform-database.slice",
+            "postgresql-17.service.d-liqi.conf": "Slice=liqi-platform-database.slice",
+        }
+        for name, expected in references.items():
+            self.assertIn(expected, (systemd / name).read_text(encoding="utf-8"))
+
+        readiness = (systemd / "liqi-host-readiness.service").read_text(encoding="utf-8")
+        self.assertIn("After=liqi-data-volume.service network-online.target liqi-secrets.service liqi-database-credentials.service", readiness)
+        self.assertIn("Requires=liqi-data-volume.service liqi-secrets.service liqi-database-credentials.service", readiness)
+        self.assertIn("Before=liqi-beam.service", readiness)
+        self.assertNotIn("Before=liqi-secrets.service", readiness)
+
+        installer = (ROOT / "infrastructure/bin/liqi-install-host-bundle").read_text(encoding="utf-8")
+        self.assertIn('"/usr/lib/systemd/system/postgresql-17.service"', installer)
+        self.assertIn('"/usr/lib/systemd/system/pgbouncer.service"', installer)
+        self.assertIn('"/usr/lib/systemd/system/otelcol.service"', installer)
+        self.assertNotIn('"/etc/systemd/system/pgbouncer.service.d/liqi.conf"', installer)
+        self.assertLess(
+            installer.index('run(["/usr/bin/systemd-analyze", "verify", *units]'),
+            installer.index('run(["/usr/bin/systemctl", "daemon-reload"]'),
+        )
+
     def test_inventory_is_bounded_and_has_unique_targets(self) -> None:
         targets = [record[1] for record in build_host_bundle.FILES]
         self.assertEqual(len(targets), len(set(targets)))

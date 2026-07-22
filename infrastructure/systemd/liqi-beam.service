@@ -8,7 +8,7 @@ StartLimitBurst=5
 
 [Service]
 Type=exec
-Slice=liqi-beam.slice
+Slice=liqi-platform-beam.slice
 User=liqi-beam
 Group=liqi
 EnvironmentFile=-/etc/liqi/runtime/beam.env

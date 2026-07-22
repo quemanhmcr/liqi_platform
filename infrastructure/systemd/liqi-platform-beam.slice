@@ -1,15 +1,14 @@
 [Unit]
-Description=LIQI PostgreSQL and PgBouncer slice
+Description=LIQI BEAM runtime slice
 Before=slices.target
 
 [Slice]
-Slice=liqi-platform.slice
 CPUAccounting=yes
 MemoryAccounting=yes
 TasksAccounting=yes
-CPUQuota=100%
-CPUWeight=150
+CPUQuota=180%
+CPUWeight=200
 MemoryHigh=7G
 MemoryMax=8G
 MemorySwapMax=0
-TasksMax=2048
+TasksMax=4096

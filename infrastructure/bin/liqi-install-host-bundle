@@ -172,6 +172,23 @@ def apply_ownership(manifest: dict[str, object]) -> None:
         os.chmod(target, int(str(record["mode"]), 8))
 
 
+def remove_legacy_systemd_units(systemd_root: Path = Path("/etc/systemd/system")) -> None:
+    legacy_names = (
+        "liqi-beam.slice",
+        "liqi-database.slice",
+        "liqi-edge.slice",
+        "liqi-telemetry.slice",
+    )
+    for name in legacy_names:
+        path = systemd_root / name
+        if path.is_symlink():
+            raise RuntimeError(f"legacy systemd unit path must not be a symlink: {path}")
+        if path.exists():
+            if not path.is_file():
+                raise RuntimeError(f"legacy systemd unit path must be a regular file: {path}")
+            path.unlink()
+
+
 def install_preactivation_tls(caddy_root: Path = Path("/etc/caddy")) -> None:
     tls_certificate = caddy_root / "preactivation.crt"
     tls_key = caddy_root / "preactivation.key"
@@ -293,20 +310,30 @@ def main() -> int:
         # signed bundle so the exact manifest remains the final host source of truth.
         install_files(staging, manifest)
         apply_ownership(manifest)
+        remove_legacy_systemd_units()
         install_preactivation_tls()
-        run(["/usr/bin/systemctl", "daemon-reload"])
         units = [
-            "/etc/systemd/system/liqi-beam.service",
+            "/etc/systemd/system/liqi-platform.slice",
+            "/etc/systemd/system/liqi-platform-beam.slice",
+            "/etc/systemd/system/liqi-platform-runtime.slice",
+            "/etc/systemd/system/liqi-platform-database.slice",
+            "/etc/systemd/system/liqi-platform-edge.slice",
+            "/etc/systemd/system/liqi-platform-telemetry.slice",
+            "/etc/systemd/system/liqi-data-volume.service",
             "/etc/systemd/system/liqi-secrets.service",
             "/etc/systemd/system/liqi-database-credentials.service",
-            "/etc/systemd/system/pgbouncer.service.d/liqi.conf",
+            "/usr/lib/systemd/system/postgresql-17.service",
+            "/usr/lib/systemd/system/pgbouncer.service",
             "/etc/systemd/system/liqi-host-readiness.service",
+            "/etc/systemd/system/liqi-beam.service",
             "/etc/systemd/system/caddy.service",
+            "/usr/lib/systemd/system/otelcol.service",
         ]
         run(["/usr/bin/systemd-analyze", "verify", *units], timeout=60, capture=True)
         run(["/usr/bin/caddy", "validate", "--config", "/etc/caddy/Caddyfile"], timeout=30, capture=True)
         run(["/usr/bin/otelcol", "validate", "--config", "/etc/otelcol/config.yaml"], timeout=30, capture=True)
         run(["/usr/bin/restorecon", "-RF", "/usr/local/libexec", "/usr/local/share/liqi", "/etc/caddy", "/etc/otelcol", "/etc/systemd/system"], timeout=60)
+        run(["/usr/bin/systemctl", "daemon-reload"], timeout=60)
         run(["/usr/bin/systemctl", "enable", "--now", "caddy.service", "otelcol.service"], timeout=60)
         write_evidence(args, manifest, manifest_path, signature_path)
 

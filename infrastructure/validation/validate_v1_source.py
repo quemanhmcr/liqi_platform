@@ -133,7 +133,11 @@ def validate_static_policy() -> None:
     systemd = INFRA / "systemd"
     parent_cpu = quota(systemd / "liqi-platform.slice", "CPUQuota")
     parent_mem = quota(systemd / "liqi-platform.slice", "MemoryMax")
-    v1_children = ["liqi-beam.slice", "liqi-database.slice", "liqi-edge.slice", "liqi-telemetry.slice"]
+    v1_children = ["liqi-platform-beam.slice", "liqi-platform-database.slice", "liqi-platform-edge.slice", "liqi-platform-telemetry.slice"]
+    for name in [*v1_children, "liqi-platform-runtime.slice"]:
+        content = (systemd / name).read_text(encoding="utf-8")
+        if any(line.startswith("Slice=") for line in content.splitlines()):
+            raise AssertionError(f"slice parent must be derived from the hierarchical unit name: {name}")
     v1_cpu = sum(quota(systemd / name, "CPUQuota") for name in v1_children)
     v1_mem = sum(quota(systemd / name, "MemoryMax") for name in v1_children)
     v0_runtime_cpu = quota(systemd / "liqi-platform-runtime.slice", "CPUQuota")
@@ -142,6 +146,47 @@ def validate_static_policy() -> None:
         raise AssertionError(f"V1 slices violate 3 OCPU/20 GiB ceiling: parent={(parent_cpu,parent_mem)} children={(v1_cpu,v1_mem)}")
     if v0_runtime_cpu > parent_cpu or v0_runtime_mem > parent_mem:
         raise AssertionError("disabled V0 compatibility slice exceeds the shared parent ceiling")
+    expected_slice_references = {
+        "liqi-beam.service": "Slice=liqi-platform-beam.slice",
+        "caddy.service": "Slice=liqi-platform-edge.slice",
+        "otelcol.service.d-liqi.conf": "Slice=liqi-platform-telemetry.slice",
+        "pgbouncer.service.d-liqi.conf": "Slice=liqi-platform-database.slice",
+        "postgresql-17.service.d-liqi.conf": "Slice=liqi-platform-database.slice",
+    }
+    for name, expected in expected_slice_references.items():
+        if expected not in (systemd / name).read_text(encoding="utf-8"):
+            raise AssertionError(f"systemd unit is not bound to the hierarchical LIQI slice: {name}")
+    readiness_unit = (systemd / "liqi-host-readiness.service").read_text(encoding="utf-8")
+    if "Before=liqi-secrets.service" in readiness_unit or "Before=liqi-beam.service" not in readiness_unit:
+        raise AssertionError("host readiness ordering must follow secrets/database readiness and precede only BEAM")
+    for token in (
+        "After=liqi-data-volume.service network-online.target liqi-secrets.service liqi-database-credentials.service",
+        "Requires=liqi-data-volume.service liqi-secrets.service liqi-database-credentials.service",
+    ):
+        if token not in readiness_unit:
+            raise AssertionError(f"host readiness missing explicit dependency ordering: {token}")
+    host_installer = (INFRA / "bin/liqi-install-host-bundle").read_text(encoding="utf-8")
+    if "/etc/systemd/system/pgbouncer.service.d/liqi.conf" in host_installer:
+        raise AssertionError("systemd-analyze must verify the PgBouncer base unit, not a drop-in filename")
+    for token in (
+        "/usr/lib/systemd/system/postgresql-17.service",
+        "/usr/lib/systemd/system/pgbouncer.service",
+        "/usr/lib/systemd/system/otelcol.service",
+    ):
+        if token not in host_installer:
+            raise AssertionError(f"host installer missing vendor unit verification seam: {token}")
+    if host_installer.index('run(["/usr/bin/systemd-analyze", "verify", *units]') > host_installer.index('run(["/usr/bin/systemctl", "daemon-reload"]'):
+        raise AssertionError("systemd topology must verify before daemon-reload mutates manager state")
+    for token in (
+        "def remove_legacy_systemd_units(",
+        '"liqi-beam.slice"',
+        '"liqi-database.slice"',
+        '"liqi-edge.slice"',
+        '"liqi-telemetry.slice"',
+        "remove_legacy_systemd_units()",
+    ):
+        if token not in host_installer:
+            raise AssertionError(f"host installer missing bounded legacy systemd cleanup: {token}")
     beam = (systemd / "liqi-beam.service").read_text(encoding="utf-8")
     if "MemoryDenyWriteExecute" in beam or "User=liqi-beam" not in beam or "NoNewPrivileges=yes" not in beam:
         raise AssertionError("BEAM unit hardening/JIT compatibility changed")

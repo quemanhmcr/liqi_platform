@@ -3,7 +3,6 @@ Description=LIQI disabled V0 compatibility runtime slice
 Before=slices.target
 
 [Slice]
-Slice=liqi-platform.slice
 CPUAccounting=yes
 MemoryAccounting=yes
 TasksAccounting=yes

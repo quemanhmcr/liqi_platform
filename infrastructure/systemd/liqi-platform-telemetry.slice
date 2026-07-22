@@ -1,15 +1,14 @@
 [Unit]
-Description=LIQI public edge slice
+Description=LIQI bounded telemetry slice
 Before=slices.target
 
 [Slice]
-Slice=liqi-platform.slice
 CPUAccounting=yes
 MemoryAccounting=yes
 TasksAccounting=yes
 CPUQuota=10%
-CPUWeight=50
-MemoryHigh=192M
-MemoryMax=256M
+CPUWeight=25
+MemoryHigh=768M
+MemoryMax=1G
 MemorySwapMax=0
 TasksMax=512

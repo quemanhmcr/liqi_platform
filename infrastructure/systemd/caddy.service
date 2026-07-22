@@ -8,7 +8,7 @@ StartLimitBurst=5
 
 [Service]
 Type=notify
-Slice=liqi-edge.slice
+Slice=liqi-platform-edge.slice
 User=caddy
 Group=caddy
 ExecStart=/usr/bin/caddy run --environ --config /etc/caddy/Caddyfile
