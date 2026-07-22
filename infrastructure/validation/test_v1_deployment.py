@@ -12,6 +12,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -461,6 +463,22 @@ class HostBundleTests(unittest.TestCase):
         self.assertNotIn("-addext", request)
         self.assertNotIn("localhost", " ".join(request))
         self.assertNotIn("127.0.0.1", " ".join(request))
+
+    def test_otelcol_internal_metrics_use_supported_loopback_reader(self) -> None:
+        config = yaml.safe_load((ROOT / "infrastructure/otel/otelcol-v1.yaml").read_text(encoding="utf-8"))
+        metrics = config["service"]["telemetry"]["metrics"]
+        self.assertNotIn("address", metrics)
+        self.assertEqual(1, len(metrics["readers"]))
+        prometheus = metrics["readers"][0]["pull"]["exporter"]["prometheus"]
+        self.assertEqual(
+            {
+                "host": "127.0.0.1",
+                "port": 8888,
+                "without_type_suffix": True,
+                "without_units": True,
+            },
+            prometheus,
+        )
 
     def test_inventory_is_bounded_and_has_unique_targets(self) -> None:
         targets = [record[1] for record in build_host_bundle.FILES]

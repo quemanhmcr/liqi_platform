@@ -440,6 +440,20 @@ def validate_static_policy() -> None:
     protocols = otel["receivers"]["otlp"]["protocols"]
     if protocols["grpc"]["endpoint"] != "127.0.0.1:4317" or protocols["http"]["endpoint"] != "127.0.0.1:4318":
         raise AssertionError("OTLP receivers must remain loopback-only")
+    internal_metrics = otel["service"]["telemetry"]["metrics"]
+    if "address" in internal_metrics:
+        raise AssertionError("removed otelcol service.telemetry.metrics.address is forbidden")
+    readers = internal_metrics.get("readers")
+    if not isinstance(readers, list) or len(readers) != 1:
+        raise AssertionError("otelcol internal metrics must use exactly one pull reader")
+    prometheus = readers[0].get("pull", {}).get("exporter", {}).get("prometheus", {})
+    if prometheus != {
+        "host": "127.0.0.1",
+        "port": 8888,
+        "without_type_suffix": True,
+        "without_units": True,
+    }:
+        raise AssertionError("otelcol internal Prometheus reader must remain loopback-only and naming-compatible")
 
 
 def validate_bundle_build() -> None:

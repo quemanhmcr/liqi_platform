@@ -24,7 +24,14 @@ exporters:
 service:
   telemetry:
     metrics:
-      address: 127.0.0.1:8888
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 127.0.0.1
+                port: 8888
+                without_type_suffix: true
+                without_units: true
   pipelines:
     traces:
       receivers: [otlp]
