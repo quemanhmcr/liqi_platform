@@ -64,10 +64,16 @@ def validate_shell_and_python() -> None:
     bash = shutil.which("bash")
     if not bash:
         raise AssertionError("Bash is required for source shell syntax checks")
-    for path in sorted((INFRA / "bin").iterdir()) + sorted((INFRA / "deployment").glob("*.sh")):
+    shell_files = (
+        sorted((INFRA / "bin").iterdir())
+        + sorted((INFRA / "deployment").glob("*.sh"))
+        + sorted((ROOT / "scripts/release").glob("*.sh"))
+    )
+    for path in shell_files:
         if path.is_file() and path.read_bytes().startswith(b"#!/usr/bin/env bash"):
             run([bash, "-n", path.as_posix()])
     python_files = [path for path in INFRA.rglob("*.py") if ".terraform" not in path.parts]
+    python_files.extend(path for path in (ROOT / "beam").rglob("*.py") if "_build" not in path.parts)
     python_files.extend(
         path for path in (INFRA / "bin").iterdir()
         if path.is_file() and path.read_bytes().startswith(b"#!/usr/bin/env python3")
