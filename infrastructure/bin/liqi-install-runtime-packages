@@ -134,7 +134,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 def run(*argv: str) -> str:
-    return subprocess.check_output(argv, text=True, stderr=subprocess.STDOUT).strip()
+    return subprocess.check_output(argv, text=True, stderr=subprocess.DEVNULL).strip()
 
 packages = {}
 for name in ("postgresql17", "postgresql17-server", "postgresql17-contrib", "pgbouncer", "pgbackrest", "python39-oci-cli", "otelcol"):

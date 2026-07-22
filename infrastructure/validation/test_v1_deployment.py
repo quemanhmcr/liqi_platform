@@ -525,7 +525,10 @@ class HostBundleTests(unittest.TestCase):
                 signed.read_text(encoding="utf-8"),
             )
             self.assertTrue((dropins / "95-cgroupfix.conf").is_file())
-            self.assertEqual((signed, 0, 0), chown.call_args.args)
+            staged_path, staged_uid, staged_gid = chown.call_args.args
+            self.assertEqual("99-liqi-signed.conf", staged_path.name)
+            self.assertTrue(staged_path.parent.name.startswith(".liqi-signed-readiness-"))
+            self.assertEqual((0, 0), (staged_uid, staged_gid))
             signed.unlink()
             signed.symlink_to(dropins / "95-cgroupfix.conf")
             with self.assertRaisesRegex(RuntimeError, "symbolic link"):
